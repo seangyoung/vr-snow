@@ -52,6 +52,14 @@ type CaptureWindow = Window & {
 };
 
 const cameraHeight = 1.62;
+const vrPanelDistance = 1.75;
+const vrPanelScale = 0.95;
+const vrPanelWidth = 2.7;
+const vrPanelHeight = 1.78;
+const vrPanelContentWidth = 2.38;
+const vrTextBaseCanvasWidth = 1024;
+const vrTextMinCanvasHeight = 128;
+const vrTextTextureScale = 2.75;
 
 export class BroadStreetScene {
   onFocusChange?: (hotspot?: Hotspot) => void;
@@ -130,7 +138,7 @@ export class BroadStreetScene {
     this.playerRig.add(this.camera);
     this.scene.add(this.playerRig);
     this.scene.add(this.vrPanel);
-    this.vrPanel.scale.setScalar(0.72);
+    this.vrPanel.scale.setScalar(vrPanelScale);
     this.vrPanel.visible = false;
 
     if (this.allowCanvasCapture) {
@@ -452,7 +460,7 @@ export class BroadStreetScene {
     }
 
     const result = this.gameState.inspectHotspot(hotspot.id);
-    this.vrStatus = result.message;
+    this.vrStatus = result.dialogue?.intro ?? result.message;
     this.refreshHotspots();
     this.markVrPanelDirty();
   }
@@ -552,7 +560,7 @@ export class BroadStreetScene {
     }
 
     const background = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.35, 1.38),
+      new THREE.PlaneGeometry(vrPanelWidth, vrPanelHeight),
       new THREE.MeshBasicMaterial({
         color: "#101719",
         transparent: true,
@@ -565,14 +573,14 @@ export class BroadStreetScene {
     this.vrPanel.add(background);
 
     const currentLocation = this.gameState.getCurrentLocation();
-    this.addVrText(currentLocation.title, 0, 0.57, 2.05, 0.14, {
+    this.addVrText(currentLocation.title, 0, 0.76, vrPanelContentWidth, 0.18, {
       color: "#f6deb0",
-      fontSize: 42,
+      fontSize: 54,
       weight: "700",
     });
-    this.addVrText(this.gameState.getObjective(), 0, 0.41, 2.05, 0.16, {
+    this.addVrText(this.gameState.getObjective(), 0, 0.52, vrPanelContentWidth, 0.23, {
       color: "#d9e5e1",
-      fontSize: 25,
+      fontSize: 38,
     });
 
     if (this.vrPanelMode === "map") {
@@ -585,70 +593,83 @@ export class BroadStreetScene {
       this.buildVrHomePanel();
     }
 
-    this.addVrText(this.vrStatus, 0, -0.57, 2.05, 0.17, {
-      color: "#b9c9c4",
-      fontSize: 21,
-    });
+    if (
+      this.vrPanelMode === "home" &&
+      !this.gameState.getActiveDialogue() &&
+      this.gameState.getStage() !== "complete"
+    ) {
+      this.addVrText(this.vrStatus, 0, -0.78, vrPanelContentWidth, 0.19, {
+        color: "#b9c9c4",
+        fontSize: 34,
+      });
+    }
   }
 
   private buildVrHomePanel(): void {
-    this.addVrPanelButton("Map", -0.7, 0.2, 0.56, 0.17, { type: "mode", mode: "map" });
-    this.addVrPanelButton("Notebook", 0, 0.2, 0.66, 0.17, { type: "mode", mode: "notebook" });
-    this.addVrPanelButton("Recenter", 0.72, 0.2, 0.62, 0.17, { type: "recenter" });
-
     const activeDialogue = this.gameState.getActiveDialogue();
+    this.addVrPanelButton("Map", -0.82, 0.24, 0.66, 0.22, { type: "mode", mode: "map" });
+    this.addVrPanelButton("Notebook", 0, 0.24, 0.82, 0.22, { type: "mode", mode: "notebook" });
+    this.addVrPanelButton(
+      activeDialogue ? "Close Talk" : "Recenter",
+      0.86,
+      0.24,
+      0.78,
+      0.22,
+      activeDialogue ? { type: "close-dialogue" } : { type: "recenter" },
+    );
+
     if (activeDialogue) {
-      this.addVrText(`${activeDialogue.speaker}: ${activeDialogue.role}`, 0, 0.03, 2.05, 0.12, {
+      this.addVrText(`${activeDialogue.speaker}: ${activeDialogue.role}`, 0, 0.03, vrPanelContentWidth, 0.16, {
         color: "#f1d79c",
-        fontSize: 27,
+        fontSize: 40,
         weight: "700",
       });
-      this.addVrText(activeDialogue.intro, 0, -0.12, 2.05, 0.17, {
+      const dialogueBody = this.vrStatus === this.getDefaultVrStatus() ? activeDialogue.intro : this.vrStatus;
+      this.addVrText(dialogueBody, 0, -0.18, vrPanelContentWidth, 0.24, {
         color: "#e7ece8",
-        fontSize: 22,
+        fontSize: 36,
       });
 
       activeDialogue.questions.slice(0, 3).forEach((question, index) => {
         const recorded = this.gameState.hasAskedQuestion(question.id) ? "Recorded: " : "";
-        this.addVrPanelButton(`${recorded}${question.prompt}`, 0, -0.3 - index * 0.16, 1.96, 0.13, {
+        this.addVrPanelButton(`${recorded}${question.prompt}`, 0, -0.44 - index * 0.19, 2.22, 0.17, {
           type: "ask",
           questionId: question.id,
         });
       });
-      this.addVrPanelButton("Close Talk", 0.74, -0.48, 0.58, 0.13, { type: "close-dialogue" });
       return;
     }
 
     if (this.gameState.getStage() === "synthesis" && this.gameState.getCurrentLocation().id === "snow-desk") {
-      this.addVrText("Snow is ready to test the evidence against the possible causes.", 0, -0.02, 2.05, 0.18, {
+      this.addVrText("Snow is ready to test the evidence against the possible causes.", 0, -0.08, vrPanelContentWidth, 0.28, {
         color: "#e7ece8",
-        fontSize: 25,
+        fontSize: 40,
       });
-      this.addVrPanelButton("Snow Review", 0, -0.22, 0.9, 0.17, { type: "mode", mode: "synthesis" });
+      this.addVrPanelButton("Snow Review", 0, -0.38, 1.1, 0.22, { type: "mode", mode: "synthesis" });
       return;
     }
 
     if (this.gameState.getStage() === "board") {
-      this.addVrText("The Board has heard the argument. Record what follows.", 0, -0.02, 2.05, 0.18, {
+      this.addVrText("The Board has heard the argument. Record what follows.", 0, -0.08, vrPanelContentWidth, 0.28, {
         color: "#e7ece8",
-        fontSize: 25,
+        fontSize: 40,
       });
-      this.addVrPanelButton("After the Meeting", 0, -0.22, 0.95, 0.17, { type: "finish-board" });
+      this.addVrPanelButton("After the Meeting", 0, -0.38, 1.16, 0.22, { type: "finish-board" });
       return;
     }
 
     if (this.gameState.getStage() === "complete") {
-      this.addVrText(this.gameState.getCurrentSceneBody().join(" "), 0, -0.08, 2.05, 0.35, {
+      this.addVrText(this.gameState.getCurrentSceneBody().join(" "), 0, -0.08, vrPanelContentWidth, 0.58, {
         color: "#e7ece8",
-        fontSize: 22,
+        fontSize: 34,
       });
-      this.addVrPanelButton("Reset", 0, -0.36, 0.54, 0.16, { type: "reset" });
+      this.addVrPanelButton("Reset", 0, -0.58, 0.68, 0.22, { type: "reset" });
       return;
     }
 
-    this.addVrText("Point at a gold marker in the scene and pull the trigger to inspect it.", 0, -0.07, 2.05, 0.18, {
+    this.addVrText("Point at a gold marker in the scene and pull the trigger to inspect it.", 0, -0.08, vrPanelContentWidth, 0.3, {
       color: "#e7ece8",
-      fontSize: 25,
+      fontSize: 40,
     });
   }
 
@@ -658,76 +679,76 @@ export class BroadStreetScene {
       .filter((location) => this.gameState.canTravelToLocation(location.id) && location.id !== this.gameState.getCurrentLocation().id);
 
     if (locations.length === 0) {
-      this.addVrText("No other field locations are available yet.", 0, 0.08, 2.05, 0.18, {
+      this.addVrText("No other field locations are available yet.", 0, 0.1, vrPanelContentWidth, 0.28, {
         color: "#e7ece8",
-        fontSize: 25,
+        fontSize: 40,
       });
     }
 
     locations.slice(0, 8).forEach((location, index) => {
-      const column = index % 2 === 0 ? -0.52 : 0.52;
+      const column = index % 2 === 0 ? -0.62 : 0.62;
       const row = Math.floor(index / 2);
-      this.addVrPanelButton(location.shortTitle, column, 0.2 - row * 0.17, 0.95, 0.14, {
+      this.addVrPanelButton(location.shortTitle, column, 0.24 - row * 0.24, 1.12, 0.21, {
         type: "travel",
         locationId: location.id,
       });
     });
 
-    this.addVrPanelButton("Back", 0, -0.4, 0.48, 0.15, { type: "mode", mode: "home" });
+    this.addVrPanelButton("Back", 0, -0.63, 0.62, 0.22, { type: "mode", mode: "home" });
   }
 
   private buildVrNotebookPanel(): void {
     const evidence = this.gameState.getCollectedEvidence();
-    this.addVrText(`Evidence recorded: ${this.gameState.getProgressText()}`, 0, 0.18, 2.05, 0.12, {
+    this.addVrText(`Evidence recorded: ${this.gameState.getProgressText()}`, 0, 0.2, vrPanelContentWidth, 0.16, {
       color: "#f1d79c",
-      fontSize: 28,
+      fontSize: 42,
       weight: "700",
     });
 
     if (evidence.length === 0) {
-      this.addVrText("No evidence cards have been recorded yet.", 0, 0, 2.05, 0.16, {
+      this.addVrText("No evidence cards have been recorded yet.", 0, -0.05, vrPanelContentWidth, 0.28, {
         color: "#e7ece8",
-        fontSize: 25,
+        fontSize: 40,
       });
     } else {
       this.addVrText(
         evidence
-          .slice(-5)
+          .slice(-4)
           .map((card) => card.title)
-          .join("  |  "),
+          .join(". "),
         0,
-        -0.1,
-        2.05,
-        0.32,
-        { color: "#e7ece8", fontSize: 23 },
+        -0.12,
+        vrPanelContentWidth,
+        0.48,
+        { color: "#e7ece8", fontSize: 38 },
       );
     }
 
-    this.addVrPanelButton("Back", 0, -0.42, 0.48, 0.15, { type: "mode", mode: "home" });
+    this.addVrPanelButton("Back", 0, -0.63, 0.62, 0.22, { type: "mode", mode: "home" });
   }
 
   private buildVrSynthesisPanel(): void {
     const stage = this.gameState.getStage();
     if (stage === "board" || stage === "complete") {
-      this.addVrText(this.gameState.getCurrentSceneBody().join(" "), 0, 0.08, 2.05, 0.34, {
+      this.addVrText(this.gameState.getCurrentSceneBody().join(" "), 0, 0.02, vrPanelContentWidth, 0.62, {
         color: "#e7ece8",
-        fontSize: 22,
+        fontSize: 34,
       });
-      this.addVrPanelButton(stage === "board" ? "After the Meeting" : "Reset", 0, -0.32, 0.85, 0.16, {
+      this.addVrPanelButton(stage === "board" ? "After the Meeting" : "Reset", -0.34, -0.63, 1.16, 0.22, {
         type: stage === "board" ? "finish-board" : "reset",
       });
-      this.addVrPanelButton("Back", 0.66, -0.32, 0.48, 0.16, { type: "mode", mode: "home" });
+      this.addVrPanelButton("Back", 0.7, -0.63, 0.62, 0.22, { type: "mode", mode: "home" });
       return;
     }
 
     const selected = this.gameState.getSelectedHypothesis();
     const confidence = this.gameState.synthesisConfidence;
-    this.addVrText("Theory", -0.56, 0.22, 0.9, 0.11, { color: "#f1d79c", fontSize: 26, weight: "700" });
-    this.addVrText("Confidence", 0.58, 0.22, 0.9, 0.11, { color: "#f1d79c", fontSize: 26, weight: "700" });
+    this.addVrText("Theory", -0.64, 0.22, 1.08, 0.14, { color: "#f1d79c", fontSize: 40, weight: "700" });
+    this.addVrText("Confidence", 0.64, 0.22, 1.08, 0.14, { color: "#f1d79c", fontSize: 40, weight: "700" });
 
     this.gameState.getHypotheses().forEach((hypothesis, index) => {
       const label = selected?.id === hypothesis.id ? `Selected: ${hypothesis.shortTitle}` : hypothesis.shortTitle;
-      this.addVrPanelButton(label, -0.56, 0.05 - index * 0.14, 0.96, 0.12, {
+      this.addVrPanelButton(label, -0.64, 0.02 - index * 0.18, 1.12, 0.16, {
         type: "select-hypothesis",
         hypothesisId: hypothesis.id,
       });
@@ -740,14 +761,14 @@ export class BroadStreetScene {
     ];
     confidenceOptions.forEach((option, index) => {
       const label = confidence === option.id ? `Set: ${option.label}` : option.label;
-      this.addVrPanelButton(label, 0.58, 0.05 - index * 0.14, 0.96, 0.12, {
+      this.addVrPanelButton(label, 0.64, 0.02 - index * 0.18, 1.12, 0.16, {
         type: "set-confidence",
         confidence: option.id,
       });
     });
 
-    this.addVrPanelButton("Prepare Board Argument", -0.34, -0.42, 1.12, 0.15, { type: "prepare-board" });
-    this.addVrPanelButton("Present to Board", 0.68, -0.42, 0.76, 0.15, { type: "present-board" });
+    this.addVrPanelButton("Prepare Board Argument", -0.38, -0.72, 1.32, 0.2, { type: "prepare-board" });
+    this.addVrPanelButton("Present to Board", 0.78, -0.72, 0.96, 0.2, { type: "present-board" });
   }
 
   private addVrText(text: string, x: number, y: number, width: number, height: number, options: VrTextOptions = {}): void {
@@ -805,10 +826,9 @@ export class BroadStreetScene {
     }
     this.vrPanelWorldDirection.normalize();
 
-    const distance = 2.25;
     this.vrPanel.position
       .copy(this.vrPanelWorldPosition)
-      .addScaledVector(this.vrPanelWorldDirection, distance);
+      .addScaledVector(this.vrPanelWorldDirection, vrPanelDistance);
     this.vrPanel.position.y = Math.max(1.05, this.vrPanelWorldPosition.y - 0.18);
 
     this.vrPanelLookTarget.set(this.vrPanelWorldPosition.x, this.vrPanel.position.y, this.vrPanelWorldPosition.z);
@@ -1047,8 +1067,10 @@ function createControllerPointer(): VrControllerPointer {
 
 function createVrTextPlane(text: string, width: number, height: number, options: VrTextOptions = {}): THREE.Mesh {
   const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = Math.max(128, Math.round((height / width) * canvas.width));
+  const baseCanvasWidth = Math.max(512, Math.round((width / 2.05) * vrTextBaseCanvasWidth));
+  const baseCanvasHeight = Math.max(vrTextMinCanvasHeight, Math.round((height / width) * baseCanvasWidth));
+  canvas.width = Math.round(baseCanvasWidth * vrTextTextureScale);
+  canvas.height = Math.round(baseCanvasHeight * vrTextTextureScale);
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     throw new Error("Could not create VR panel text.");
@@ -1060,22 +1082,31 @@ function createVrTextPlane(text: string, width: number, height: number, options:
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  const fontSize = options.fontSize ?? 24;
-  const padding = 24;
+  const fontSize = (options.fontSize ?? 24) * vrTextTextureScale;
+  const padding = 24 * vrTextTextureScale;
   const lineHeight = fontSize * 1.22;
   ctx.font = `${options.weight ?? "500"} ${fontSize}px Inter, Arial, sans-serif`;
   ctx.fillStyle = options.color ?? "#ffffff";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = Math.max(2 * vrTextTextureScale, fontSize * 0.07);
+  ctx.strokeStyle = "rgba(3, 7, 8, 0.78)";
 
   const lines = wrapCanvasText(ctx, text, canvas.width - padding * 2, Math.floor((canvas.height - padding) / lineHeight));
   const startY = canvas.height / 2 - ((lines.length - 1) * lineHeight) / 2;
   lines.forEach((line, index) => {
-    ctx.fillText(line, canvas.width / 2, startY + index * lineHeight);
+    const y = startY + index * lineHeight;
+    ctx.strokeText(line, canvas.width / 2, y);
+    ctx.fillText(line, canvas.width / 2, y);
   });
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = false;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = 4;
   texture.needsUpdate = true;
 
   const material = new THREE.MeshBasicMaterial({
@@ -1093,7 +1124,7 @@ function createVrButton(label: string, width: number, height: number, action: Vr
   const mesh = createVrTextPlane(label, width, height, {
     background: "#274149",
     color: "#f8f1dc",
-    fontSize: height < 0.14 ? 20 : 23,
+    fontSize: height < 0.18 ? 54 : 60,
     weight: "700",
   }) as VrButtonMesh;
   mesh.material.color.set("#ffffff");
@@ -1343,22 +1374,9 @@ function createDistantStreetSilhouette(): THREE.Group {
 }
 
 function createBroadStreetSet(): THREE.Group {
-  const group = new THREE.Group();
-  group.position.set(0, 0, -5.4);
-  const pumpX = 1.45;
-
-  const streetSign = createSignMesh("BROAD STREET", 1.28, 0.28, "#e0d2aa", "#2b241c");
-  streetSign.position.set(pumpX - 0.5, 1.86, -1.86);
-  group.add(streetSign);
-
-  const pump = createPump();
-  pump.position.x = pumpX;
-  group.add(pump);
-  group.add(createBucket([pumpX + 0.62, 0.02, 0.34]));
-  group.add(createSampleVial([pumpX - 0.35, 0.03, 0.56]));
-  group.add(createBox([0.9, 0.012, 0.55], createMaterial("#263b3a", { transparent: true, opacity: 0.58 }), [pumpX + 0.38, 0.025, 0.25], [0, 0.28, 0]));
-  group.add(createPointLight("#f2bc76", 44, 6.5, [pumpX - 0.45, 2.2, 0.65]));
-  return group;
+  // The Broad Street panorama now contains the single visible pump. Keep the
+  // separate hotspot for interaction, but do not render duplicate 3D scenery.
+  return new THREE.Group();
 }
 
 function createRegistrarSet(): THREE.Group {
