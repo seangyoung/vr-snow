@@ -76,7 +76,7 @@ type CaptureWindow = Window & {
 
 const cameraHeight = 1.62;
 const xrFramebufferScale = 1.35;
-const vrPanelDistance = 1.65;
+const vrPanelDistance = 2.05;
 const vrPanelScale = 1;
 const vrPanelWidth = 2.85;
 const vrPanelHeight = 2.05;
@@ -114,6 +114,7 @@ export class BroadStreetScene {
   private readonly vrPanel = new THREE.Group();
   private readonly vrPanelButtons: VrButtonMesh[] = [];
   private readonly vrPanelDrawCommands: VrPanelDrawCommand[] = [];
+  private vrPanelSurface?: THREE.Mesh;
   private readonly fallbackPanoramaTexture = createPanoramaTexture();
   private readonly skyMaterial = new THREE.MeshBasicMaterial({
     map: this.fallbackPanoramaTexture,
@@ -455,6 +456,10 @@ export class BroadStreetScene {
       return;
     }
 
+    if (this.pickVrPanel(controller)) {
+      return;
+    }
+
     const hotspot = this.pickVrHotspot(controller);
     if (hotspot) {
       this.activateVrHotspot(hotspot);
@@ -590,12 +595,12 @@ export class BroadStreetScene {
     const currentLocation = this.gameState.getCurrentLocation();
     this.addVrText(currentLocation.title, 0, 0.76, vrPanelContentWidth, 0.18, {
       color: "#f6deb0",
-      fontSize: 54,
+      fontSize: 48,
       weight: "700",
     });
     this.addVrText(this.gameState.getObjective(), 0, 0.52, vrPanelContentWidth, 0.23, {
       color: "#d9e5e1",
-      fontSize: 38,
+      fontSize: 34,
     });
 
     if (this.vrPanelMode === "map") {
@@ -615,7 +620,7 @@ export class BroadStreetScene {
     ) {
       this.addVrText(this.vrStatus, 0, -0.78, vrPanelContentWidth, 0.19, {
         color: "#b9c9c4",
-        fontSize: 34,
+        fontSize: 30,
       });
     }
 
@@ -624,27 +629,25 @@ export class BroadStreetScene {
 
   private buildVrHomePanel(): void {
     const activeDialogue = this.gameState.getActiveDialogue();
-    this.addVrPanelButton("Map", -0.82, 0.24, 0.66, 0.22, { type: "mode", mode: "map" });
-    this.addVrPanelButton("Notebook", 0, 0.24, 0.82, 0.22, { type: "mode", mode: "notebook" });
-    this.addVrPanelButton(
-      activeDialogue ? "Close Talk" : "Recenter",
-      0.86,
-      0.24,
-      0.78,
-      0.22,
-      activeDialogue ? { type: "close-dialogue" } : { type: "recenter" },
-    );
+    if (activeDialogue) {
+      this.addVrPanelButton("Map", -0.82, 0.24, 0.66, 0.22, { type: "mode", mode: "map" });
+      this.addVrPanelButton("Notebook", 0, 0.24, 0.82, 0.22, { type: "mode", mode: "notebook" });
+      this.addVrPanelButton("Close Talk", 0.86, 0.24, 0.78, 0.22, { type: "close-dialogue" });
+    } else {
+      this.addVrPanelButton("Map", -0.44, 0.24, 0.72, 0.22, { type: "mode", mode: "map" });
+      this.addVrPanelButton("Notebook", 0.44, 0.24, 0.88, 0.22, { type: "mode", mode: "notebook" });
+    }
 
     if (activeDialogue) {
       this.addVrText(`${activeDialogue.speaker}: ${activeDialogue.role}`, 0, 0.03, vrPanelContentWidth, 0.16, {
         color: "#f1d79c",
-        fontSize: 40,
+        fontSize: 36,
         weight: "700",
       });
       const dialogueBody = this.vrStatus === this.getDefaultVrStatus() ? activeDialogue.intro : this.vrStatus;
       this.addVrText(dialogueBody, 0, -0.18, vrPanelContentWidth, 0.24, {
         color: "#e7ece8",
-        fontSize: 36,
+        fontSize: 32,
       });
 
       activeDialogue.questions.slice(0, 3).forEach((question, index) => {
@@ -660,7 +663,7 @@ export class BroadStreetScene {
     if (this.gameState.getStage() === "synthesis" && this.gameState.getCurrentLocation().id === "snow-desk") {
       this.addVrText("Snow is ready to test the evidence against the possible causes.", 0, -0.08, vrPanelContentWidth, 0.28, {
         color: "#e7ece8",
-        fontSize: 40,
+        fontSize: 36,
       });
       this.addVrPanelButton("Snow Review", 0, -0.38, 1.1, 0.22, { type: "mode", mode: "synthesis" });
       return;
@@ -669,7 +672,7 @@ export class BroadStreetScene {
     if (this.gameState.getStage() === "board") {
       this.addVrText("The Board has heard the argument. Record what follows.", 0, -0.08, vrPanelContentWidth, 0.28, {
         color: "#e7ece8",
-        fontSize: 40,
+        fontSize: 36,
       });
       this.addVrPanelButton("After the Meeting", 0, -0.38, 1.16, 0.22, { type: "finish-board" });
       return;
@@ -678,7 +681,7 @@ export class BroadStreetScene {
     if (this.gameState.getStage() === "complete") {
       this.addVrText(this.gameState.getCurrentSceneBody().join(" "), 0, -0.08, vrPanelContentWidth, 0.58, {
         color: "#e7ece8",
-        fontSize: 34,
+        fontSize: 30,
       });
       this.addVrPanelButton("Reset", 0, -0.58, 0.68, 0.22, { type: "reset" });
       return;
@@ -686,7 +689,7 @@ export class BroadStreetScene {
 
     this.addVrText("Point at a gold marker in the scene and pull the trigger to inspect it.", 0, -0.08, vrPanelContentWidth, 0.3, {
       color: "#e7ece8",
-      fontSize: 40,
+      fontSize: 36,
     });
   }
 
@@ -698,7 +701,7 @@ export class BroadStreetScene {
     if (locations.length === 0) {
       this.addVrText("No other field locations are available yet.", 0, 0.1, vrPanelContentWidth, 0.28, {
         color: "#e7ece8",
-        fontSize: 40,
+        fontSize: 36,
       });
     }
 
@@ -718,14 +721,14 @@ export class BroadStreetScene {
     const evidence = this.gameState.getCollectedEvidence();
     this.addVrText(`Evidence recorded: ${this.gameState.getProgressText()}`, 0, 0.2, vrPanelContentWidth, 0.16, {
       color: "#f1d79c",
-      fontSize: 42,
+      fontSize: 38,
       weight: "700",
     });
 
     if (evidence.length === 0) {
       this.addVrText("No evidence cards have been recorded yet.", 0, -0.05, vrPanelContentWidth, 0.28, {
         color: "#e7ece8",
-        fontSize: 40,
+        fontSize: 36,
       });
     } else {
       this.addVrText(
@@ -737,7 +740,7 @@ export class BroadStreetScene {
         -0.12,
         vrPanelContentWidth,
         0.48,
-        { color: "#e7ece8", fontSize: 38 },
+        { color: "#e7ece8", fontSize: 34 },
       );
     }
 
@@ -749,7 +752,7 @@ export class BroadStreetScene {
     if (stage === "board" || stage === "complete") {
       this.addVrText(this.gameState.getCurrentSceneBody().join(" "), 0, 0.02, vrPanelContentWidth, 0.62, {
         color: "#e7ece8",
-        fontSize: 34,
+        fontSize: 30,
       });
       this.addVrPanelButton(stage === "board" ? "After the Meeting" : "Reset", -0.34, -0.63, 1.16, 0.22, {
         type: stage === "board" ? "finish-board" : "reset",
@@ -760,8 +763,8 @@ export class BroadStreetScene {
 
     const selected = this.gameState.getSelectedHypothesis();
     const confidence = this.gameState.synthesisConfidence;
-    this.addVrText("Theory", -0.64, 0.22, 1.08, 0.14, { color: "#f1d79c", fontSize: 40, weight: "700" });
-    this.addVrText("Confidence", 0.64, 0.22, 1.08, 0.14, { color: "#f1d79c", fontSize: 40, weight: "700" });
+    this.addVrText("Theory", -0.64, 0.22, 1.08, 0.14, { color: "#f1d79c", fontSize: 36, weight: "700" });
+    this.addVrText("Confidence", 0.64, 0.22, 1.08, 0.14, { color: "#f1d79c", fontSize: 36, weight: "700" });
 
     this.gameState.getHypotheses().forEach((hypothesis, index) => {
       const label = selected?.id === hypothesis.id ? `Selected: ${hypothesis.shortTitle}` : hypothesis.shortTitle;
@@ -822,6 +825,7 @@ export class BroadStreetScene {
   private addVrPanelSurface(): void {
     const panelSurface = createVrPanelSurface(this.vrPanelDrawCommands);
     panelSurface.position.set(0, 0, 0);
+    this.vrPanelSurface = panelSurface;
     this.vrPanel.add(panelSurface);
   }
 
@@ -832,6 +836,7 @@ export class BroadStreetScene {
     });
     this.vrPanelButtons.length = 0;
     this.vrFocusedButton = undefined;
+    this.vrPanelSurface = undefined;
   }
 
   private markVrPanelDirty(): void {
@@ -963,8 +968,22 @@ export class BroadStreetScene {
       return buttonHit;
     }
 
+    const panelHit = this.pickVrPanel(controller);
+    if (panelHit) {
+      return panelHit;
+    }
+
     const visibleHotspots = [...this.hotspotVisuals.values()].map((visual) => visual.mesh).filter((mesh) => mesh.visible);
     return this.controllerRaycaster.intersectObjects(visibleHotspots, false)[0];
+  }
+
+  private pickVrPanel(controller: THREE.Group): THREE.Intersection<THREE.Object3D> | undefined {
+    if (!this.vrPanelVisible || !this.vrPanelSurface) {
+      return undefined;
+    }
+
+    this.setRaycasterFromController(controller);
+    return this.controllerRaycaster.intersectObject(this.vrPanelSurface, false)[0];
   }
 
   private pickVrHotspot(controller: THREE.Group): Hotspot | undefined {
@@ -1128,8 +1147,9 @@ function createVrPanelSurface(commands: VrPanelDrawCommand[]): THREE.Mesh {
     map: texture,
     fog: false,
     transparent: false,
-    depthTest: false,
-    depthWrite: false,
+    depthTest: true,
+    depthWrite: true,
+    side: THREE.DoubleSide,
     toneMapped: false,
   });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(vrPanelWidth, vrPanelHeight), material);
@@ -1159,16 +1179,16 @@ function createVrButtonHitbox(width: number, height: number, action: VrButtonAct
 
 function drawVrPanelBackground(ctx: CanvasRenderingContext2D, width: number, height: number): void {
   const gradient = ctx.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, "#142529");
-  gradient.addColorStop(0.5, "#0f1a1d");
-  gradient.addColorStop(1, "#091113");
+  gradient.addColorStop(0, "#102327");
+  gradient.addColorStop(0.5, "#0b171a");
+  gradient.addColorStop(1, "#060d0f");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
 
-  ctx.fillStyle = "rgba(246, 222, 176, 0.08)";
+  ctx.fillStyle = "#183036";
   ctx.fillRect(0, 0, width, Math.round(height * 0.18));
 
-  ctx.strokeStyle = "rgba(227, 205, 154, 0.72)";
+  ctx.strokeStyle = "#d9c489";
   ctx.lineWidth = 10;
   ctx.strokeRect(16, 16, width - 32, height - 32);
 }
@@ -1183,7 +1203,7 @@ function drawVrPanelButton(ctx: CanvasRenderingContext2D, command: VrPanelButton
   ctx.strokeStyle = "#9fc6c0";
   ctx.stroke();
 
-  const fontSize = command.height < 0.18 ? 40 : 46;
+  const fontSize = command.height < 0.18 ? 36 : 40;
   drawTextIntoRect(ctx, command.label, rect, {
     color: "#fff4d8",
     fontSize,
