@@ -13,9 +13,11 @@ type HotspotVisual = {
 };
 
 type VrPanelMode = "home" | "map" | "notebook" | "synthesis";
+type VrPanelIcon = "map" | "notebook" | "x";
 
 type VrButtonAction =
   | { type: "mode"; mode: VrPanelMode }
+  | { type: "close-panel" }
   | { type: "recenter" }
   | { type: "travel"; locationId: LocationId }
   | { type: "ask"; questionId: string }
@@ -48,7 +50,10 @@ type VrPanelTextCommand = {
 
 type VrPanelButtonCommand = {
   kind: "button";
-  label: string;
+  label?: string;
+  icon?: VrPanelIcon;
+  highlight?: boolean;
+  active?: boolean;
   x: number;
   y: number;
   width: number;
@@ -136,6 +141,7 @@ export class BroadStreetScene {
   private vrPanelVisible = false;
   private vrStatus = "Aim the controller beam at a marker or panel. Trigger selects. Squeeze toggles the panel.";
   private vrFocusedButton?: VrButtonMesh;
+  private vrMapNeedsAttention = false;
   private snapTurnLocked = false;
   private dragging = false;
   private previousPointer = { x: 0, y: 0 };
@@ -500,8 +506,26 @@ export class BroadStreetScene {
   private handleVrButton(action: VrButtonAction): void {
     switch (action.type) {
       case "mode":
-        this.vrPanelMode = action.mode;
+        this.vrPanelMode = this.vrPanelMode === action.mode ? "home" : action.mode;
+        if (action.mode === "map") {
+          this.vrMapNeedsAttention = false;
+        }
         this.vrStatus = this.getDefaultVrStatus();
+        break;
+      case "close-panel":
+        if (this.vrPanelMode !== "home") {
+          this.vrPanelMode = "home";
+          this.vrStatus = this.getDefaultVrStatus();
+        } else if (this.gameState.getActiveDialogue()) {
+          this.gameState.closeDialogue();
+          this.vrPanelMode = "home";
+          this.vrStatus = "Conversation closed.";
+        } else {
+          this.vrPanelVisible = false;
+          this.vrPanel.visible = false;
+          this.markVrPanelDirty();
+          return;
+        }
         break;
       case "recenter":
         this.recenterToCurrentLocation();
@@ -511,12 +535,16 @@ export class BroadStreetScene {
       case "travel": {
         const result = this.gameState.travelToLocation(action.locationId);
         this.vrPanelMode = "home";
+        this.vrMapNeedsAttention = false;
         this.vrStatus = result.message;
         break;
       }
       case "ask": {
         const result = this.gameState.askQuestion(action.questionId);
         this.vrPanelMode = "home";
+        if (result.evidence) {
+          this.vrMapNeedsAttention = true;
+        }
         this.vrStatus = result.response ? `${result.message} ${result.response}` : result.message;
         break;
       }
@@ -593,12 +621,13 @@ export class BroadStreetScene {
     }
 
     const currentLocation = this.gameState.getCurrentLocation();
-    this.addVrText(currentLocation.title, 0, 0.76, vrPanelContentWidth, 0.18, {
+    this.addVrHeaderControls();
+    this.addVrText(currentLocation.title, 0.05, 0.81, 1.5, 0.16, {
       color: "#f6deb0",
       fontSize: 48,
       weight: "700",
     });
-    this.addVrText(this.gameState.getObjective(), 0, 0.52, vrPanelContentWidth, 0.23, {
+    this.addVrText(this.gameState.getObjective(), 0, 0.55, vrPanelContentWidth, 0.25, {
       color: "#d9e5e1",
       fontSize: 34,
     });
@@ -618,7 +647,7 @@ export class BroadStreetScene {
       !this.gameState.getActiveDialogue() &&
       this.gameState.getStage() !== "complete"
     ) {
-      this.addVrText(this.vrStatus, 0, -0.78, vrPanelContentWidth, 0.19, {
+      this.addVrText(this.vrStatus, 0, -0.76, vrPanelContentWidth, 0.2, {
         color: "#b9c9c4",
         fontSize: 30,
       });
@@ -627,32 +656,40 @@ export class BroadStreetScene {
     this.addVrPanelSurface();
   }
 
+  private addVrHeaderControls(): void {
+    this.addVrIconButton("map", -1.17, 0.82, 0.2, {
+      type: "mode",
+      mode: "map",
+    }, {
+      active: this.vrPanelMode === "map",
+      highlight: this.vrMapNeedsAttention && this.vrPanelMode !== "map",
+    });
+    this.addVrIconButton("notebook", -0.9, 0.82, 0.2, {
+      type: "mode",
+      mode: "notebook",
+    }, {
+      active: this.vrPanelMode === "notebook",
+    });
+    this.addVrIconButton("x", 1.22, 0.82, 0.2, { type: "close-panel" });
+  }
+
   private buildVrHomePanel(): void {
     const activeDialogue = this.gameState.getActiveDialogue();
     if (activeDialogue) {
-      this.addVrPanelButton("Map", -0.82, 0.24, 0.66, 0.22, { type: "mode", mode: "map" });
-      this.addVrPanelButton("Notebook", 0, 0.24, 0.82, 0.22, { type: "mode", mode: "notebook" });
-      this.addVrPanelButton("Close Talk", 0.86, 0.24, 0.78, 0.22, { type: "close-dialogue" });
-    } else {
-      this.addVrPanelButton("Map", -0.44, 0.24, 0.72, 0.22, { type: "mode", mode: "map" });
-      this.addVrPanelButton("Notebook", 0.44, 0.24, 0.88, 0.22, { type: "mode", mode: "notebook" });
-    }
-
-    if (activeDialogue) {
-      this.addVrText(`${activeDialogue.speaker}: ${activeDialogue.role}`, 0, 0.03, vrPanelContentWidth, 0.16, {
+      this.addVrText(`${activeDialogue.speaker}: ${activeDialogue.role}`, 0, 0.32, vrPanelContentWidth, 0.16, {
         color: "#f1d79c",
         fontSize: 36,
         weight: "700",
       });
       const dialogueBody = this.vrStatus === this.getDefaultVrStatus() ? activeDialogue.intro : this.vrStatus;
-      this.addVrText(dialogueBody, 0, -0.18, vrPanelContentWidth, 0.24, {
+      this.addVrText(dialogueBody, 0, 0.1, vrPanelContentWidth, 0.26, {
         color: "#e7ece8",
         fontSize: 32,
       });
 
       activeDialogue.questions.slice(0, 3).forEach((question, index) => {
         const recorded = this.gameState.hasAskedQuestion(question.id) ? "Recorded: " : "";
-        this.addVrPanelButton(`${recorded}${question.prompt}`, 0, -0.44 - index * 0.19, 2.22, 0.17, {
+        this.addVrPanelButton(`${recorded}${question.prompt}`, 0, -0.22 - index * 0.21, 2.34, 0.18, {
           type: "ask",
           questionId: question.id,
         });
@@ -661,33 +698,33 @@ export class BroadStreetScene {
     }
 
     if (this.gameState.getStage() === "synthesis" && this.gameState.getCurrentLocation().id === "snow-desk") {
-      this.addVrText("Snow is ready to test the evidence against the possible causes.", 0, -0.08, vrPanelContentWidth, 0.28, {
+      this.addVrText("Snow is ready to test the evidence against the possible causes.", 0, 0.14, vrPanelContentWidth, 0.34, {
         color: "#e7ece8",
         fontSize: 36,
       });
-      this.addVrPanelButton("Snow Review", 0, -0.38, 1.1, 0.22, { type: "mode", mode: "synthesis" });
+      this.addVrPanelButton("Snow Review", 0, -0.18, 1.1, 0.22, { type: "mode", mode: "synthesis" });
       return;
     }
 
     if (this.gameState.getStage() === "board") {
-      this.addVrText("The Board has heard the argument. Record what follows.", 0, -0.08, vrPanelContentWidth, 0.28, {
+      this.addVrText("The Board has heard the argument. Record what follows.", 0, 0.14, vrPanelContentWidth, 0.34, {
         color: "#e7ece8",
         fontSize: 36,
       });
-      this.addVrPanelButton("After the Meeting", 0, -0.38, 1.16, 0.22, { type: "finish-board" });
+      this.addVrPanelButton("After the Meeting", 0, -0.18, 1.16, 0.22, { type: "finish-board" });
       return;
     }
 
     if (this.gameState.getStage() === "complete") {
-      this.addVrText(this.gameState.getCurrentSceneBody().join(" "), 0, -0.08, vrPanelContentWidth, 0.58, {
+      this.addVrText(this.gameState.getCurrentSceneBody().join(" "), 0, 0.02, vrPanelContentWidth, 0.78, {
         color: "#e7ece8",
         fontSize: 30,
       });
-      this.addVrPanelButton("Reset", 0, -0.58, 0.68, 0.22, { type: "reset" });
+      this.addVrPanelButton("Reset", 0, -0.66, 0.68, 0.22, { type: "reset" });
       return;
     }
 
-    this.addVrText("Point at a gold marker in the scene and pull the trigger to inspect it.", 0, -0.08, vrPanelContentWidth, 0.3, {
+    this.addVrText("Point at a gold marker in the scene and pull the trigger to inspect it.", 0, 0.12, vrPanelContentWidth, 0.36, {
       color: "#e7ece8",
       fontSize: 36,
     });
@@ -708,25 +745,23 @@ export class BroadStreetScene {
     locations.slice(0, 8).forEach((location, index) => {
       const column = index % 2 === 0 ? -0.62 : 0.62;
       const row = Math.floor(index / 2);
-      this.addVrPanelButton(location.shortTitle, column, 0.24 - row * 0.24, 1.12, 0.21, {
+      this.addVrPanelButton(location.shortTitle, column, 0.3 - row * 0.25, 1.12, 0.22, {
         type: "travel",
         locationId: location.id,
       });
     });
-
-    this.addVrPanelButton("Back", 0, -0.63, 0.62, 0.22, { type: "mode", mode: "home" });
   }
 
   private buildVrNotebookPanel(): void {
     const evidence = this.gameState.getCollectedEvidence();
-    this.addVrText(`Evidence recorded: ${this.gameState.getProgressText()}`, 0, 0.2, vrPanelContentWidth, 0.16, {
+    this.addVrText(`Evidence recorded: ${this.gameState.getProgressText()}`, 0, 0.3, vrPanelContentWidth, 0.16, {
       color: "#f1d79c",
       fontSize: 38,
       weight: "700",
     });
 
     if (evidence.length === 0) {
-      this.addVrText("No evidence cards have been recorded yet.", 0, -0.05, vrPanelContentWidth, 0.28, {
+      this.addVrText("No evidence cards have been recorded yet.", 0, 0, vrPanelContentWidth, 0.34, {
         color: "#e7ece8",
         fontSize: 36,
       });
@@ -737,38 +772,35 @@ export class BroadStreetScene {
           .map((card) => card.title)
           .join(". "),
         0,
-        -0.12,
+        -0.08,
         vrPanelContentWidth,
-        0.48,
+        0.62,
         { color: "#e7ece8", fontSize: 34 },
       );
     }
-
-    this.addVrPanelButton("Back", 0, -0.63, 0.62, 0.22, { type: "mode", mode: "home" });
   }
 
   private buildVrSynthesisPanel(): void {
     const stage = this.gameState.getStage();
     if (stage === "board" || stage === "complete") {
-      this.addVrText(this.gameState.getCurrentSceneBody().join(" "), 0, 0.02, vrPanelContentWidth, 0.62, {
+      this.addVrText(this.gameState.getCurrentSceneBody().join(" "), 0, 0.08, vrPanelContentWidth, 0.78, {
         color: "#e7ece8",
         fontSize: 30,
       });
-      this.addVrPanelButton(stage === "board" ? "After the Meeting" : "Reset", -0.34, -0.63, 1.16, 0.22, {
+      this.addVrPanelButton(stage === "board" ? "After the Meeting" : "Reset", 0, -0.68, 1.16, 0.22, {
         type: stage === "board" ? "finish-board" : "reset",
       });
-      this.addVrPanelButton("Back", 0.7, -0.63, 0.62, 0.22, { type: "mode", mode: "home" });
       return;
     }
 
     const selected = this.gameState.getSelectedHypothesis();
     const confidence = this.gameState.synthesisConfidence;
-    this.addVrText("Theory", -0.64, 0.22, 1.08, 0.14, { color: "#f1d79c", fontSize: 36, weight: "700" });
-    this.addVrText("Confidence", 0.64, 0.22, 1.08, 0.14, { color: "#f1d79c", fontSize: 36, weight: "700" });
+    this.addVrText("Theory", -0.64, 0.32, 1.08, 0.14, { color: "#f1d79c", fontSize: 36, weight: "700" });
+    this.addVrText("Confidence", 0.64, 0.32, 1.08, 0.14, { color: "#f1d79c", fontSize: 36, weight: "700" });
 
     this.gameState.getHypotheses().forEach((hypothesis, index) => {
       const label = selected?.id === hypothesis.id ? `Selected: ${hypothesis.shortTitle}` : hypothesis.shortTitle;
-      this.addVrPanelButton(label, -0.64, 0.02 - index * 0.18, 1.12, 0.16, {
+      this.addVrPanelButton(label, -0.64, 0.12 - index * 0.18, 1.12, 0.16, {
         type: "select-hypothesis",
         hypothesisId: hypothesis.id,
       });
@@ -781,7 +813,7 @@ export class BroadStreetScene {
     ];
     confidenceOptions.forEach((option, index) => {
       const label = confidence === option.id ? `Set: ${option.label}` : option.label;
-      this.addVrPanelButton(label, 0.64, 0.02 - index * 0.18, 1.12, 0.16, {
+      this.addVrPanelButton(label, 0.64, 0.12 - index * 0.18, 1.12, 0.16, {
         type: "set-confidence",
         confidence: option.id,
       });
@@ -816,6 +848,32 @@ export class BroadStreetScene {
     });
 
     const button = createVrButtonHitbox(width, height, action);
+    button.position.set(x, y, 0.04);
+    button.userData.baseScale = button.scale.clone();
+    this.vrPanelButtons.push(button);
+    this.vrPanel.add(button);
+  }
+
+  private addVrIconButton(
+    icon: VrPanelIcon,
+    x: number,
+    y: number,
+    size: number,
+    action: VrButtonAction,
+    options: { active?: boolean; highlight?: boolean } = {},
+  ): void {
+    this.vrPanelDrawCommands.push({
+      kind: "button",
+      icon,
+      x,
+      y,
+      width: size,
+      height: size,
+      active: options.active,
+      highlight: options.highlight,
+    });
+
+    const button = createVrButtonHitbox(size, size, action);
     button.position.set(x, y, 0.04);
     button.userData.baseScale = button.scale.clone();
     this.vrPanelButtons.push(button);
@@ -1195,21 +1253,92 @@ function drawVrPanelBackground(ctx: CanvasRenderingContext2D, width: number, hei
 
 function drawVrPanelButton(ctx: CanvasRenderingContext2D, command: VrPanelButtonCommand): void {
   const rect = getPanelCanvasRect(command.x, command.y, command.width, command.height);
-  const radius = Math.min(rect.height * 0.18, 26);
+  const isIconButton = Boolean(command.icon);
+  const radius = isIconButton ? rect.height * 0.5 : Math.min(rect.height * 0.18, 26);
   drawRoundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius);
-  ctx.fillStyle = "#274953";
+  ctx.fillStyle = command.active ? "#315f67" : command.highlight ? "#334e45" : "#274953";
   ctx.fill();
-  ctx.lineWidth = Math.max(5, rect.height * 0.035);
-  ctx.strokeStyle = "#9fc6c0";
+  ctx.lineWidth = command.highlight ? Math.max(8, rect.height * 0.055) : Math.max(5, rect.height * 0.035);
+  ctx.strokeStyle = command.highlight ? "#f6d36f" : command.active ? "#cde8df" : "#9fc6c0";
   ctx.stroke();
 
+  if (command.icon) {
+    drawVrPanelIcon(ctx, command.icon, rect);
+    return;
+  }
+
   const fontSize = command.height < 0.18 ? 36 : 40;
-  drawTextIntoRect(ctx, command.label, rect, {
+  drawTextIntoRect(ctx, command.label ?? "", rect, {
     color: "#fff4d8",
     fontSize,
     weight: "800",
     maxLines: 1,
   });
+}
+
+function drawVrPanelIcon(
+  ctx: CanvasRenderingContext2D,
+  icon: VrPanelIcon,
+  rect: { x: number; y: number; width: number; height: number },
+): void {
+  ctx.save();
+  ctx.strokeStyle = "#fff4d8";
+  ctx.lineWidth = Math.max(7, rect.width * 0.08);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  const left = rect.x + rect.width * 0.25;
+  const right = rect.x + rect.width * 0.75;
+  const top = rect.y + rect.height * 0.25;
+  const bottom = rect.y + rect.height * 0.75;
+  const midX = rect.x + rect.width * 0.5;
+  const midY = rect.y + rect.height * 0.5;
+
+  if (icon === "x") {
+    ctx.beginPath();
+    ctx.moveTo(left, top);
+    ctx.lineTo(right, bottom);
+    ctx.moveTo(right, top);
+    ctx.lineTo(left, bottom);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (icon === "map") {
+    ctx.beginPath();
+    ctx.moveTo(left, top + rect.height * 0.06);
+    ctx.lineTo(rect.x + rect.width * 0.4, top - rect.height * 0.03);
+    ctx.lineTo(rect.x + rect.width * 0.6, top + rect.height * 0.05);
+    ctx.lineTo(right, top - rect.height * 0.02);
+    ctx.lineTo(right, bottom - rect.height * 0.06);
+    ctx.lineTo(rect.x + rect.width * 0.6, bottom + rect.height * 0.03);
+    ctx.lineTo(rect.x + rect.width * 0.4, bottom - rect.height * 0.05);
+    ctx.lineTo(left, bottom + rect.height * 0.02);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(rect.x + rect.width * 0.4, top - rect.height * 0.02);
+    ctx.lineTo(rect.x + rect.width * 0.4, bottom - rect.height * 0.05);
+    ctx.moveTo(rect.x + rect.width * 0.6, top + rect.height * 0.05);
+    ctx.lineTo(rect.x + rect.width * 0.6, bottom + rect.height * 0.03);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  ctx.beginPath();
+  ctx.roundRect(left, top, rect.width * 0.42, rect.height * 0.5, rect.width * 0.05);
+  ctx.moveTo(rect.x + rect.width * 0.34, top);
+  ctx.lineTo(rect.x + rect.width * 0.34, bottom);
+  ctx.moveTo(rect.x + rect.width * 0.66, rect.y + rect.height * 0.34);
+  ctx.lineTo(rect.x + rect.width * 0.77, rect.y + rect.height * 0.34);
+  ctx.moveTo(rect.x + rect.width * 0.66, rect.y + rect.height * 0.49);
+  ctx.lineTo(rect.x + rect.width * 0.77, rect.y + rect.height * 0.49);
+  ctx.moveTo(rect.x + rect.width * 0.66, rect.y + rect.height * 0.64);
+  ctx.lineTo(rect.x + rect.width * 0.77, rect.y + rect.height * 0.64);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawVrPanelText(ctx: CanvasRenderingContext2D, command: VrPanelTextCommand): void {
