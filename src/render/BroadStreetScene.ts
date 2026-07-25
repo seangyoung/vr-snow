@@ -34,6 +34,29 @@ type VrButtonMesh = THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> & {
   };
 };
 
+type VrPanelTextCommand = {
+  kind: "text";
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  fontSize: number;
+  weight: string;
+};
+
+type VrPanelButtonCommand = {
+  kind: "button";
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type VrPanelDrawCommand = VrPanelTextCommand | VrPanelButtonCommand;
+
 type VrControllerPointer = {
   group: THREE.Group;
   beam: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>;
@@ -52,14 +75,15 @@ type CaptureWindow = Window & {
 };
 
 const cameraHeight = 1.62;
-const vrPanelDistance = 1.75;
-const vrPanelScale = 0.95;
-const vrPanelWidth = 2.7;
-const vrPanelHeight = 1.78;
-const vrPanelContentWidth = 2.38;
-const vrTextBaseCanvasWidth = 1024;
-const vrTextMinCanvasHeight = 128;
-const vrTextTextureScale = 2.75;
+const xrFramebufferScale = 1.35;
+const vrPanelDistance = 1.65;
+const vrPanelScale = 1;
+const vrPanelWidth = 2.85;
+const vrPanelHeight = 2.05;
+const vrPanelContentWidth = 2.55;
+const vrPanelTextureWidth = 4096;
+const vrPanelTextureHeight = Math.round((vrPanelTextureWidth * vrPanelHeight) / vrPanelWidth);
+const vrPanelDesignWidth = 1180;
 
 export class BroadStreetScene {
   onFocusChange?: (hotspot?: Hotspot) => void;
@@ -89,6 +113,7 @@ export class BroadStreetScene {
   private readonly vrControllerPointers: VrControllerPointer[] = [];
   private readonly vrPanel = new THREE.Group();
   private readonly vrPanelButtons: VrButtonMesh[] = [];
+  private readonly vrPanelDrawCommands: VrPanelDrawCommand[] = [];
   private readonly fallbackPanoramaTexture = createPanoramaTexture();
   private readonly skyMaterial = new THREE.MeshBasicMaterial({
     map: this.fallbackPanoramaTexture,
@@ -126,6 +151,8 @@ export class BroadStreetScene {
       preserveDrawingBuffer: this.allowCanvasCapture,
     });
     this.renderer.xr.enabled = true;
+    this.renderer.xr.setFramebufferScaleFactor(xrFramebufferScale);
+    this.renderer.xr.setFoveation(0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.08;
@@ -553,24 +580,12 @@ export class BroadStreetScene {
   private rebuildVrPanel(): void {
     this.vrPanelDirty = false;
     this.clearVrPanel();
+    this.vrPanelDrawCommands.length = 0;
 
     if (!this.vrPanelVisible) {
       this.vrPanel.visible = false;
       return;
     }
-
-    const background = new THREE.Mesh(
-      new THREE.PlaneGeometry(vrPanelWidth, vrPanelHeight),
-      new THREE.MeshBasicMaterial({
-        color: "#101719",
-        transparent: true,
-        opacity: 0.9,
-        depthTest: false,
-        toneMapped: false,
-      }),
-    );
-    background.renderOrder = 30;
-    this.vrPanel.add(background);
 
     const currentLocation = this.gameState.getCurrentLocation();
     this.addVrText(currentLocation.title, 0, 0.76, vrPanelContentWidth, 0.18, {
@@ -603,6 +618,8 @@ export class BroadStreetScene {
         fontSize: 34,
       });
     }
+
+    this.addVrPanelSurface();
   }
 
   private buildVrHomePanel(): void {
@@ -772,17 +789,40 @@ export class BroadStreetScene {
   }
 
   private addVrText(text: string, x: number, y: number, width: number, height: number, options: VrTextOptions = {}): void {
-    const mesh = createVrTextPlane(text, width, height, options);
-    mesh.position.set(x, y, 0.02);
-    this.vrPanel.add(mesh);
+    this.vrPanelDrawCommands.push({
+      kind: "text",
+      text,
+      x,
+      y,
+      width,
+      height,
+      color: options.color ?? "#ffffff",
+      fontSize: options.fontSize ?? 36,
+      weight: options.weight ?? "500",
+    });
   }
 
   private addVrPanelButton(label: string, x: number, y: number, width: number, height: number, action: VrButtonAction): void {
-    const button = createVrButton(label, width, height, action);
+    this.vrPanelDrawCommands.push({
+      kind: "button",
+      label,
+      x,
+      y,
+      width,
+      height,
+    });
+
+    const button = createVrButtonHitbox(width, height, action);
     button.position.set(x, y, 0.04);
     button.userData.baseScale = button.scale.clone();
     this.vrPanelButtons.push(button);
     this.vrPanel.add(button);
+  }
+
+  private addVrPanelSurface(): void {
+    const panelSurface = createVrPanelSurface(this.vrPanelDrawCommands);
+    panelSurface.position.set(0, 0, 0);
+    this.vrPanel.add(panelSurface);
   }
 
   private clearVrPanel(): void {
@@ -852,17 +892,7 @@ export class BroadStreetScene {
       return;
     }
 
-    if (this.vrFocusedButton) {
-      this.vrFocusedButton.scale.copy(this.vrFocusedButton.userData.baseScale);
-      this.vrFocusedButton.material.color.set("#ffffff");
-    }
-
     this.vrFocusedButton = nextButton;
-
-    if (this.vrFocusedButton) {
-      this.vrFocusedButton.scale.copy(this.vrFocusedButton.userData.baseScale).multiplyScalar(1.06);
-      this.vrFocusedButton.material.color.set("#d9ecff");
-    }
   }
 
   private updateSnapTurn(): void {
@@ -1039,6 +1069,7 @@ function createControllerPointer(): VrControllerPointer {
     transparent: true,
     opacity: 0.72,
     depthTest: false,
+    fog: false,
     toneMapped: false,
   });
   const beam = new THREE.Mesh(beamGeometry, beamMaterial);
@@ -1055,6 +1086,7 @@ function createControllerPointer(): VrControllerPointer {
       opacity: 0.75,
       depthTest: false,
       side: THREE.DoubleSide,
+      fog: false,
       toneMapped: false,
     }),
   );
@@ -1065,40 +1097,23 @@ function createControllerPointer(): VrControllerPointer {
   return { group, beam, reticle };
 }
 
-function createVrTextPlane(text: string, width: number, height: number, options: VrTextOptions = {}): THREE.Mesh {
+function createVrPanelSurface(commands: VrPanelDrawCommand[]): THREE.Mesh {
   const canvas = document.createElement("canvas");
-  const baseCanvasWidth = Math.max(512, Math.round((width / 2.05) * vrTextBaseCanvasWidth));
-  const baseCanvasHeight = Math.max(vrTextMinCanvasHeight, Math.round((height / width) * baseCanvasWidth));
-  canvas.width = Math.round(baseCanvasWidth * vrTextTextureScale);
-  canvas.height = Math.round(baseCanvasHeight * vrTextTextureScale);
+  canvas.width = vrPanelTextureWidth;
+  canvas.height = vrPanelTextureHeight;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    throw new Error("Could not create VR panel text.");
+    throw new Error("Could not create VR panel surface.");
   }
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (options.background) {
-    ctx.fillStyle = options.background;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
+  drawVrPanelBackground(ctx, canvas.width, canvas.height);
+  commands.forEach((command) => {
+    if (command.kind === "button") {
+      drawVrPanelButton(ctx, command);
+      return;
+    }
 
-  const fontSize = (options.fontSize ?? 24) * vrTextTextureScale;
-  const padding = 24 * vrTextTextureScale;
-  const lineHeight = fontSize * 1.22;
-  ctx.font = `${options.weight ?? "500"} ${fontSize}px Inter, Arial, sans-serif`;
-  ctx.fillStyle = options.color ?? "#ffffff";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.lineJoin = "round";
-  ctx.lineWidth = Math.max(2 * vrTextTextureScale, fontSize * 0.07);
-  ctx.strokeStyle = "rgba(3, 7, 8, 0.78)";
-
-  const lines = wrapCanvasText(ctx, text, canvas.width - padding * 2, Math.floor((canvas.height - padding) / lineHeight));
-  const startY = canvas.height / 2 - ((lines.length - 1) * lineHeight) / 2;
-  lines.forEach((line, index) => {
-    const y = startY + index * lineHeight;
-    ctx.strokeText(line, canvas.width / 2, y);
-    ctx.fillText(line, canvas.width / 2, y);
+    drawVrPanelText(ctx, command);
   });
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -1106,33 +1121,152 @@ function createVrTextPlane(text: string, width: number, height: number, options:
   texture.generateMipmaps = false;
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
-  texture.anisotropy = 4;
+  texture.anisotropy = 8;
   texture.needsUpdate = true;
 
   const material = new THREE.MeshBasicMaterial({
     map: texture,
-    transparent: true,
+    fog: false,
+    transparent: false,
     depthTest: false,
+    depthWrite: false,
     toneMapped: false,
   });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
-  mesh.renderOrder = 50;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(vrPanelWidth, vrPanelHeight), material);
+  mesh.renderOrder = 35;
   return mesh;
 }
 
-function createVrButton(label: string, width: number, height: number, action: VrButtonAction): VrButtonMesh {
-  const mesh = createVrTextPlane(label, width, height, {
-    background: "#274149",
-    color: "#f8f1dc",
-    fontSize: height < 0.18 ? 54 : 60,
-    weight: "700",
-  }) as VrButtonMesh;
-  mesh.material.color.set("#ffffff");
+function createVrButtonHitbox(width: number, height: number, action: VrButtonAction): VrButtonMesh {
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, height),
+    new THREE.MeshBasicMaterial({
+      color: "#ffffff",
+      transparent: true,
+      opacity: 0,
+      depthTest: false,
+      depthWrite: false,
+      fog: false,
+      toneMapped: false,
+    }),
+  ) as VrButtonMesh;
   mesh.userData = {
     vrButton: action,
     baseScale: new THREE.Vector3(1, 1, 1),
   };
   return mesh;
+}
+
+function drawVrPanelBackground(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+  const gradient = ctx.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, "#142529");
+  gradient.addColorStop(0.5, "#0f1a1d");
+  gradient.addColorStop(1, "#091113");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = "rgba(246, 222, 176, 0.08)";
+  ctx.fillRect(0, 0, width, Math.round(height * 0.18));
+
+  ctx.strokeStyle = "rgba(227, 205, 154, 0.72)";
+  ctx.lineWidth = 10;
+  ctx.strokeRect(16, 16, width - 32, height - 32);
+}
+
+function drawVrPanelButton(ctx: CanvasRenderingContext2D, command: VrPanelButtonCommand): void {
+  const rect = getPanelCanvasRect(command.x, command.y, command.width, command.height);
+  const radius = Math.min(rect.height * 0.18, 26);
+  drawRoundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius);
+  ctx.fillStyle = "#274953";
+  ctx.fill();
+  ctx.lineWidth = Math.max(5, rect.height * 0.035);
+  ctx.strokeStyle = "#9fc6c0";
+  ctx.stroke();
+
+  const fontSize = command.height < 0.18 ? 40 : 46;
+  drawTextIntoRect(ctx, command.label, rect, {
+    color: "#fff4d8",
+    fontSize,
+    weight: "800",
+    maxLines: 1,
+  });
+}
+
+function drawVrPanelText(ctx: CanvasRenderingContext2D, command: VrPanelTextCommand): void {
+  const rect = getPanelCanvasRect(command.x, command.y, command.width, command.height);
+  drawTextIntoRect(ctx, command.text, rect, {
+    color: command.color,
+    fontSize: command.fontSize,
+    weight: command.weight,
+  });
+}
+
+function drawTextIntoRect(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  rect: { x: number; y: number; width: number; height: number },
+  options: { color: string; fontSize: number; weight: string; maxLines?: number },
+): void {
+  const scale = vrPanelTextureWidth / vrPanelDesignWidth;
+  const fontSize = options.fontSize * scale;
+  const padding = Math.max(18 * scale, rect.height * 0.08);
+  const lineHeight = fontSize * 1.16;
+  const maxLines =
+    options.maxLines ??
+    Math.max(1, Math.floor(Math.max(lineHeight, rect.height - padding * 2) / lineHeight));
+
+  ctx.font = `${options.weight} ${fontSize}px Arial, Helvetica, sans-serif`;
+  ctx.fillStyle = options.color;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = Math.max(4 * scale, fontSize * 0.08);
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.86)";
+
+  const lines = wrapCanvasText(ctx, text, rect.width - padding * 2, maxLines);
+  const startY = rect.y + rect.height / 2 - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((line, index) => {
+    const y = startY + index * lineHeight;
+    ctx.strokeText(line, rect.x + rect.width / 2, y);
+    ctx.fillText(line, rect.x + rect.width / 2, y);
+  });
+}
+
+function getPanelCanvasRect(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): { x: number; y: number; width: number; height: number } {
+  const pixelsPerPanelX = vrPanelTextureWidth / vrPanelWidth;
+  const pixelsPerPanelY = vrPanelTextureHeight / vrPanelHeight;
+  return {
+    x: (x - width / 2 + vrPanelWidth / 2) * pixelsPerPanelX,
+    y: (vrPanelHeight / 2 - y - height / 2) * pixelsPerPanelY,
+    width: width * pixelsPerPanelX,
+    height: height * pixelsPerPanelY,
+  };
+}
+
+function drawRoundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
 }
 
 function wrapCanvasText(
@@ -1163,11 +1297,25 @@ function wrapCanvasText(
   if (lines.length > maxLines) {
     const trimmed = lines.slice(0, maxLines);
     const finalLine = trimmed[trimmed.length - 1] ?? "";
-    trimmed[trimmed.length - 1] = finalLine.length > 3 ? `${finalLine.slice(0, -3)}...` : "...";
+    trimmed[trimmed.length - 1] = fitCanvasText(ctx, finalLine, maxWidth);
     return trimmed;
   }
 
   return lines.length > 0 ? lines : [""];
+}
+
+function fitCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  const ellipsis = "...";
+  if (ctx.measureText(text).width <= maxWidth) {
+    return text;
+  }
+
+  let trimmed = text.trimEnd();
+  while (trimmed.length > 0 && ctx.measureText(`${trimmed}${ellipsis}`).width > maxWidth) {
+    trimmed = trimmed.slice(0, -1).trimEnd();
+  }
+
+  return trimmed ? `${trimmed}${ellipsis}` : ellipsis;
 }
 
 function disposeObjectTree(object: THREE.Object3D): void {
