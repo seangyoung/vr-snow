@@ -252,10 +252,6 @@ export class BroadStreetScene {
     );
     this.scene.add(sky);
 
-    this.sharedExterior.add(createGround());
-    this.sharedExterior.add(createDistantStreetSilhouette());
-    this.scene.add(this.sharedExterior);
-
     this.scene.add(new THREE.HemisphereLight("#d7eef4", "#332c23", 1.45));
     const lantern = new THREE.PointLight("#f4b468", 55, 14, 1.6);
     lantern.position.set(-2.2, 3.6, -3.2);
@@ -271,14 +267,6 @@ export class BroadStreetScene {
     fill.shadow.camera.top = 8;
     fill.shadow.camera.bottom = -8;
     this.scene.add(fill);
-
-    this.addLocationObject("snow-desk", createSnowDeskSet());
-    this.addLocationObject("broad-street", createBroadStreetSet());
-    this.addLocationObject("household", createHouseholdSet());
-    this.addLocationObject("registrar", createRegistrarSet());
-    this.addLocationObject("workhouse", createWorkhouseSet());
-    this.addLocationObject("brewery", createBrewerySet());
-    this.addLocationObject("board-room", createBoardRoomSet());
   }
 
   private buildHotspots(): void {
