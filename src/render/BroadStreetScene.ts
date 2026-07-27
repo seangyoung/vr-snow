@@ -1687,10 +1687,6 @@ function createRegistrarSet(): THREE.Group {
   const greenGlass = createMaterial("#3c6c56", { emissive: "#1d553e", emissiveIntensity: 0.25, roughness: 0.38 });
 
   group.add(createRoomShell(4.6, 3.1, "#3b312a", "#242522", "#7f5a38"));
-  group.add(createSignMesh("Registrar's Ledger", 1.42, 0.3, "#e6d2a5", "#2d241b"));
-  const sign = group.children[group.children.length - 1];
-  sign.position.set(0, 1.95, 1.86);
-  sign.rotation.y = Math.PI;
 
   const desk = createBox([1.65, 0.14, 0.92], wood, [0, 0.76, 0]);
   group.add(desk);
@@ -1723,11 +1719,6 @@ function createHouseholdSet(): THREE.Group {
 
   group.add(createRoomShell(4.5, 3.1, "#302822", "#24221d", "#75513a"));
 
-  const sign = createSignMesh("Broad Street Household", 1.6, 0.28, "#ead3a4", "#2b221b");
-  sign.position.set(0, 1.88, 1.78);
-  sign.rotation.y = Math.PI;
-  group.add(sign);
-
   group.add(createBox([1.45, 0.18, 0.72], wood, [-1.05, 0.34, -0.42]));
   group.add(createBox([1.48, 0.08, 0.76], linen, [-1.05, 0.51, -0.42]));
   group.add(createBox([1.18, 0.06, 0.62], blanket, [-1.0, 0.57, -0.4]));
@@ -1752,11 +1743,6 @@ function createHouseholdSet(): THREE.Group {
 
   group.add(createBox([0.92, 0.08, 0.08], blackCloth, [-1.78, 1.54, 1.56]));
   group.add(createBox([0.08, 0.62, 0.06], blackCloth, [-1.78, 1.24, 1.55]));
-
-  const addressNote = createSignMesh("Address, water, timing", 1.12, 0.22, "#2a2119", "#d6c393");
-  addressNote.position.set(1.28, 1.28, 1.77);
-  addressNote.rotation.y = Math.PI;
-  group.add(addressNote);
 
   group.add(createPointLight("#e5b36f", 38, 5.2, [0.45, 1.95, -0.05]));
   group.add(createPointLight("#a7c5cc", 11, 4.5, [-1.45, 1.65, -0.2]));
@@ -1794,10 +1780,6 @@ function createWorkhouseSet(): THREE.Group {
   group.add(createBucket([1.85, 0.03, -0.68]));
   group.add(createBench([-1.28, 0.22, -0.72]));
 
-  const sign = createSignMesh("Workhouse Yard", 1.18, 0.28, "#e4d4aa", "#2d251f");
-  sign.position.set(0.02, 1.72, 1.21);
-  sign.rotation.y = Math.PI;
-  group.add(sign);
   group.add(createPointLight("#cbd9d3", 22, 6, [-0.4, 2.1, -0.15]));
   return group;
 }
@@ -1828,10 +1810,6 @@ function createBrewerySet(): THREE.Group {
   group.add(createBox([0.12, 0.65, 0.1], wood, [-0.45, 0.35, 0.5]));
   group.add(createBox([0.12, 0.65, 0.1], wood, [0.75, 0.35, 0.5]));
 
-  const sign = createSignMesh("Broad Street Brewery", 1.52, 0.3, "#efcf8e", "#2c2019");
-  sign.position.set(0, 1.9, 1.83);
-  sign.rotation.y = Math.PI;
-  group.add(sign);
   group.add(createPointLight("#f0a24b", 62, 6, [0.1, 2.1, 0.15]));
   return group;
 }
@@ -1920,10 +1898,6 @@ function createBoardRoomSet(): THREE.Group {
   }
   group.add(createBox([2.5, 1.12, 0.05], paper, [0, 1.5, 1.78]));
   group.add(createBox([2.68, 1.28, 0.08], darkWood, [0, 1.5, 1.82]));
-  const sign = createSignMesh("Board of Guardians", 1.65, 0.28, "#efd9a2", "#2a2119");
-  sign.position.set(0, 2.14, 1.75);
-  sign.rotation.y = Math.PI;
-  group.add(sign);
   group.add(createPointLight("#e7b36f", 68, 6.5, [0, 2.1, 0.15]));
   group.add(createPointLight("#a9c7d7", 14, 5, [-1.9, 1.8, 0.75]));
   return group;
@@ -2211,33 +2185,6 @@ function createChair(position: Vec3, rotationY: number): THREE.Group {
     }
   }
   return group;
-}
-
-function createSignMesh(text: string, width: number, height: number, foreground: string, background: string): THREE.Mesh {
-  const canvas = document.createElement("canvas");
-  canvas.width = 768;
-  canvas.height = 192;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Could not create sign texture.");
-  }
-  ctx.fillStyle = background;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = "rgba(236, 214, 165, 0.72)";
-  ctx.lineWidth = 10;
-  ctx.strokeRect(18, 18, canvas.width - 36, canvas.height - 36);
-  ctx.fillStyle = foreground;
-  ctx.font = "600 58px Georgia, serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 4);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, height),
-    new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide }),
-  );
-  return mesh;
 }
 
 function createPointLight(color: string, intensity: number, distance: number, position: Vec3): THREE.PointLight {
