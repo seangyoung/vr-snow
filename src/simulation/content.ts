@@ -412,7 +412,7 @@ export const hotspots: Hotspot[] = [
     shortLabel: "Ledger",
     description: "Daily returns show how quickly the outbreak intensified.",
     evidenceId: "attack-timeline",
-    position: [-3.2, 1.3, -2.2],
+    position: [3.2, 1.3, 2.2],
   },
   {
     id: "broad-street-household",

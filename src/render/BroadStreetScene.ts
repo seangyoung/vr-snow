@@ -1477,7 +1477,7 @@ const locationLookTargets: Record<LocationId, [number, number, number]> = {
   "snow-desk": [-2.8, 1.35, 2.4],
   "broad-street": [0.8, 1.1, -5.4],
   household: [-2.25, 1.18, -0.95],
-  registrar: [-3.2, 1.1, -2.2],
+  registrar: [3.2, 1.1, 2.2],
   workhouse: [3.6, 1.2, -1.7],
   brewery: [3.4, 1.25, 1.8],
   "board-room": [0, 1.2, 2.8],
