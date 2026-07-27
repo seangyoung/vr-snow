@@ -947,10 +947,46 @@ button {
   fill: currentColor;
 }
 
+.map-paper {
+  fill: rgba(239, 226, 190, 0.96);
+}
+
 .map-blocks path {
-  fill: rgba(177, 155, 104, 0.26);
-  stroke: rgba(88, 72, 43, 0.24);
-  stroke-width: 0.55;
+  fill: rgba(156, 130, 80, 0.2);
+  stroke: rgba(85, 70, 42, 0.28);
+  stroke-width: 0.45;
+}
+
+.map-parcel-lines path {
+  fill: none;
+  stroke: rgba(68, 56, 34, 0.18);
+  stroke-width: 0.32;
+}
+
+.map-street-casing path {
+  fill: none;
+  stroke: rgba(123, 102, 62, 0.28);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 7.8;
+}
+
+.map-streets path {
+  fill: none;
+  stroke: rgba(250, 241, 215, 0.98);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4.8;
+}
+
+.map-streets .major-street {
+  stroke-width: 5.8;
+}
+
+.map-pump-neighborhood path {
+  fill: rgba(177, 155, 104, 0.16);
+  stroke: rgba(85, 70, 42, 0.2);
+  stroke-width: 0.38;
 }
 
 .snow-map .street-labels text {
@@ -962,15 +998,18 @@ button {
   text-anchor: middle;
 }
 
-.death-point {
-  fill: rgba(157, 63, 63, 0.78);
-  stroke: rgba(86, 18, 16, 0.75);
-  stroke-width: 0.8;
+.death-stack {
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
   animation: plot-point 460ms ease-out forwards;
   animation-delay: var(--plot-delay, 0ms);
+}
+
+.death-stack rect {
+  fill: rgba(116, 34, 32, 0.9);
+  stroke: rgba(58, 18, 15, 0.9);
+  stroke-width: 0.26;
 }
 
 .pump-point {
@@ -1066,6 +1105,7 @@ button {
 
 .map-node {
   position: absolute;
+  z-index: 2;
   display: grid;
   grid-template-columns: 14px auto;
   align-items: center;
@@ -1084,60 +1124,127 @@ button {
   pointer-events: auto;
 }
 
-.map-annotations {
+.node-popover {
   position: absolute;
-  inset: 0;
+  left: 50%;
+  bottom: calc(100% + 9px);
+  z-index: 5;
+  display: grid;
+  gap: 7px;
+  width: min(232px, calc(100vw - 48px));
+  padding: 9px;
+  border: 1px solid rgba(50, 43, 30, 0.36);
+  border-radius: 7px;
+  color: #1b1710;
+  background: rgba(255, 242, 204, 0.98);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+  opacity: 0;
   pointer-events: none;
+  transform: translate(-50%, 5px);
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
 }
 
-.map-note {
+.node-popover::after {
+  content: "";
   position: absolute;
-  z-index: 2;
+  left: 50%;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  border-right: 1px solid rgba(50, 43, 30, 0.28);
+  border-bottom: 1px solid rgba(50, 43, 30, 0.28);
+  background: rgba(255, 242, 204, 0.98);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.map-node.has-popover-below .node-popover {
+  top: calc(100% + 9px);
+  bottom: auto;
+}
+
+.map-node.has-popover-below .node-popover::after {
+  top: -6px;
+  bottom: auto;
+  border: 0;
+  border-top: 1px solid rgba(50, 43, 30, 0.28);
+  border-left: 1px solid rgba(50, 43, 30, 0.28);
+}
+
+.map-node.has-popover-left .node-popover {
+  right: 0;
+  left: auto;
+  transform: translate(0, 5px);
+}
+
+.map-node.has-popover-right .node-popover {
+  left: 0;
+  transform: translate(0, 5px);
+}
+
+.map-node.has-popover-left .node-popover::after {
+  right: 22px;
+  left: auto;
+}
+
+.map-node.has-popover-right .node-popover::after {
+  left: 22px;
+}
+
+.map-node.has-evidence-popover:hover,
+.map-node.has-evidence-popover:focus-visible {
+  z-index: 6;
+}
+
+.map-node.has-evidence-popover:hover .node-popover,
+.map-node.has-evidence-popover:focus-visible .node-popover {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.map-node.has-popover-left:hover .node-popover,
+.map-node.has-popover-left:focus-visible .node-popover,
+.map-node.has-popover-right:hover .node-popover,
+.map-node.has-popover-right:focus-visible .node-popover {
+  transform: translate(0, 0);
+}
+
+.node-popover-entry {
   display: grid;
   gap: 3px;
-  width: 142px;
-  padding: 7px 8px;
-  border: 1px solid rgba(50, 43, 30, 0.35);
-  border-radius: 6px;
-  color: #1b1710;
-  background: rgba(255, 239, 190, 0.94);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
-  opacity: 0;
-  transform: translate(-50%, -50%) translateY(6px);
-  animation: map-note-in 360ms ease forwards;
-  animation-delay: var(--note-delay, 0ms);
+  padding-left: 8px;
+  border-left: 3px solid rgba(73, 117, 109, 0.5);
 }
 
-.map-note strong {
+.node-popover-entry strong {
   color: #33220f;
   font-family: var(--document-font);
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   line-height: 1.1;
 }
 
-.map-note span {
+.node-popover-entry span {
   color: rgba(31, 24, 14, 0.78);
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   line-height: 1.25;
+  white-space: normal;
 }
 
-.map-note.is-exception {
-  border-color: rgba(28, 98, 88, 0.42);
-  background: rgba(202, 240, 219, 0.94);
+.node-popover-entry.is-exception {
+  border-left-color: rgba(28, 98, 88, 0.58);
 }
 
-.map-note.is-household {
-  border-color: rgba(112, 71, 40, 0.38);
-  background: rgba(249, 223, 173, 0.96);
+.node-popover-entry.is-household {
+  border-left-color: rgba(112, 71, 40, 0.58);
 }
 
-.map-note.is-conflict {
-  border-color: rgba(126, 82, 39, 0.42);
-  background: rgba(247, 232, 196, 0.96);
+.node-popover-entry.is-conflict {
+  border-left-color: rgba(126, 82, 39, 0.62);
 }
 
-.map-note.is-record {
-  background: rgba(236, 221, 184, 0.96);
+.node-popover-entry.is-record {
+  border-left-color: rgba(87, 78, 59, 0.55);
 }
 
 .map-node:not(:disabled):hover {
@@ -1398,13 +1505,6 @@ button {
   }
 }
 
-@keyframes map-note-in {
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) translateY(0);
-  }
-}
-
 .primary-action:disabled {
   cursor: not-allowed;
   color: rgba(244, 236, 218, 0.45);
@@ -1602,17 +1702,17 @@ body[data-overlay-open="true"] .vr-entry-button {
     font-size: 0.62rem;
   }
 
-  .map-note {
-    width: 116px;
-    padding: 6px;
+  .node-popover {
+    width: min(204px, calc(100vw - 36px));
+    padding: 8px;
   }
 
-  .map-note strong {
-    font-size: 0.68rem;
+  .node-popover-entry strong {
+    font-size: 0.7rem;
   }
 
-  .map-note span {
-    display: none;
+  .node-popover-entry span {
+    font-size: 0.62rem;
   }
 
   .synthesis-map-strip .secondary-action {

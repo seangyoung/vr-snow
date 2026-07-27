@@ -12,6 +12,7 @@ import type {
   HypothesisId,
   InvestigationLocation,
   LocationId,
+  MapDeathPoint,
   SynthesisConfidence,
 } from "../simulation/types";
 
@@ -116,6 +117,15 @@ const mapAnnotations: Array<{
     kind: "method",
   },
 ];
+
+const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
+  "snow-desk": ["snow-method"],
+  "broad-street": ["pump-cluster", "pump-water-inspection"],
+  household: ["household-exposure"],
+  registrar: ["attack-timeline"],
+  workhouse: ["workhouse-exception"],
+  brewery: ["brewery-exception"],
+};
 
 export interface PrototypeUi {
   onReset?: () => void;
@@ -747,19 +757,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: Ma
   const activeLayer = mapLayers.find((layer) => layer.id === mapLayer) ?? mapLayers[0];
   const points = mapDeathPoints
     .filter((point) => !point.unlocksWith || collectedIds.has(point.unlocksWith))
-    .map(
-      (point) => `
-        <circle
-          class="death-point"
-          cx="${point.x}"
-          cy="${point.y}"
-          r="${3 + point.count * 0.45}"
-          style="--plot-delay: ${plotDelay(point.id)}ms"
-        >
-          <title>${point.count} recorded ${point.count === 1 ? "death" : "deaths"}</title>
-        </circle>
-      `,
-    )
+    .map((point) => renderDeathStack(point))
     .join("");
 
   const stage = gameState.getStage();
@@ -856,9 +854,6 @@ function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: Ma
             ${renderSampleMarkers(collectedIds)}
             <circle class="pump-point" cx="51" cy="50" r="4.4" />
           </svg>
-          <div class="map-annotations" aria-label="Plotted notes">
-            ${renderMapAnnotations(collectedIds)}
-          </div>
           ${locationNodes}
         </div>
         <div class="map-brief">
@@ -882,30 +877,99 @@ function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: Ma
   `;
 }
 
+function renderDeathStack(point: MapDeathPoint): string {
+  const maxRows = 6;
+  const barWidth = 1.05;
+  const barHeight = 3.05;
+  const gap = 0.26;
+  const columns = Math.ceil(point.count / maxRows);
+  const totalWidth = columns * barWidth + (columns - 1) * gap;
+  const bars = Array.from({ length: point.count }, (_, index) => {
+    const column = Math.floor(index / maxRows);
+    const row = index % maxRows;
+    const x = column * (barWidth + gap) - totalWidth / 2;
+    const y = -row * (barHeight + gap) - barHeight / 2;
+    return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barWidth}" height="${barHeight}" rx="0.12" />`;
+  }).join("");
+
+  return `
+    <g class="death-stack" transform="translate(${point.x} ${point.y})" style="--plot-delay: ${plotDelay(point.id)}ms">
+      <title>${point.count} recorded ${point.count === 1 ? "death" : "deaths"}</title>
+      ${bars}
+    </g>
+  `;
+}
+
 function renderHistoricMapBase(): string {
   return `
+    <rect class="map-paper" x="0" y="0" width="100" height="100" />
     <g class="map-blocks" aria-hidden="true">
-      <path d="M7 41 L25 37 L29 51 L11 55 Z" />
-      <path d="M35 37 L51 35 L49 49 L36 51 Z" />
-      <path d="M58 34 L71 36 L69 49 L56 49 Z" />
-      <path d="M78 35 L94 40 L92 51 L77 49 Z" />
-      <path d="M9 58 L29 58 L30 70 L14 73 Z" />
-      <path d="M38 56 L50 56 L49 70 L36 70 Z" />
-      <path d="M57 55 L70 54 L69 66 L57 67 Z" />
-      <path d="M76 55 L94 56 L93 67 L76 66 Z" />
-      <path d="M13 76 L32 73 L34 85 L11 91 Z" />
-      <path d="M40 73 L57 71 L59 80 L39 84 Z" />
-      <path d="M66 70 L88 68 L94 73 L69 79 Z" />
+      <path d="M5 5 L21 5 L24 24 L7 28 Z" />
+      <path d="M27 5 L47 5 L48 23 L31 25 Z" />
+      <path d="M55 5 L72 5 L71 23 L57 24 Z" />
+      <path d="M80 5 L96 8 L95 23 L80 22 Z" />
+      <path d="M8 32 L25 29 L27 44 L9 46 Z" />
+      <path d="M34 29 L48 27 L48 43 L35 44 Z" />
+      <path d="M58 28 L70 27 L70 42 L59 43 Z" />
+      <path d="M79 28 L95 29 L94 43 L80 43 Z" />
+      <path d="M8 56 L28 54 L29 64 L12 67 Z" />
+      <path d="M36 54 L49 53 L49 63 L36 64 Z" />
+      <path d="M59 53 L70 52 L71 63 L60 64 Z" />
+      <path d="M79 54 L96 55 L96 66 L82 66 Z" />
+      <path d="M10 70 L30 67 L32 78 L9 83 Z" />
+      <path d="M39 68 L56 66 L57 79 L38 82 Z" />
+      <path d="M65 67 L80 65 L85 77 L67 80 Z" />
+      <path d="M87 69 L97 70 L98 87 L91 84 Z" />
+      <path d="M9 86 L27 82 L24 96 L6 96 Z" />
+      <path d="M35 84 L58 81 L62 96 L34 96 Z" />
+      <path d="M69 82 L90 79 L96 96 L72 96 Z" />
+    </g>
+    <g class="map-parcel-lines" aria-hidden="true">
+      <path d="M14 6 L17 26 M20 5 L22 23 M35 5 L36 24 M42 5 L42 24 M63 5 L62 23 M87 6 L86 22" />
+      <path d="M12 32 L13 45 M17 31 L18 45 M22 30 L23 44 M39 29 L39 43 M44 28 L44 43" />
+      <path d="M63 28 L63 42 M67 28 L67 42 M84 28 L83 43 M89 29 L88 43" />
+      <path d="M15 69 L16 81 M22 68 L23 79 M45 68 L45 81 M51 67 L52 80 M72 66 L74 79" />
+      <path d="M13 87 L12 96 M19 85 L18 96 M43 83 L45 96 M51 82 L54 96 M78 81 L82 96 M87 80 L91 96" />
+    </g>
+    <g class="map-street-casing" aria-hidden="true">
+      <path d="M4 50 C20 49 35 48 51 48 C66 47 82 48 96 50" />
+      <path d="M6 76 C23 74 41 72 58 71 C74 70 87 69 97 72" />
+      <path d="M10 63 C25 61 39 60 54 60 C66 60 79 61 94 63" />
+      <path d="M25 4 C26 18 28 33 30 48 C31 65 28 81 24 97" />
+      <path d="M52 4 C52 20 52 34 52 48 C52 65 50 80 46 97" />
+      <path d="M59 4 C58 21 58 37 59 51 C59 65 62 82 67 97" />
+      <path d="M77 5 C77 23 77 39 78 55 C80 72 85 86 93 97" />
+      <path d="M6 26 C23 24 40 23 57 22 C72 21 86 22 97 25" />
+      <path d="M38 34 C47 35 56 36 70 37 C80 37 88 37 96 38" />
+      <path d="M33 58 C41 55 48 53 57 49 C66 45 74 42 83 40" />
+    </g>
+    <g class="map-streets" aria-hidden="true">
+      <path class="major-street" d="M4 50 C20 49 35 48 51 48 C66 47 82 48 96 50" />
+      <path class="major-street" d="M6 76 C23 74 41 72 58 71 C74 70 87 69 97 72" />
+      <path d="M10 63 C25 61 39 60 54 60 C66 60 79 61 94 63" />
+      <path class="major-street" d="M25 4 C26 18 28 33 30 48 C31 65 28 81 24 97" />
+      <path d="M52 4 C52 20 52 34 52 48 C52 65 50 80 46 97" />
+      <path class="major-street" d="M59 4 C58 21 58 37 59 51 C59 65 62 82 67 97" />
+      <path class="major-street" d="M77 5 C77 23 77 39 78 55 C80 72 85 86 93 97" />
+      <path d="M6 26 C23 24 40 23 57 22 C72 21 86 22 97 25" />
+      <path d="M38 34 C47 35 56 36 70 37 C80 37 88 37 96 38" />
+      <path d="M33 58 C41 55 48 53 57 49 C66 45 74 42 83 40" />
+    </g>
+    <g class="map-pump-neighborhood" aria-hidden="true">
+      <path d="M45 45 L57 44 L57 52 L45 53 Z" />
+      <path d="M45 53 L56 52 L55 60 L44 60 Z" />
+      <path d="M57 44 L64 44 L64 52 L57 52 Z" />
     </g>
     <g class="street-labels" aria-hidden="true">
-      <text x="47" y="46" transform="rotate(-4 47 46)">BROAD STREET</text>
-      <text x="56" y="24" transform="rotate(-86 56 24)">CAMBRIDGE ST</text>
-      <text x="76" y="29" transform="rotate(-86 76 29)">POLAND ST</text>
-      <text x="25" y="31" transform="rotate(76 25 31)">BERWICK ST</text>
-      <text x="35" y="76" transform="rotate(-3 35 76)">MARSHALL ST</text>
-      <text x="71" y="82" transform="rotate(-8 71 82)">BREWER ST</text>
-      <text x="75" y="45" transform="rotate(21 75 45)">GREAT PULTENEY</text>
-      <text x="64" y="61" transform="rotate(-86 64 61)">NEW ST</text>
+      <text x="48" y="46" transform="rotate(-3 48 46)">BROAD STREET</text>
+      <text x="60" y="24" transform="rotate(-86 60 24)">CAMBRIDGE ST</text>
+      <text x="79" y="29" transform="rotate(-86 79 29)">POLAND ST</text>
+      <text x="29" y="31" transform="rotate(82 29 31)">BERWICK ST</text>
+      <text x="37" y="62" transform="rotate(-3 37 62)">MARSHALL ST</text>
+      <text x="69" y="75" transform="rotate(-8 69 75)">BREWER ST</text>
+      <text x="68" y="42" transform="rotate(-21 68 42)">GREAT PULTENEY ST</text>
+      <text x="51" y="17" transform="rotate(-3 51 17)">GREAT MARLBOROUGH ST</text>
+      <text x="49" y="77" transform="rotate(-82 49 77)">LITTLE WINDMILL ST</text>
     </g>
   `;
 }
@@ -997,23 +1061,6 @@ function renderSampleMarkers(collectedIds: Set<string>): string {
   `;
 }
 
-function renderMapAnnotations(collectedIds: Set<string>): string {
-  return mapAnnotations
-    .filter((annotation) => collectedIds.has(annotation.evidenceId))
-    .map(
-      (annotation) => `
-        <article
-          class="map-note is-${annotation.kind}"
-          style="left: ${annotation.x}%; top: ${annotation.y}%; --note-delay: ${plotDelay(annotation.evidenceId)}ms"
-        >
-          <strong>${escapeHtml(annotation.title)}</strong>
-          <span>${escapeHtml(annotation.body)}</span>
-        </article>
-      `,
-    )
-    .join("");
-}
-
 function renderMapEvidenceDocket(gameState: GameState): string {
   const rows = gameState
     .getAllEvidence()
@@ -1049,12 +1096,17 @@ function renderLocationNode(
   const active = location.id === currentLocationId;
   const canTravel = gameState.canTravelToLocation(location.id) && !active;
   const offMap = location.id === "snow-desk" || location.id === "registrar" || location.id === "board-room";
+  const popover = renderLocationEvidencePopover(location.id, gameState);
   const classes = [
     "map-node",
     active ? "is-current" : "",
     unlocked ? "is-unlocked" : "is-locked",
     location.boardOnly ? "is-board" : "",
     offMap ? "is-off-map" : "",
+    popover ? "has-evidence-popover" : "",
+    location.mapPoint.y < 26 ? "has-popover-below" : "",
+    location.mapPoint.x < 28 ? "has-popover-right" : "",
+    location.mapPoint.x > 72 ? "has-popover-left" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -1066,19 +1118,49 @@ function renderLocationNode(
     : canTravel
       ? `Travel to ${location.title}`
       : `${location.title} is locked`;
+  const actionAttributes = canTravel ? `data-action="travel" data-location-id="${location.id}"` : "";
+  const disabledAttribute = !canTravel && !active ? "disabled" : "";
 
   return `
     <button
+      type="button"
       class="${classes}"
       style="left: ${location.mapPoint.x}%; top: ${location.mapPoint.y}%"
-      data-action="travel"
-      data-location-id="${location.id}"
+      ${actionAttributes}
       aria-label="${escapeHtml(label)}"
-      ${canTravel ? "" : "disabled"}
+      ${active ? `aria-current="location"` : ""}
+      ${disabledAttribute}
     >
       <span class="node-dot"></span>
       <span class="node-label">${escapeHtml(location.shortTitle)}</span>
+      ${popover}
     </button>
+  `;
+}
+
+function renderLocationEvidencePopover(locationId: LocationId, gameState: GameState): string {
+  const notes = (locationEvidenceIds[locationId] ?? [])
+    .filter((evidenceId) => gameState.hasEvidence(evidenceId))
+    .map((evidenceId) => mapAnnotations.find((annotation) => annotation.evidenceId === evidenceId))
+    .filter((annotation): annotation is (typeof mapAnnotations)[number] => Boolean(annotation));
+
+  if (notes.length === 0) {
+    return "";
+  }
+
+  return `
+    <span class="node-popover" role="tooltip">
+      ${notes
+        .map(
+          (note) => `
+            <span class="node-popover-entry is-${note.kind}">
+              <strong>${escapeHtml(note.title)}</strong>
+              <span>${escapeHtml(note.body)}</span>
+            </span>
+          `,
+        )
+        .join("")}
+    </span>
   `;
 }
 
