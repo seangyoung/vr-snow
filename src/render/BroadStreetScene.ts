@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { VRButton } from "three/addons/webxr/VRButton.js";
+import { boardThreshold } from "../simulation/content";
 import type { GameState } from "../simulation/gameState";
 import type { Hotspot, HypothesisId, LocationId, SynthesisConfidence } from "../simulation/types";
 
@@ -742,7 +743,11 @@ export class BroadStreetScene {
 
   private buildVrNotebookPanel(): void {
     const evidence = this.gameState.getCollectedEvidence();
-    this.addVrText(`Evidence recorded: ${this.gameState.getProgressText()}`, 0, 0.3, vrPanelContentWidth, 0.16, {
+    const progressText =
+      evidence.length >= boardThreshold
+        ? `${evidence.length} recorded. Snow review ready.`
+        : `${evidence.length}/${boardThreshold} recorded for Snow review.`;
+    this.addVrText(progressText, 0, 0.3, vrPanelContentWidth, 0.16, {
       color: "#f1d79c",
       fontSize: 38,
       weight: "700",

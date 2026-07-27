@@ -543,7 +543,7 @@ export class GameState {
   }
 
   getProgressText(): string {
-    return `${this.collectedEvidence.size}/${boardThreshold}`;
+    return this.hasEnoughEvidenceForSynthesis() ? "Ready" : `${this.collectedEvidence.size}/${boardThreshold}`;
   }
 
   getSnapshot(): InvestigationSnapshot {

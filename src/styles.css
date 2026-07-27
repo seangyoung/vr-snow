@@ -502,6 +502,18 @@ button {
   font-size: 0.98rem;
 }
 
+.panel-header .readiness-line {
+  display: block;
+  margin-top: 4px;
+  color: rgba(244, 236, 218, 0.68);
+  font-size: 0.74rem;
+  font-weight: 760;
+}
+
+.panel-header .readiness-line.is-ready {
+  color: var(--water);
+}
+
 .panel-body {
   max-height: calc(100vh - 215px);
   overflow: auto;

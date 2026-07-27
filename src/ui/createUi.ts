@@ -570,6 +570,7 @@ function renderPreparedArgument(gameState: GameState): string {
 }
 
 function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[]): string {
+  const readiness = evidenceReadinessText(collected.length);
   const evidenceRows = allEvidence
     .map((card) => {
       const unlocked = collected.some((collectedCard) => collectedCard.id === card.id);
@@ -603,7 +604,8 @@ function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[]):
       <div class="panel-header">
         <div>
           <span>Field notebook</span>
-          <strong>${collected.length} evidence ${collected.length === 1 ? "card" : "cards"}</strong>
+          <strong>${collected.length}/${allEvidence.length} evidence ${collected.length === 1 ? "card" : "cards"} collected</strong>
+          <small class="readiness-line ${collected.length >= boardThreshold ? "is-ready" : ""}">${escapeHtml(readiness)}</small>
         </div>
         <button class="icon-button" data-action="close" aria-label="Close notebook"><i data-lucide="x"></i></button>
       </div>
@@ -612,6 +614,23 @@ function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[]):
       </div>
     </aside>
   `;
+}
+
+function evidenceReadinessText(collectedCount: number): string {
+  const remaining = Math.max(boardThreshold - collectedCount, 0);
+  if (remaining === 0) {
+    return "Ready for Snow review";
+  }
+
+  return `${remaining} more ${remaining === 1 ? "card" : "cards"} needed for Snow review`;
+}
+
+function mapEvidenceReadinessText(collectedCount: number): string {
+  if (collectedCount >= boardThreshold) {
+    return `${collectedCount} collected; ready`;
+  }
+
+  return `${collectedCount}/${boardThreshold} for review`;
 }
 
 function sourceIcon(sourceType: EvidenceCard["sourceType"]): string {
@@ -866,7 +885,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: Ma
           </ul>
           <dl>
             <div><dt>Current place</dt><dd>${escapeHtml(currentLocation.shortTitle)}</dd></div>
-            <div><dt>Evidence cards</dt><dd>${collected.length}/${boardThreshold}</dd></div>
+            <div><dt>Evidence</dt><dd>${escapeHtml(mapEvidenceReadinessText(collected.length))}</dd></div>
             <div><dt>Snow review</dt><dd>${gameState.preparedForBoard ? "Prepared" : evidenceReady ? "Needed" : "Locked"}</dd></div>
             <div><dt>Action</dt><dd>${escapeHtml(actionText)}</dd></div>
           </dl>
