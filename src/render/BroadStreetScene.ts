@@ -90,6 +90,9 @@ const vrPanelContentWidth = 2.55;
 const vrPanelTextureWidth = 4096;
 const vrPanelTextureHeight = Math.round((vrPanelTextureWidth * vrPanelHeight) / vrPanelWidth);
 const vrPanelDesignWidth = 1180;
+const snapTurnAngle = Math.PI / 4;
+const snapTurnActivationThreshold = 0.72;
+const snapTurnReleaseThreshold = 0.22;
 
 export class BroadStreetScene {
   onFocusChange?: (hotspot?: Hotspot) => void;
@@ -116,6 +119,7 @@ export class BroadStreetScene {
   private readonly locationObjects = new Map<LocationId, THREE.Object3D[]>();
   private readonly sharedExterior = new THREE.Group();
   private readonly vrControllers: THREE.Group[] = [];
+  private readonly vrInputSources = new Map<THREE.Group, XRInputSource>();
   private readonly vrControllerPointers: VrControllerPointer[] = [];
   private readonly vrPanel = new THREE.Group();
   private readonly vrPanelButtons: VrButtonMesh[] = [];
@@ -388,6 +392,14 @@ export class BroadStreetScene {
       const controller = this.renderer.xr.getController(index);
       const pointer = createControllerPointer();
       controller.add(pointer.group);
+      controller.addEventListener("connected", (event) => {
+        this.vrInputSources.set(controller, event.data);
+        this.snapTurnLocked = false;
+      });
+      controller.addEventListener("disconnected", () => {
+        this.vrInputSources.delete(controller);
+        this.snapTurnLocked = false;
+      });
       controller.addEventListener("select", () => this.selectFromVrController(controller));
       controller.addEventListener("squeeze", () => this.toggleVrPanel());
       this.playerRig.add(controller);
@@ -403,7 +415,8 @@ export class BroadStreetScene {
     this.vrPanelVisible = true;
     this.vrPanel.visible = true;
     this.vrPanelMode = "home";
-    this.vrStatus = "Aim the controller beam at a marker or panel. Trigger selects. Squeeze toggles the panel.";
+    this.vrStatus = this.getDefaultVrStatus();
+    this.snapTurnLocked = false;
     this.applyCameraOrientation();
     this.placeVrPanelInFront();
     this.markVrPanelDirty();
@@ -596,7 +609,7 @@ export class BroadStreetScene {
       return "Choose a theory, state your confidence, and decide what to tell the Board.";
     }
 
-    return "Aim the controller beam at a marker or panel. Trigger selects. Squeeze toggles the panel.";
+    return "Aim with the controller beam. Trigger selects. Squeeze toggles the panel. Thumbstick turns.";
   }
 
   private rebuildVrPanel(): void {
@@ -954,26 +967,39 @@ export class BroadStreetScene {
   private updateSnapTurn(): void {
     let turnAxis = 0;
     for (const controller of this.vrControllers) {
-      const inputSource = controller.userData.inputSource as { gamepad?: Gamepad } | undefined;
-      const axes = inputSource?.gamepad?.axes ?? [];
-      const candidate = Math.abs(axes[2] ?? 0) > Math.abs(axes[0] ?? 0) ? (axes[2] ?? 0) : (axes[0] ?? 0);
+      const inputSource = this.vrInputSources.get(controller);
+      const candidate = this.getSnapTurnAxis(inputSource);
       if (Math.abs(candidate) > Math.abs(turnAxis)) {
         turnAxis = candidate;
       }
     }
 
-    if (Math.abs(turnAxis) < 0.25) {
+    if (Math.abs(turnAxis) < snapTurnReleaseThreshold) {
       this.snapTurnLocked = false;
       return;
     }
 
-    if (this.snapTurnLocked || Math.abs(turnAxis) < 0.75) {
+    if (this.snapTurnLocked || Math.abs(turnAxis) < snapTurnActivationThreshold) {
       return;
     }
 
-    this.yaw -= Math.sign(turnAxis) * Math.PI * 0.25;
+    this.yaw -= Math.sign(turnAxis) * snapTurnAngle;
     this.applyCameraOrientation();
     this.snapTurnLocked = true;
+  }
+
+  private getSnapTurnAxis(inputSource?: XRInputSource): number {
+    const axes = inputSource?.gamepad?.axes ?? [];
+    let strongestAxis = 0;
+
+    for (let axisIndex = 0; axisIndex < axes.length; axisIndex += 2) {
+      const axis = axes[axisIndex] ?? 0;
+      if (Number.isFinite(axis) && Math.abs(axis) > Math.abs(strongestAxis)) {
+        strongestAxis = axis;
+      }
+    }
+
+    return strongestAxis;
   }
 
   private updateVrPointers(): void {
