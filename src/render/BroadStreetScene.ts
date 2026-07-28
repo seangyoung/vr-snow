@@ -106,6 +106,9 @@ const vrPanelDesignWidth = 1180;
 const snapTurnAngle = Math.PI / 4;
 const snapTurnActivationThreshold = 0.72;
 const snapTurnReleaseThreshold = 0.22;
+const vrIdleHintDelaySeconds = 10;
+const vrIdleHintDistance = 2;
+const vrIdleHintLowerOffset = 0.44;
 
 export class BroadStreetScene {
   onFocusChange?: (hotspot?: Hotspot) => void;
@@ -125,6 +128,10 @@ export class BroadStreetScene {
   private readonly controllerWorldPosition = new THREE.Vector3();
   private readonly controllerWorldDirection = new THREE.Vector3();
   private readonly controllerWorldQuaternion = new THREE.Quaternion();
+  private readonly vrIdleHintPosition = new THREE.Vector3();
+  private readonly vrIdleHintDirection = new THREE.Vector3();
+  private readonly vrIdleHintDown = new THREE.Vector3();
+  private readonly vrIdleHintQuaternion = new THREE.Quaternion();
   private readonly vrPanelWorldPosition = new THREE.Vector3();
   private readonly vrPanelWorldDirection = new THREE.Vector3();
   private readonly vrPanelLookTarget = new THREE.Vector3();
@@ -141,6 +148,7 @@ export class BroadStreetScene {
   private readonly vrTextPageIndexes = new Map<string, number>();
   private readonly vrTextPageCounts = new Map<string, number>();
   private readonly vrTextPageSignatures = new Map<string, string>();
+  private readonly vrIdleHint = createVrIdleHintSprite();
   private vrPanelSurface?: THREE.Mesh;
   private readonly fallbackPanoramaTexture = createPanoramaTexture();
   private readonly skyMaterial = new THREE.MeshBasicMaterial({
@@ -165,6 +173,7 @@ export class BroadStreetScene {
   private vrFocusedButton?: VrButtonMesh;
   private vrMapNeedsAttention = false;
   private vrActivePageKey?: string;
+  private vrPanelHiddenSince?: number;
   private snapTurnLocked = false;
   private dragging = false;
   private previousPointer = { x: 0, y: 0 };
@@ -195,8 +204,10 @@ export class BroadStreetScene {
     this.playerRig.add(this.camera);
     this.scene.add(this.playerRig);
     this.scene.add(this.vrPanel);
+    this.scene.add(this.vrIdleHint);
     this.vrPanel.scale.setScalar(vrPanelScale);
     this.vrPanel.visible = false;
+    this.vrIdleHint.visible = false;
 
     if (this.allowCanvasCapture) {
       (window as CaptureWindow).__vrSnowCapture = () => createCaptureDataUrl(this.renderer.domElement);
@@ -212,8 +223,9 @@ export class BroadStreetScene {
 
   start(): void {
     this.renderer.setAnimationLoop((time: number) => {
-      this.updateHotspots(time * 0.001);
-      this.updateVrControls();
+      const timeSeconds = time * 0.001;
+      this.updateHotspots(timeSeconds);
+      this.updateVrControls(timeSeconds);
       this.updateFocusFromCenter();
       this.renderer.render(this.scene, this.camera);
       if (this.allowCanvasCapture && this.captureFrameCounter % 12 === 0) {
@@ -431,19 +443,15 @@ export class BroadStreetScene {
   }
 
   private handleVrSessionStart(): void {
-    this.vrPanelVisible = true;
-    this.vrPanel.visible = true;
     this.vrPanelMode = "home";
     this.vrStatus = this.getDefaultVrStatus();
     this.snapTurnLocked = false;
     this.applyCameraOrientation();
-    this.placeVrPanelInFront();
-    this.markVrPanelDirty();
+    this.showVrPanel();
   }
 
   private handleVrSessionEnd(): void {
-    this.vrPanelVisible = false;
-    this.vrPanel.visible = false;
+    this.hideVrPanel(false);
     this.snapTurnLocked = false;
     this.playerRig.rotation.set(0, 0, 0);
     this.camera.rotation.set(this.pitch, this.yaw, 0, "YXZ");
@@ -454,16 +462,16 @@ export class BroadStreetScene {
       return;
     }
 
-    this.vrPanelVisible = !this.vrPanelVisible;
-    this.vrPanel.visible = this.vrPanelVisible;
     if (this.vrPanelVisible) {
-      this.placeVrPanelInFront();
+      this.hideVrPanel();
+    } else {
+      this.showVrPanel();
     }
-    this.markVrPanelDirty();
   }
 
-  private updateVrControls(): void {
+  private updateVrControls(timeSeconds: number): void {
     if (!this.renderer.xr.isPresenting) {
+      this.vrIdleHint.visible = false;
       return;
     }
 
@@ -475,6 +483,7 @@ export class BroadStreetScene {
     this.updateVrButtonFocus();
     this.updateVrPaginationButtons();
     this.updateSnapTurn();
+    this.updateVrIdleHint(timeSeconds);
   }
 
   private selectFromVrController(controller: THREE.Group): void {
@@ -501,12 +510,8 @@ export class BroadStreetScene {
 
   private activateVrHotspot(hotspot: Hotspot): void {
     const wasPanelVisible = this.vrPanelVisible;
-    this.vrPanelVisible = true;
-    this.vrPanel.visible = true;
+    this.showVrPanel(!wasPanelVisible);
     this.vrPanelMode = "home";
-    if (!wasPanelVisible) {
-      this.placeVrPanelInFront();
-    }
 
     if (
       hotspot.id === "john-snow" &&
@@ -543,9 +548,7 @@ export class BroadStreetScene {
           this.vrPanelMode = "home";
           this.vrStatus = "Conversation closed.";
         } else {
-          this.vrPanelVisible = false;
-          this.vrPanel.visible = false;
-          this.markVrPanelDirty();
+          this.hideVrPanel();
           return;
         }
         break;
@@ -559,6 +562,11 @@ export class BroadStreetScene {
         this.vrPanelMode = "home";
         this.vrMapNeedsAttention = false;
         this.vrStatus = result.message;
+        if (result.traveled) {
+          this.refreshHotspots();
+          this.hideVrPanel();
+          return;
+        }
         break;
       }
       case "ask": {
@@ -613,9 +621,27 @@ export class BroadStreetScene {
         break;
     }
 
+    this.showVrPanel(false);
+    this.refreshHotspots();
+    this.markVrPanelDirty();
+  }
+
+  private showVrPanel(placeInFront = true): void {
     this.vrPanelVisible = true;
     this.vrPanel.visible = true;
-    this.refreshHotspots();
+    this.vrPanelHiddenSince = undefined;
+    this.vrIdleHint.visible = false;
+    if (placeInFront) {
+      this.placeVrPanelInFront();
+    }
+    this.markVrPanelDirty();
+  }
+
+  private hideVrPanel(startIdleHintTimer = true): void {
+    this.vrPanelVisible = false;
+    this.vrPanel.visible = false;
+    this.vrIdleHint.visible = false;
+    this.vrPanelHiddenSince = startIdleHintTimer ? performance.now() * 0.001 : undefined;
     this.markVrPanelDirty();
   }
 
@@ -1033,6 +1059,28 @@ export class BroadStreetScene {
       this.vrPanelLookTarget.z - this.vrPanel.position.z,
     );
     this.vrPanel.rotation.set(0, yawToCamera, 0);
+  }
+
+  private updateVrIdleHint(timeSeconds: number): void {
+    if (this.vrPanelVisible || this.vrPanelHiddenSince === undefined) {
+      this.vrIdleHint.visible = false;
+      return;
+    }
+
+    if (timeSeconds - this.vrPanelHiddenSince < vrIdleHintDelaySeconds) {
+      this.vrIdleHint.visible = false;
+      return;
+    }
+
+    this.camera.getWorldPosition(this.vrIdleHintPosition);
+    this.camera.getWorldDirection(this.vrIdleHintDirection);
+    this.camera.getWorldQuaternion(this.vrIdleHintQuaternion);
+    this.vrIdleHintDown.set(0, -1, 0).applyQuaternion(this.vrIdleHintQuaternion).normalize();
+    this.vrIdleHint.position
+      .copy(this.vrIdleHintPosition)
+      .addScaledVector(this.vrIdleHintDirection, vrIdleHintDistance)
+      .addScaledVector(this.vrIdleHintDown, vrIdleHintLowerOffset);
+    this.vrIdleHint.visible = true;
   }
 
   private updateVrButtonFocus(): void {
@@ -2566,6 +2614,46 @@ function createSpriteLabel(text: string, color: string): THREE.Sprite {
     }),
   );
   sprite.scale.set(1.25, 0.42, 1);
+  return sprite;
+}
+
+function createVrIdleHintSprite(): THREE.Sprite {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 160;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Could not create VR hint texture.");
+  }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "rgba(5, 9, 10, 0.72)";
+  roundRect(ctx, 34, 28, canvas.width - 68, 104, 30);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(246, 211, 111, 0.28)";
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.fillStyle = "#e8f1eb";
+  ctx.font = "700 44px Arial, Helvetica, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Squeeze for the panel, or select a gold sphere.", canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      opacity: 0.92,
+      toneMapped: false,
+    }),
+  );
+  sprite.renderOrder = 95;
+  sprite.frustumCulled = false;
+  sprite.scale.set(1.28, 0.2, 1);
   return sprite;
 }
 
