@@ -118,10 +118,10 @@ export const evidenceCards: EvidenceCard[] = [
     id: "pump-cluster",
     title: "Deaths cluster around the Broad Street pump",
     summary:
-      "The first plotted addresses form a dense cluster around Broad Street, strongest near the public pump.",
+      "Plotted addresses from the registrar's returns form a dense cluster around Broad Street, strongest near the public pump.",
     confidence: "observed",
-    sourceType: "observation",
-    sourceLabel: "Street observation and address plotting",
+    sourceType: "document",
+    sourceLabel: "Registrar addresses plotted at Snow's desk",
     supports: ["Waterborne exposure", "Mapping deaths by address"],
     complicates: ["Miasma alone"],
   },
@@ -210,6 +210,14 @@ export const dialogueNodes: DialogueNode[] = [
         unlocksEvidenceId: "snow-method",
       },
       {
+        id: "pump-cluster-question",
+        prompt: "What do the plotted addresses show?",
+        response:
+          "The marks crowd around Broad Street. The pattern does not explain every case, but it gives the inquiry a center of gravity.",
+        unlocksEvidenceId: "pump-cluster",
+        requiresEvidenceIds: ["attack-timeline"],
+      },
+      {
         id: "pump-limits-question",
         prompt: "Does the cluster alone settle the cause?",
         response:
@@ -254,13 +262,6 @@ export const dialogueNodes: DialogueNode[] = [
     intro:
       "The pump is busy even in the anxious quiet. Its position matters only if the addresses and exposures begin to point back to it.",
     questions: [
-      {
-        id: "pump-cluster-question",
-        prompt: "What do the first plotted addresses show?",
-        response:
-          "The marks crowd around Broad Street. The pattern does not explain every case, but it gives the inquiry a center of gravity.",
-        unlocksEvidenceId: "pump-cluster",
-      },
       {
         id: "pump-caution-question",
         prompt: "What did Snow's water sample show?",
@@ -400,8 +401,8 @@ export const hotspots: Hotspot[] = [
     locationId: "broad-street",
     label: "Broad Street pump",
     shortLabel: "Pump",
-    description: "A much-used public pump stands at the center of the first cluster.",
-    evidenceId: "pump-cluster",
+    description: "Snow can inspect whether the pump water itself gives any visible sign of danger.",
+    evidenceId: "pump-water-inspection",
     position: [1.45, 1.45, -5.4],
   },
   {

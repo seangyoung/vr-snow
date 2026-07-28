@@ -63,7 +63,7 @@ const mapAnnotations: Array<{
   {
     evidenceId: "pump-cluster",
     title: "Address cluster",
-    body: "Deaths crowd toward the pump, giving the inquiry a center.",
+    body: "Registrar addresses crowd toward the pump once Snow plots them.",
     x: 42,
     y: 30,
     kind: "cluster",
@@ -119,8 +119,8 @@ const mapAnnotations: Array<{
 ];
 
 const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
-  "snow-desk": ["snow-method"],
-  "broad-street": ["pump-cluster", "pump-water-inspection"],
+  "snow-desk": ["snow-method", "pump-cluster"],
+  "broad-street": ["pump-water-inspection"],
   household: ["household-exposure"],
   registrar: ["attack-timeline"],
   workhouse: ["workhouse-exception"],
