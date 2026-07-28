@@ -570,12 +570,13 @@ export class BroadStreetScene {
         break;
       }
       case "ask": {
+        const alreadyAsked = this.gameState.hasAskedQuestion(action.questionId);
         const result = this.gameState.askQuestion(action.questionId);
         this.vrPanelMode = "home";
         if (result.evidence) {
           this.vrMapNeedsAttention = true;
         }
-        this.vrStatus = result.response ? `${result.message} ${result.response}` : result.message;
+        this.vrStatus = this.formatVrQuestionResponse(result, alreadyAsked);
         break;
       }
       case "close-dialogue":
@@ -624,6 +625,20 @@ export class BroadStreetScene {
     this.showVrPanel(false);
     this.refreshHotspots();
     this.markVrPanelDirty();
+  }
+
+  private formatVrQuestionResponse(
+    result: { evidence?: unknown; response?: string; message: string },
+    alreadyAsked: boolean,
+  ): string {
+    if (result.evidence && result.response) {
+      const notebookStatus = alreadyAsked
+        ? "Already recorded in Field Notebook."
+        : "Evidence added to Field Notebook.";
+      return `${result.response} ${notebookStatus}`;
+    }
+
+    return result.response ? `${result.message} ${result.response}` : result.message;
   }
 
   private showVrPanel(placeInFront = true): void {
