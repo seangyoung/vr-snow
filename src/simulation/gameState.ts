@@ -66,7 +66,9 @@ export class GameState {
 
   askQuestion(questionId: string): { evidence?: EvidenceCard; response?: string; message: string } {
     const dialogue = this.getActiveDialogue();
-    const question = dialogue?.questions.find((candidate) => candidate.id === questionId);
+    const question = dialogue
+      ? this.getAvailableDialogueQuestions(dialogue).find((candidate) => candidate.id === questionId)
+      : undefined;
 
     if (!dialogue || !question) {
       return { message: "That question is not available here." };
@@ -408,6 +410,10 @@ export class GameState {
     return this.activeDialogueId ? dialogueNodes.find((dialogue) => dialogue.id === this.activeDialogueId) : undefined;
   }
 
+  getAvailableDialogueQuestions(dialogue: DialogueNode): DialogueQuestion[] {
+    return dialogue.questions.filter((question) => this.isDialogueQuestionAvailable(question));
+  }
+
   hasAskedQuestion(questionId: string): boolean {
     return this.askedQuestions.has(questionId);
   }
@@ -532,6 +538,10 @@ export class GameState {
 
   hasEvidence(id: string): boolean {
     return this.collectedEvidence.has(id);
+  }
+
+  private isDialogueQuestionAvailable(question: DialogueQuestion): boolean {
+    return (question.requiresEvidenceIds ?? []).every((evidenceId) => this.hasEvidence(evidenceId));
   }
 
   hasEnoughEvidenceForSynthesis(): boolean {

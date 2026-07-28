@@ -209,6 +209,41 @@ export const dialogueNodes: DialogueNode[] = [
           "Begin in Broad Street with particulars. Where did the person live, when did the attack begin, and what water did the household use? Bring me addresses, dates, exposure histories, and exceptions; the map must grow out of testimony and records, not guesswork.",
         unlocksEvidenceId: "snow-method",
       },
+      {
+        id: "pump-limits-question",
+        prompt: "Does the cluster alone settle the cause?",
+        response:
+          "No. A cluster is a lead, not proof. You still need timing, exposure histories, exceptions, and a way to explain why the water did not plainly reveal its danger.",
+        requiresEvidenceIds: ["pump-cluster", "pump-water-inspection"],
+      },
+      {
+        id: "ledger-address-question",
+        prompt: "Why copy addresses instead of totals alone?",
+        response:
+          "Totals show severity. Addresses show pattern. Snow needs both to compare the timing with the geography.",
+        requiresEvidenceIds: ["attack-timeline"],
+      },
+      {
+        id: "household-contact-question",
+        prompt: "Could nursing the sick person explain the spread?",
+        response:
+          "Close care may matter inside a home, but the question is whether many separate households were struck after drawing from the same pump.",
+        requiresEvidenceIds: ["household-exposure"],
+      },
+      {
+        id: "workhouse-miasma-question",
+        prompt: "If the street air were the cause, what would we expect?",
+        response:
+          "We would expect the nearby institution to suffer heavily as well. Its relative escape pushes the inquiry back toward water source and exposure.",
+        requiresEvidenceIds: ["workhouse-exception"],
+      },
+      {
+        id: "brewery-exposure-question",
+        prompt: "Why does this exception matter?",
+        response:
+          "It shows why place alone is not enough. The inquiry must ask what people actually consumed, not merely where they stood.",
+        requiresEvidenceIds: ["brewery-exception"],
+      },
     ],
   },
   {
@@ -233,12 +268,6 @@ export const dialogueNodes: DialogueNode[] = [
           "The sample did not give decisive proof by sight, taste, smell, or simple inspection. Snow records that absence as a problem for the argument, not a reason to ignore the map.",
         unlocksEvidenceId: "pump-water-inspection",
       },
-      {
-        id: "pump-limits-question",
-        prompt: "Does the cluster alone settle the cause?",
-        response:
-          "No. A cluster is a lead, not proof. You still need timing, exposure histories, exceptions, and a way to explain why the water did not plainly reveal its danger.",
-      },
     ],
   },
   {
@@ -255,12 +284,6 @@ export const dialogueNodes: DialogueNode[] = [
         response:
           "The returns rise sharply after August 30: 31 fatal attacks on August 31, then 131 and 125 over the next two days before falling.",
         unlocksEvidenceId: "attack-timeline",
-      },
-      {
-        id: "ledger-address-question",
-        prompt: "Why copy addresses instead of totals alone?",
-        response:
-          "Totals show severity. Addresses show pattern. Snow needs both to compare the timing with the geography.",
       },
     ],
   },
@@ -279,12 +302,6 @@ export const dialogueNodes: DialogueNode[] = [
           "The family fetched from the Broad Street pump because it was near and well regarded. Record the address, the water source, and the time symptoms began.",
         unlocksEvidenceId: "household-exposure",
       },
-      {
-        id: "household-contact-question",
-        prompt: "Could nursing the sick person explain the spread?",
-        response:
-          "Close care may matter inside a home, but the question is whether many separate households were struck after drawing from the same pump.",
-      },
     ],
   },
   {
@@ -302,12 +319,6 @@ export const dialogueNodes: DialogueNode[] = [
           "The workhouse had its own supply. Its nearness to Broad Street makes the small number of deaths important negative evidence.",
         unlocksEvidenceId: "workhouse-exception",
       },
-      {
-        id: "workhouse-miasma-question",
-        prompt: "If the street air were the cause, what would we expect?",
-        response:
-          "We would expect the nearby institution to suffer heavily as well. Its relative escape pushes the inquiry back toward water source and exposure.",
-      },
     ],
   },
   {
@@ -324,12 +335,6 @@ export const dialogueNodes: DialogueNode[] = [
         response:
           "Workers had beer or brewery water available and were not regular users of the Broad Street pump.",
         unlocksEvidenceId: "brewery-exception",
-      },
-      {
-        id: "brewery-exposure-question",
-        prompt: "Why does this exception matter?",
-        response:
-          "It shows why place alone is not enough. The inquiry must ask what people actually consumed, not merely where they stood.",
       },
     ],
   },

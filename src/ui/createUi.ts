@@ -449,7 +449,8 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 }
 
 function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): string {
-  const questionRows = dialogue.questions
+  const questionRows = gameState
+    .getAvailableDialogueQuestions(dialogue)
     .map((question) => renderDialogueQuestion(question, gameState))
     .join("");
 

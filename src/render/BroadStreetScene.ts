@@ -24,6 +24,7 @@ type VrButtonAction =
   | { type: "ask"; questionId: string }
   | { type: "close-dialogue" }
   | { type: "page-text"; pageKey: string; direction: -1 | 1 }
+  | { type: "page-questions"; pageKey: string; direction: -1 | 1 }
   | { type: "select-hypothesis"; hypothesisId: HypothesisId }
   | { type: "set-confidence"; confidence: SynthesisConfidence }
   | { type: "prepare-board" }
@@ -148,6 +149,8 @@ export class BroadStreetScene {
   private readonly vrTextPageIndexes = new Map<string, number>();
   private readonly vrTextPageCounts = new Map<string, number>();
   private readonly vrTextPageSignatures = new Map<string, string>();
+  private readonly vrQuestionPageIndexes = new Map<string, number>();
+  private readonly vrQuestionPageCounts = new Map<string, number>();
   private readonly vrIdleHint = createVrIdleHintSprite();
   private vrPanelSurface?: THREE.Mesh;
   private readonly fallbackPanoramaTexture = createPanoramaTexture();
@@ -586,6 +589,9 @@ export class BroadStreetScene {
       case "page-text":
         this.turnVrTextPage(action.pageKey, action.direction);
         break;
+      case "page-questions":
+        this.turnVrQuestionPage(action.pageKey, action.direction);
+        break;
       case "select-hypothesis": {
         const result = this.gameState.selectHypothesis(action.hypothesisId);
         this.vrPanelMode = "synthesis";
@@ -754,7 +760,15 @@ export class BroadStreetScene {
         fontSize: 28,
       }, -0.25);
 
-      activeDialogue.questions.slice(0, 3).forEach((question, index) => {
+      const availableQuestions = this.gameState.getAvailableDialogueQuestions(activeDialogue);
+      const questionPageKey = `dialogue-questions:${activeDialogue.id}`;
+      const questionsPerPage = availableQuestions.length > 3 ? 2 : 3;
+      const questionPageIndex = this.getVrQuestionPage(questionPageKey, availableQuestions.length, questionsPerPage);
+      const questionPageCount = this.vrQuestionPageCounts.get(questionPageKey) ?? 1;
+      const questionStartIndex = questionPageIndex * questionsPerPage;
+      const visibleQuestions = availableQuestions.slice(questionStartIndex, questionStartIndex + questionsPerPage);
+
+      visibleQuestions.forEach((question, index) => {
         const recorded = this.gameState.hasAskedQuestion(question.id) ? "Recorded: " : "";
         this.addVrPanelButton(`${recorded}${question.prompt}`, 0, -0.43 - index * 0.16, 2.34, 0.14, {
           type: "ask",
@@ -762,7 +776,29 @@ export class BroadStreetScene {
         });
       });
 
-      if (activeDialogue.id === "snow-briefing" && this.gameState.hasEvidence("snow-method")) {
+      if (questionPageCount > 1) {
+        this.addVrText(`${questionPageIndex + 1}/${questionPageCount}`, 0, -0.75, 0.42, 0.1, {
+          color: "#b9c9c4",
+          fontSize: 22,
+          weight: "700",
+        });
+        if (questionPageIndex > 0) {
+          this.addVrPanelButton("<", -0.46, -0.75, 0.18, 0.12, {
+            type: "page-questions",
+            pageKey: questionPageKey,
+            direction: -1,
+          });
+        }
+        if (questionPageIndex < questionPageCount - 1) {
+          this.addVrPanelButton(">", 0.46, -0.75, 0.18, 0.12, {
+            type: "page-questions",
+            pageKey: questionPageKey,
+            direction: 1,
+          });
+        }
+      }
+
+      if (activeDialogue.id === "snow-briefing" && this.gameState.hasEvidence("snow-method") && availableQuestions.length === 1) {
         this.addVrText("Use the MAP in the top left corner to travel to other locations.", 0, -0.76, vrPanelContentWidth, 0.12, {
           color: "#b9c9c4",
           fontSize: 24,
@@ -1152,6 +1188,26 @@ export class BroadStreetScene {
     }
 
     this.vrTextPageIndexes.set(pageKey, nextPage);
+    this.markVrPanelDirty();
+  }
+
+  private getVrQuestionPage(pageKey: string, questionCount: number, pageSize: number): number {
+    const pageCount = Math.max(1, Math.ceil(questionCount / pageSize));
+    const pageIndex = THREE.MathUtils.clamp(this.vrQuestionPageIndexes.get(pageKey) ?? 0, 0, pageCount - 1);
+    this.vrQuestionPageIndexes.set(pageKey, pageIndex);
+    this.vrQuestionPageCounts.set(pageKey, pageCount);
+    return pageIndex;
+  }
+
+  private turnVrQuestionPage(pageKey: string, direction: -1 | 1): void {
+    const pageCount = this.vrQuestionPageCounts.get(pageKey) ?? 1;
+    const currentPage = this.vrQuestionPageIndexes.get(pageKey) ?? 0;
+    const nextPage = THREE.MathUtils.clamp(currentPage + direction, 0, pageCount - 1);
+    if (nextPage === currentPage) {
+      return;
+    }
+
+    this.vrQuestionPageIndexes.set(pageKey, nextPage);
     this.markVrPanelDirty();
   }
 

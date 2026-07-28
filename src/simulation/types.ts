@@ -55,6 +55,7 @@ export interface DialogueQuestion {
   prompt: string;
   response: string;
   unlocksEvidenceId?: string;
+  requiresEvidenceIds?: string[];
 }
 
 export interface DialogueNode {
