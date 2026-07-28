@@ -23,6 +23,7 @@ type VrButtonAction =
   | { type: "travel"; locationId: LocationId }
   | { type: "ask"; questionId: string }
   | { type: "close-dialogue" }
+  | { type: "page-text"; pageKey: string; direction: -1 | 1 }
   | { type: "select-hypothesis"; hypothesisId: HypothesisId }
   | { type: "set-confidence"; confidence: SynthesisConfidence }
   | { type: "prepare-board" }
@@ -69,6 +70,11 @@ type VrControllerPointer = {
   reticle: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
 };
 
+type VrControllerButtonState = {
+  nextPagePressed: boolean;
+  previousPagePressed: boolean;
+};
+
 type VrTextOptions = {
   color?: string;
   background?: string;
@@ -78,6 +84,13 @@ type VrTextOptions = {
 
 type CaptureWindow = Window & {
   __vrSnowCapture?: () => string;
+};
+
+type WrappedTextLayout = {
+  fontSize: number;
+  lineHeight: number;
+  lines: string[];
+  fits: boolean;
 };
 
 const cameraHeight = 1.62;
@@ -120,10 +133,14 @@ export class BroadStreetScene {
   private readonly sharedExterior = new THREE.Group();
   private readonly vrControllers: THREE.Group[] = [];
   private readonly vrInputSources = new Map<THREE.Group, XRInputSource>();
+  private readonly vrControllerButtonStates = new Map<THREE.Group, VrControllerButtonState>();
   private readonly vrControllerPointers: VrControllerPointer[] = [];
   private readonly vrPanel = new THREE.Group();
   private readonly vrPanelButtons: VrButtonMesh[] = [];
   private readonly vrPanelDrawCommands: VrPanelDrawCommand[] = [];
+  private readonly vrTextPageIndexes = new Map<string, number>();
+  private readonly vrTextPageCounts = new Map<string, number>();
+  private readonly vrTextPageSignatures = new Map<string, string>();
   private vrPanelSurface?: THREE.Mesh;
   private readonly fallbackPanoramaTexture = createPanoramaTexture();
   private readonly skyMaterial = new THREE.MeshBasicMaterial({
@@ -147,6 +164,7 @@ export class BroadStreetScene {
   private vrStatus = "Aim the controller beam at a marker or panel. Trigger selects. Squeeze toggles the panel.";
   private vrFocusedButton?: VrButtonMesh;
   private vrMapNeedsAttention = false;
+  private vrActivePageKey?: string;
   private snapTurnLocked = false;
   private dragging = false;
   private previousPointer = { x: 0, y: 0 };
@@ -398,6 +416,7 @@ export class BroadStreetScene {
       });
       controller.addEventListener("disconnected", () => {
         this.vrInputSources.delete(controller);
+        this.vrControllerButtonStates.delete(controller);
         this.snapTurnLocked = false;
       });
       controller.addEventListener("select", () => this.selectFromVrController(controller));
@@ -454,6 +473,7 @@ export class BroadStreetScene {
 
     this.updateVrPointers();
     this.updateVrButtonFocus();
+    this.updateVrPaginationButtons();
     this.updateSnapTurn();
   }
 
@@ -554,6 +574,9 @@ export class BroadStreetScene {
         this.gameState.closeDialogue();
         this.vrStatus = "Conversation closed.";
         break;
+      case "page-text":
+        this.turnVrTextPage(action.pageKey, action.direction);
+        break;
       case "select-hypothesis": {
         const result = this.gameState.selectHypothesis(action.hypothesisId);
         this.vrPanelMode = "synthesis";
@@ -616,6 +639,7 @@ export class BroadStreetScene {
     this.vrPanelDirty = false;
     this.clearVrPanel();
     this.vrPanelDrawCommands.length = 0;
+    this.vrActivePageKey = undefined;
 
     if (!this.vrPanelVisible) {
       this.vrPanel.visible = false;
@@ -678,20 +702,20 @@ export class BroadStreetScene {
   private buildVrHomePanel(): void {
     const activeDialogue = this.gameState.getActiveDialogue();
     if (activeDialogue) {
-      this.addVrText(`${activeDialogue.speaker}: ${activeDialogue.role}`, 0, 0.32, vrPanelContentWidth, 0.16, {
+      this.addVrText(`${activeDialogue.speaker}: ${activeDialogue.role}`, 0, 0.34, vrPanelContentWidth, 0.14, {
         color: "#f1d79c",
-        fontSize: 36,
+        fontSize: 34,
         weight: "700",
       });
       const dialogueBody = this.vrStatus === this.getDefaultVrStatus() ? activeDialogue.intro : this.vrStatus;
-      this.addVrText(dialogueBody, 0, 0.1, vrPanelContentWidth, 0.26, {
+      this.addPaginatedVrText(`dialogue:${activeDialogue.id}`, dialogueBody, 0, 0.02, vrPanelContentWidth, 0.48, {
         color: "#e7ece8",
-        fontSize: 32,
-      });
+        fontSize: 28,
+      }, -0.25);
 
       activeDialogue.questions.slice(0, 3).forEach((question, index) => {
         const recorded = this.gameState.hasAskedQuestion(question.id) ? "Recorded: " : "";
-        this.addVrPanelButton(`${recorded}${question.prompt}`, 0, -0.22 - index * 0.21, 2.34, 0.18, {
+        this.addVrPanelButton(`${recorded}${question.prompt}`, 0, -0.34 - index * 0.175, 2.34, 0.15, {
           type: "ask",
           questionId: question.id,
         });
@@ -718,10 +742,10 @@ export class BroadStreetScene {
     }
 
     if (this.gameState.getStage() === "complete") {
-      this.addVrText(this.gameState.getCurrentSceneBody().join(" "), 0, 0.02, vrPanelContentWidth, 0.78, {
+      this.addPaginatedVrText("home:complete", this.gameState.getCurrentSceneBody().join(" "), 0, 0.06, vrPanelContentWidth, 0.7, {
         color: "#e7ece8",
         fontSize: 30,
-      });
+      }, -0.42);
       this.addVrPanelButton("Reset", 0, -0.66, 0.68, 0.22, { type: "reset" });
       return;
     }
@@ -789,10 +813,10 @@ export class BroadStreetScene {
   private buildVrSynthesisPanel(): void {
     const stage = this.gameState.getStage();
     if (stage === "board" || stage === "complete") {
-      this.addVrText(this.gameState.getCurrentSceneBody().join(" "), 0, 0.08, vrPanelContentWidth, 0.78, {
+      this.addPaginatedVrText(`synthesis:${stage}`, this.gameState.getCurrentSceneBody().join(" "), 0, 0.1, vrPanelContentWidth, 0.7, {
         color: "#e7ece8",
         fontSize: 30,
-      });
+      }, -0.42);
       this.addVrPanelButton(stage === "board" ? "After the Meeting" : "Reset", 0, -0.68, 1.16, 0.22, {
         type: stage === "board" ? "finish-board" : "reset",
       });
@@ -841,6 +865,61 @@ export class BroadStreetScene {
       fontSize: options.fontSize ?? 36,
       weight: options.weight ?? "500",
     });
+  }
+
+  private addPaginatedVrText(
+    pageKey: string,
+    text: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    options: VrTextOptions = {},
+    controlsY = y - height / 2 - 0.08,
+  ): void {
+    const fontSize = options.fontSize ?? 36;
+    const weight = options.weight ?? "500";
+    const signature = `${text}|${width}|${height}|${fontSize}|${weight}`;
+    if (this.vrTextPageSignatures.get(pageKey) !== signature) {
+      this.vrTextPageSignatures.set(pageKey, signature);
+      this.vrTextPageIndexes.set(pageKey, 0);
+    }
+
+    const pages = createVrTextPages(text, x, y, width, height, {
+      fontSize,
+      weight,
+    });
+    const pageIndex = THREE.MathUtils.clamp(this.vrTextPageIndexes.get(pageKey) ?? 0, 0, pages.length - 1);
+    this.vrTextPageIndexes.set(pageKey, pageIndex);
+    this.vrTextPageCounts.set(pageKey, pages.length);
+    this.addVrText(pages[pageIndex] ?? "", x, y, width, height, options);
+
+    if (pages.length <= 1) {
+      return;
+    }
+
+    this.vrActivePageKey = pageKey;
+    this.addVrText(`${pageIndex + 1}/${pages.length}`, x, controlsY, 0.42, 0.1, {
+      color: "#b9c9c4",
+      fontSize: 24,
+      weight: "700",
+    });
+
+    if (pageIndex > 0) {
+      this.addVrPanelButton("<", x - width / 2 + 0.18, controlsY, 0.18, 0.12, {
+        type: "page-text",
+        pageKey,
+        direction: -1,
+      });
+    }
+
+    if (pageIndex < pages.length - 1) {
+      this.addVrPanelButton(">", x + width / 2 - 0.18, controlsY, 0.18, 0.12, {
+        type: "page-text",
+        pageKey,
+        direction: 1,
+      });
+    }
   }
 
   private addVrPanelButton(label: string, x: number, y: number, width: number, height: number, action: VrButtonAction): void {
@@ -962,6 +1041,47 @@ export class BroadStreetScene {
     }
 
     this.vrFocusedButton = nextButton;
+  }
+
+  private updateVrPaginationButtons(): void {
+    for (const controller of this.vrControllers) {
+      const inputSource = this.vrInputSources.get(controller);
+      const nextState = this.getVrPaginationButtonState(inputSource);
+      const previousState = this.vrControllerButtonStates.get(controller) ?? {
+        nextPagePressed: false,
+        previousPagePressed: false,
+      };
+
+      if (this.vrActivePageKey && this.vrPanelVisible) {
+        if (nextState.nextPagePressed && !previousState.nextPagePressed) {
+          this.turnVrTextPage(this.vrActivePageKey, 1);
+        } else if (nextState.previousPagePressed && !previousState.previousPagePressed) {
+          this.turnVrTextPage(this.vrActivePageKey, -1);
+        }
+      }
+
+      this.vrControllerButtonStates.set(controller, nextState);
+    }
+  }
+
+  private getVrPaginationButtonState(inputSource?: XRInputSource): VrControllerButtonState {
+    const buttons = inputSource?.gamepad?.buttons ?? [];
+    return {
+      nextPagePressed: Boolean(buttons[4]?.pressed),
+      previousPagePressed: Boolean(buttons[5]?.pressed),
+    };
+  }
+
+  private turnVrTextPage(pageKey: string, direction: -1 | 1): void {
+    const pageCount = this.vrTextPageCounts.get(pageKey) ?? 1;
+    const currentPage = this.vrTextPageIndexes.get(pageKey) ?? 0;
+    const nextPage = THREE.MathUtils.clamp(currentPage + direction, 0, pageCount - 1);
+    if (nextPage === currentPage) {
+      return;
+    }
+
+    this.vrTextPageIndexes.set(pageKey, nextPage);
+    this.markVrPanelDirty();
   }
 
   private updateSnapTurn(): void {
@@ -1369,6 +1489,37 @@ function drawVrPanelText(ctx: CanvasRenderingContext2D, command: VrPanelTextComm
   });
 }
 
+function createVrTextPages(
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  options: { fontSize: number; weight: string },
+): string[] {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return [text];
+  }
+
+  const scale = vrPanelTextureWidth / vrPanelDesignWidth;
+  const rect = getPanelCanvasRect(x, y, width, height);
+  const fontSize = options.fontSize * scale;
+  const padding = getTextPadding(rect, fontSize);
+  const maxWidth = Math.max(fontSize, rect.width - padding * 2);
+  const linesPerPage = getMaxLinesForRect(rect, fontSize);
+  ctx.font = `${options.weight} ${fontSize}px Arial, Helvetica, sans-serif`;
+
+  const wrappedLines = wrapCanvasText(ctx, text, maxWidth);
+  const pages: string[] = [];
+  for (let lineIndex = 0; lineIndex < wrappedLines.length; lineIndex += linesPerPage) {
+    pages.push(wrappedLines.slice(lineIndex, lineIndex + linesPerPage).join(" "));
+  }
+
+  return pages.length > 0 ? pages : [""];
+}
+
 function drawTextIntoRect(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -1376,28 +1527,69 @@ function drawTextIntoRect(
   options: { color: string; fontSize: number; weight: string; maxLines?: number },
 ): void {
   const scale = vrPanelTextureWidth / vrPanelDesignWidth;
-  const fontSize = options.fontSize * scale;
-  const padding = Math.max(18 * scale, rect.height * 0.08);
-  const lineHeight = fontSize * 1.16;
-  const maxLines =
-    options.maxLines ??
-    Math.max(1, Math.floor(Math.max(lineHeight, rect.height - padding * 2) / lineHeight));
+  const baseFontSize = options.fontSize * scale;
+  const minimumFontSize = options.maxLines === undefined ? Math.max(22 * scale, baseFontSize * 0.72) : baseFontSize;
+  const fontStep = 2 * scale;
+  let layout = measureWrappedText(ctx, text, rect, options.weight, baseFontSize, options.maxLines);
 
-  ctx.font = `${options.weight} ${fontSize}px Arial, Helvetica, sans-serif`;
+  while (options.maxLines === undefined && !layout.fits && layout.fontSize - fontStep >= minimumFontSize) {
+    layout = measureWrappedText(ctx, text, rect, options.weight, layout.fontSize - fontStep);
+  }
+
+  if (options.maxLines === undefined && !layout.fits) {
+    const maxLines = getMaxLinesForRect(rect, layout.fontSize);
+    layout = measureWrappedText(ctx, text, rect, options.weight, layout.fontSize, maxLines);
+  }
+
+  ctx.font = `${options.weight} ${layout.fontSize}px Arial, Helvetica, sans-serif`;
   ctx.fillStyle = options.color;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.lineJoin = "round";
-  ctx.lineWidth = Math.max(4 * scale, fontSize * 0.08);
+  ctx.lineWidth = Math.max(4 * scale, layout.fontSize * 0.08);
   ctx.strokeStyle = "rgba(0, 0, 0, 0.86)";
 
-  const lines = wrapCanvasText(ctx, text, rect.width - padding * 2, maxLines);
-  const startY = rect.y + rect.height / 2 - ((lines.length - 1) * lineHeight) / 2;
-  lines.forEach((line, index) => {
-    const y = startY + index * lineHeight;
+  const startY = rect.y + rect.height / 2 - ((layout.lines.length - 1) * layout.lineHeight) / 2;
+  layout.lines.forEach((line, index) => {
+    const y = startY + index * layout.lineHeight;
     ctx.strokeText(line, rect.x + rect.width / 2, y);
     ctx.fillText(line, rect.x + rect.width / 2, y);
   });
+}
+
+function measureWrappedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  rect: { width: number; height: number },
+  weight: string,
+  fontSize: number,
+  maxLines?: number,
+): WrappedTextLayout {
+  const padding = getTextPadding(rect, fontSize);
+  const lineHeight = fontSize * 1.16;
+  const maxWidth = Math.max(fontSize, rect.width - padding * 2);
+  const availableHeight = Math.max(lineHeight, rect.height - padding * 2);
+  const maxLinesByHeight = Math.max(1, Math.floor(availableHeight / lineHeight));
+
+  ctx.font = `${weight} ${fontSize}px Arial, Helvetica, sans-serif`;
+  const lines = wrapCanvasText(ctx, text, maxWidth, maxLines);
+  return {
+    fontSize,
+    lineHeight,
+    lines,
+    fits: lines.length <= maxLinesByHeight && (maxLines === undefined || maxLines <= maxLinesByHeight),
+  };
+}
+
+function getTextPadding(rect: { height: number }, fontSize: number): number {
+  const scale = vrPanelTextureWidth / vrPanelDesignWidth;
+  return Math.max(12 * scale, Math.min(rect.height * 0.08, fontSize * 0.55));
+}
+
+function getMaxLinesForRect(rect: { height: number }, fontSize: number): number {
+  const padding = getTextPadding(rect, fontSize);
+  const lineHeight = fontSize * 1.16;
+  return Math.max(1, Math.floor(Math.max(lineHeight, rect.height - padding * 2) / lineHeight));
 }
 
 function getPanelCanvasRect(
@@ -1441,7 +1633,7 @@ function wrapCanvasText(
   ctx: CanvasRenderingContext2D,
   text: string,
   maxWidth: number,
-  maxLines: number,
+  maxLines?: number,
 ): string[] {
   const words = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
   const lines: string[] = [];
@@ -1462,20 +1654,21 @@ function wrapCanvasText(
     lines.push(currentLine);
   }
 
-  if (lines.length > maxLines) {
+  if (maxLines !== undefined && lines.length > maxLines) {
     const trimmed = lines.slice(0, maxLines);
     const finalLine = trimmed[trimmed.length - 1] ?? "";
-    trimmed[trimmed.length - 1] = fitCanvasText(ctx, finalLine, maxWidth);
+    trimmed[trimmed.length - 1] = ellipsizeCanvasText(ctx, finalLine, maxWidth);
     return trimmed;
   }
 
   return lines.length > 0 ? lines : [""];
 }
 
-function fitCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+function ellipsizeCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
   const ellipsis = "...";
-  if (ctx.measureText(text).width <= maxWidth) {
-    return text;
+  const withEllipsis = `${text}${ellipsis}`;
+  if (ctx.measureText(withEllipsis).width <= maxWidth) {
+    return withEllipsis;
   }
 
   let trimmed = text.trimEnd();
