@@ -209,12 +209,6 @@ export const dialogueNodes: DialogueNode[] = [
           "Begin in Broad Street with particulars. Where did the person live, when did the attack begin, and what water did the household use? Bring me addresses, dates, exposure histories, and exceptions; the map must grow out of testimony and records, not guesswork.",
         unlocksEvidenceId: "snow-method",
       },
-      {
-        id: "snow-uncertainty-question",
-        prompt: "Are we trying to prove the water theory today?",
-        response:
-          "We are trying to learn whether the pattern is strong enough to justify action. A reversible measure may be warranted before every mechanism is settled.",
-      },
     ],
   },
   {

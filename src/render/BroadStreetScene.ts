@@ -715,11 +715,19 @@ export class BroadStreetScene {
 
       activeDialogue.questions.slice(0, 3).forEach((question, index) => {
         const recorded = this.gameState.hasAskedQuestion(question.id) ? "Recorded: " : "";
-        this.addVrPanelButton(`${recorded}${question.prompt}`, 0, -0.34 - index * 0.175, 2.34, 0.15, {
+        this.addVrPanelButton(`${recorded}${question.prompt}`, 0, -0.43 - index * 0.16, 2.34, 0.14, {
           type: "ask",
           questionId: question.id,
         });
       });
+
+      if (activeDialogue.id === "snow-briefing" && this.gameState.hasEvidence("snow-method")) {
+        this.addVrText("Use the MAP in the top left corner to travel to other locations.", 0, -0.76, vrPanelContentWidth, 0.12, {
+          color: "#b9c9c4",
+          fontSize: 24,
+          weight: "700",
+        });
+      }
       return;
     }
 
