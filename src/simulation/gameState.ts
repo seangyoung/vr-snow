@@ -337,7 +337,7 @@ export class GameState {
     const findings: string[] = [];
 
     if (this.hasEvidence("pump-cluster")) {
-      findings.push("The address marks cluster around the Broad Street pump.");
+      findings.push("Deaths cluster around the Broad Street pump.");
     }
 
     if (this.hasEvidence("household-exposure")) {
@@ -353,19 +353,19 @@ export class GameState {
     }
 
     if (this.hasEvidence("attack-timeline")) {
-      findings.push("The daily returns add timing: a sudden rise and fall, not a slow chain alone.");
+      findings.push("Registrar death returns add timing: fatal attacks rose and fell suddenly, not as a slow chain alone.");
     }
 
     if (this.hasEvidence("workhouse-exception")) {
-      findings.push("The workhouse sits near the cluster but marks a separate water supply.");
+      findings.push("The workhouse near Broad Street had few deaths, and its own water supply.");
     }
 
     if (this.hasEvidence("brewery-exception")) {
-      findings.push("The brewery sits near Broad Street but marks different drinking habits.");
+      findings.push("The brewery on Broad Street had no deaths, and did not rely on the Broad Street pump.");
     }
 
     if (this.hasEvidence("snow-method")) {
-      findings.push("Outliers and exceptions stay on the map instead of being discarded.");
+      findings.push("Snow's argument combines death records, household interviews, sample inspection, and exceptions.");
     }
 
     return findings;
