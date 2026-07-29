@@ -237,7 +237,7 @@ export const dialogueNodes: DialogueNode[] = [
         id: "pump-cluster-question",
         prompt: "What do the plotted addresses show?",
         response:
-          "The marks crowd around Broad Street. The pattern does not explain every case, but it gives the inquiry a center of gravity.",
+          "The marks crowd around Broad Street. The pattern does not explain every case, but it gives the inquiry a center of gravity. Open the map to inspect the plotted deaths around the pump.",
         unlocksEvidenceId: "pump-cluster",
         requiresEvidenceIds: ["attack-timeline"],
       },

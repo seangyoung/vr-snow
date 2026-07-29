@@ -101,6 +101,8 @@ export class GameState {
             ? `${evidence.title} added to your notebook. Return to Snow's Desk to prepare the theory.`
             : evidence.id === "snow-method"
               ? "Snow assigns you to begin in Broad Street: collect addresses, water histories, dates, and exceptions before drawing conclusions."
+              : evidence.id === "pump-cluster"
+                ? `${evidence.title} added to your notebook. Open the map to inspect the plotted deaths around the pump.`
               : `${evidence.title} added to your notebook.`
           : alreadyAsked
             ? "You have already recorded that answer."
