@@ -16,44 +16,8 @@ import type {
 } from "../simulation/types";
 
 type OverlayMode = "none" | "notebook" | "map";
-type MapLayerId = "evidence" | HypothesisId;
 const broadStreetMapSvgPath = "maps/broad-street.svg";
 const broadStreetMapViewBoxSize = 20020;
-const broadStreetMapOverlayScale = broadStreetMapViewBoxSize / 100;
-
-const mapLayers: Array<{ id: MapLayerId; label: string; icon: string; summary: string }> = [
-  {
-    id: "evidence",
-    label: "Evidence",
-    icon: "map-pinned",
-    summary:
-      "Use the Broad Street map to travel between sources; Snow's death marks appear once the ledger and cluster evidence agree.",
-  },
-  {
-    id: "waterborne",
-    label: "Water",
-    icon: "droplets",
-    summary: "A common-source exposure should radiate from pump use, even when ordinary inspection does not make contamination obvious.",
-  },
-  {
-    id: "miasma",
-    label: "Air",
-    icon: "cloud-fog",
-    summary: "Bad air should follow streets, drains, and proximity rather than a particular drinking source.",
-  },
-  {
-    id: "person-to-person",
-    label: "Household",
-    icon: "users",
-    summary: "Direct spread should grow by contact chains instead of erupting sharply around one shared source.",
-  },
-  {
-    id: "crowding",
-    label: "Crowding",
-    icon: "building-2",
-    summary: "Crowding should make institutions and dense workplaces suffer with nearby households.",
-  },
-];
 
 const mapAnnotations: Array<{
   evidenceId: string;
@@ -140,7 +104,6 @@ export interface PrototypeUi {
 
 export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeUi {
   let overlayMode: OverlayMode = "none";
-  let mapLayer: MapLayerId = "evidence";
   let focusedHotspot: Hotspot | undefined;
   let message = "Speak with Snow at the desk to receive your field assignment.";
   let isTransitioning = false;
@@ -229,20 +192,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         return;
       }
       const result = gameState.selectHypothesis(hypothesisId);
-      mapLayer = hypothesisId;
       message = result.message;
-    }
-
-    if (action === "map-layer") {
-      const layerId = actionTarget.dataset.mapLayer as MapLayerId | undefined;
-      if (!layerId || !mapLayers.some((layer) => layer.id === layerId)) {
-        return;
-      }
-      mapLayer = layerId;
-      message =
-        layerId === "evidence"
-          ? "Map table shows the plotted evidence."
-          : `${mapLayers.find((layer) => layer.id === layerId)?.label ?? "Theory"} overlay selected.`;
     }
 
     if (action === "set-confidence") {
@@ -288,7 +238,6 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     }
     if (action === "reset") {
       overlayMode = "none";
-      mapLayer = "evidence";
       snowReviewOpen = false;
       message = "Speak with Snow at the desk to receive your field assignment.";
       ui.onReset?.();
@@ -352,10 +301,10 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         <div class="toast-line">${escapeHtml(message)}</div>
 
         ${showChapterPanel ? renderChapterPanel(gameState.getCurrentScene(), stage, gameState) : ""}
-        ${showSynthesisPanel ? renderSynthesisPanel(gameState, mapLayer) : ""}
+        ${showSynthesisPanel ? renderSynthesisPanel(gameState) : ""}
         ${activeDialogue && overlayMode === "none" ? renderDialoguePanel(activeDialogue, gameState) : ""}
         ${overlayMode === "notebook" ? renderNotebook(collected, allEvidence) : ""}
-        ${overlayMode === "map" ? renderMap(collected, gameState, mapLayer) : ""}
+        ${overlayMode === "map" ? renderMap(collected, gameState) : ""}
         ${isTransitioning ? renderTravelFade(message) : ""}
       </div>
     `;
@@ -650,7 +599,7 @@ function sourceIcon(sourceType: EvidenceCard["sourceType"]): string {
   return "eye";
 }
 
-function renderSynthesisPanel(gameState: GameState, mapLayer: MapLayerId): string {
+function renderSynthesisPanel(gameState: GameState): string {
   const selectedHypothesis = gameState.getSelectedHypothesis();
   const confidenceOptions: SynthesisConfidence[] = ["tentative", "proportionate", "overstated"];
   const canPrepare = Boolean(selectedHypothesis && gameState.synthesisConfidence);
@@ -692,7 +641,7 @@ function renderSynthesisPanel(gameState: GameState, mapLayer: MapLayerId): strin
         </div>
       </div>
       <p class="synthesis-copy">${escapeHtml(gameState.getSnowSynthesisFeedback())}</p>
-      ${renderSynthesisMapStrip(gameState, mapLayer)}
+      ${renderSynthesisMapStrip(gameState)}
       <div class="synthesis-controls">
         <div class="confidence-row" aria-label="Confidence">
           ${confidenceRows}
@@ -711,9 +660,8 @@ function renderSynthesisPanel(gameState: GameState, mapLayer: MapLayerId): strin
   `;
 }
 
-function renderSynthesisMapStrip(gameState: GameState, mapLayer: MapLayerId): string {
+function renderSynthesisMapStrip(gameState: GameState): string {
   const mappedFindings = gameState.getMappedEvidenceFindings();
-  const layer = mapLayers.find((candidate) => candidate.id === mapLayer) ?? mapLayers[0];
   const findings = mappedFindings.length
     ? mappedFindings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")
     : `<li class="is-empty">Map evidence appears as you collect addresses, returns, and exceptions.</li>`;
@@ -721,10 +669,10 @@ function renderSynthesisMapStrip(gameState: GameState, mapLayer: MapLayerId): st
   return `
     <section class="synthesis-map-strip" aria-label="Map evidence summary">
       <div class="map-strip-heading">
-        <i data-lucide="${layer.icon}"></i>
+        <i data-lucide="map-pinned"></i>
         <div>
-          <span>Map layer</span>
-          <strong>${escapeHtml(layer.label)}</strong>
+          <span>Map evidence</span>
+          <strong>Broad Street</strong>
         </div>
       </div>
       <ul>${findings}</ul>
@@ -775,9 +723,8 @@ function renderEvidenceFit(label: string, evidenceCards: EvidenceCard[], kind: "
   `;
 }
 
-function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: MapLayerId): string {
+function renderMap(collected: EvidenceCard[], gameState: GameState): string {
   const collectedIds = new Set(collected.map((card) => card.id));
-  const activeLayer = mapLayers.find((layer) => layer.id === mapLayer) ?? mapLayers[0];
 
   const stage = gameState.getStage();
   const evidenceReady = gameState.hasEnoughEvidenceForSynthesis();
@@ -819,22 +766,6 @@ function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: Ma
     .getLocations()
     .map((location) => renderLocationNode(location, gameState, currentLocation.id))
     .join("");
-  const layerControls = mapLayers
-    .map((layer) => {
-      const active = layer.id === activeLayer.id;
-      return `
-        <button
-          class="map-layer-button ${active ? "is-selected" : ""}"
-          data-action="map-layer"
-          data-map-layer="${layer.id}"
-          aria-pressed="${active}"
-        >
-          <i data-lucide="${layer.icon}"></i>
-          <span>${escapeHtml(layer.label)}</span>
-        </button>
-      `;
-    })
-    .join("");
   const evidenceDocket = renderMapEvidenceDocket(gameState);
   const mappedFindings = gameState.getMappedEvidenceFindings();
   const mapFindings = mappedFindings.length
@@ -860,23 +791,17 @@ function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: Ma
           ${escapeHtml(primaryLabel)}
         </button>
       </div>
-      <div class="map-layer-row" aria-label="Map layers">
-        ${layerControls}
-      </div>
       <div class="map-layout">
-        <div class="map-canvas" data-layer="${activeLayer.id}">
+        <div class="map-canvas">
           <svg class="snow-map snow-map--custom" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="Broad Street evidence map">
-            ${renderCustomMapBase(activeLayer.id, collectedIds)}
-            <g class="game-map-overlay" transform="scale(${broadStreetMapOverlayScale})">
-              ${renderHypothesisOverlay(activeLayer.id, collectedIds)}
-            </g>
+            ${renderCustomMapBase(collectedIds)}
           </svg>
           ${locationNodes}
         </div>
         <div class="map-brief">
           <div class="layer-summary">
-            <span>${escapeHtml(activeLayer.label)} layer</span>
-            <p>${escapeHtml(activeLayer.summary)}</p>
+            <span>Map evidence</span>
+            <p>Use the Broad Street map to travel between sources; Snow's death marks appear once the ledger and cluster evidence agree.</p>
           </div>
           <ul class="map-findings">
             ${mapFindings}
@@ -894,11 +819,10 @@ function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: Ma
   `;
 }
 
-function renderCustomMapBase(activeLayerId: MapLayerId, collectedIds: Set<string>): string {
+function renderCustomMapBase(collectedIds: Set<string>): string {
   const mapSource = publicAssetPath(broadStreetMapSvgPath);
   const href = (id: string) => escapeHtml(`${mapSource}#${id}`);
-  const showServiceArea = activeLayerId === "waterborne";
-  const showDeaths = activeLayerId === "evidence" && collectedIds.has("attack-timeline") && collectedIds.has("pump-cluster");
+  const showDeaths = collectedIds.has("attack-timeline") && collectedIds.has("pump-cluster");
 
   return `
     <rect class="map-paper" x="0" y="0" width="${broadStreetMapViewBoxSize}" height="${broadStreetMapViewBoxSize}" />
@@ -908,13 +832,6 @@ function renderCustomMapBase(activeLayerId: MapLayerId, collectedIds: Set<string
     <g class="imported-map-layer imported-map-layer--label" aria-hidden="true">
       <use href="${href("Broad-Street")}" />
     </g>
-    ${
-      showServiceArea
-        ? `<g class="imported-map-layer imported-map-layer--service" aria-hidden="true">
-            <use href="${href("PumpServiceArea")}" />
-          </g>`
-        : ""
-    }
     ${
       showDeaths
         ? `<g class="imported-map-layer imported-map-layer--deaths" aria-hidden="true">
@@ -1003,53 +920,6 @@ function renderHistoricMapBase(): string {
       <text x="68" y="42" transform="rotate(-21 68 42)">GREAT PULTENEY ST</text>
       <text x="51" y="17" transform="rotate(-3 51 17)">GREAT MARLBOROUGH ST</text>
       <text x="49" y="77" transform="rotate(-82 49 77)">LITTLE WINDMILL ST</text>
-    </g>
-  `;
-}
-
-function renderHypothesisOverlay(layerId: MapLayerId, collectedIds: Set<string>): string {
-  if (layerId === "evidence") {
-    return "";
-  }
-
-  if (layerId === "waterborne") {
-    return `
-      <g class="hypothesis-overlay is-waterborne">
-        <circle class="source-wash" cx="50" cy="50" r="11" />
-        ${collectedIds.has("household-exposure") ? `<circle class="household-wash" cx="45" cy="70" r="5" />` : ""}
-        ${collectedIds.has("workhouse-exception") ? `<circle class="exception-wash" cx="40" cy="30" r="5" />` : ""}
-        ${collectedIds.has("brewery-exception") ? `<circle class="exception-wash" cx="70" cy="40" r="5" />` : ""}
-      </g>
-    `;
-  }
-
-  if (layerId === "miasma") {
-    return `
-      <g class="hypothesis-overlay is-miasma">
-        <rect class="miasma-wash" x="8" y="42" width="86" height="13" rx="6" transform="rotate(-4 51 48)" />
-        <rect class="miasma-wash" x="66" y="12" width="12" height="76" rx="6" transform="rotate(1 72 50)" />
-      </g>
-    `;
-  }
-
-  if (layerId === "person-to-person") {
-    return `
-      <g class="hypothesis-overlay is-household">
-        <circle class="household-node" cx="39" cy="60" r="3.6" />
-        <circle class="household-node" cx="48" cy="50" r="3.6" />
-        <circle class="household-node" cx="55" cy="45" r="3.6" />
-        <circle class="household-node" cx="61" cy="52" r="3.6" />
-        <circle class="household-node" cx="31" cy="38" r="3.6" />
-        ${collectedIds.has("household-exposure") ? `<circle class="household-wash" cx="45" cy="70" r="5.2" />` : ""}
-      </g>
-    `;
-  }
-
-  return `
-    <g class="hypothesis-overlay is-crowding">
-      <rect class="crowding-wash" x="64" y="34" width="13" height="13" rx="3" />
-      <rect class="crowding-wash" x="34" y="24" width="13" height="13" rx="3" />
-      <rect class="crowding-wash" x="39" y="64" width="13" height="13" rx="3" />
     </g>
   `;
 }

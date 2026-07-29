@@ -649,16 +649,6 @@ button {
   width: min(860px, calc(100vw - 36px));
 }
 
-.map-layer-row {
-  display: flex;
-  gap: 8px;
-  padding: 10px 14px;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--line);
-  background: rgba(10, 13, 13, 0.28);
-}
-
-.map-layer-button,
 .secondary-action {
   appearance: none;
   display: inline-flex;
@@ -676,18 +666,11 @@ button {
   white-space: nowrap;
 }
 
-.map-layer-button {
-  padding: 0 10px;
-}
-
-.map-layer-button svg,
 .secondary-action svg {
   width: 15px;
   height: 15px;
 }
 
-.map-layer-button:hover,
-.map-layer-button.is-selected,
 .secondary-action:hover {
   color: #15120e;
   border-color: rgba(240, 200, 109, 0.8);
@@ -980,17 +963,9 @@ button {
   mix-blend-mode: multiply;
 }
 
-.imported-map-layer--service {
-  opacity: 0.28;
-}
-
 .imported-map-layer--deaths {
   opacity: 0.32;
   mix-blend-mode: multiply;
-}
-
-.game-map-overlay {
-  pointer-events: none;
 }
 
 .map-paper {
@@ -1042,41 +1017,6 @@ button {
   font-weight: 800;
   letter-spacing: 0;
   text-anchor: middle;
-}
-
-.hypothesis-overlay {
-  mix-blend-mode: multiply;
-  pointer-events: none;
-}
-
-.hypothesis-overlay circle,
-.hypothesis-overlay rect,
-.hypothesis-overlay path {
-  stroke: none;
-}
-
-.hypothesis-overlay .source-wash {
-  fill: rgba(70, 153, 144, 0.18);
-}
-
-.hypothesis-overlay .household-wash {
-  fill: rgba(70, 153, 144, 0.16);
-}
-
-.hypothesis-overlay .exception-wash {
-  fill: rgba(70, 153, 144, 0.11);
-}
-
-.hypothesis-overlay .miasma-wash {
-  fill: rgba(139, 119, 75, 0.14);
-}
-
-.hypothesis-overlay .household-node {
-  fill: rgba(72, 78, 134, 0.18);
-}
-
-.hypothesis-overlay .crowding-wash {
-  fill: rgba(139, 91, 55, 0.15);
 }
 
 .snow-map text {
