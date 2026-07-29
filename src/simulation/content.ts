@@ -66,6 +66,7 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
     supportingEvidenceIds: [
       "pump-cluster",
       "household-exposure",
+      "household-water-pattern",
       "attack-timeline",
       "workhouse-exception",
       "brewery-exception",
@@ -82,7 +83,7 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
       "Poisonous air from smells, drains, sewers, weather, or street conditions is driving illness near Broad Street.",
     boardAction: "Prioritize street cleansing, drainage, and odor abatement around the affected streets.",
     supportingEvidenceIds: ["pump-cluster", "pump-water-inspection"],
-    complicatingEvidenceIds: ["household-exposure", "workhouse-exception", "brewery-exception"],
+    complicatingEvidenceIds: ["household-exposure", "household-water-pattern", "workhouse-exception", "brewery-exception"],
     snowChallenge:
       "Snow asks why nearby institutions and workplaces exposed to the same street air were not devastated in the same way.",
   },
@@ -94,7 +95,7 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
       "Cholera is spreading mainly through nursing, shared rooms, and direct contact between sick people and families.",
     boardAction: "Emphasize household isolation and care precautions while collecting more case histories.",
     supportingEvidenceIds: ["household-exposure"],
-    complicatingEvidenceIds: ["attack-timeline", "pump-cluster", "pump-water-inspection"],
+    complicatingEvidenceIds: ["attack-timeline", "pump-cluster", "pump-water-inspection", "household-water-pattern"],
     snowChallenge:
       "Snow asks whether a slow chain of household spread predicts the abrupt surge and dense pump-centered geography.",
   },
@@ -106,7 +107,13 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
       "The pattern follows class, occupation, crowded lodging, or institutional living more than a shared water exposure.",
     boardAction: "Target inspections and relief at crowded homes and affected occupations.",
     supportingEvidenceIds: ["pump-cluster"],
-    complicatingEvidenceIds: ["household-exposure", "pump-water-inspection", "workhouse-exception", "brewery-exception"],
+    complicatingEvidenceIds: [
+      "household-exposure",
+      "household-water-pattern",
+      "pump-water-inspection",
+      "workhouse-exception",
+      "brewery-exception",
+    ],
     snowChallenge:
       "Snow asks why the workhouse and brewery complicate a simple social or occupational explanation.",
   },
@@ -139,12 +146,23 @@ export const evidenceCards: EvidenceCard[] = [
     id: "household-exposure",
     title: "A bereaved household gives an exposure history",
     summary:
-      "A Broad Street survivor reports a death during the surge and records the household's pump-water use, attack timing, and close nursing contact.",
+      "A local survivor reports a death during the surge and records the household's pump-water use, attack timing, and close nursing contact.",
     confidence: "reported",
     sourceType: "interview",
-    sourceLabel: "Broad Street household interview",
+    sourceLabel: "Local household interview",
     supports: ["Exposure history", "Household field inquiry", "Common-source testing"],
     complicates: ["Place-only explanations"],
+  },
+  {
+    id: "household-water-pattern",
+    title: "Other household interviews show pump-water exposure",
+    summary:
+      "Among 75 early deaths with known pump-use histories, household respondents identified 68 Broad Street pump users, one probable user, and six non-users.",
+    confidence: "reported",
+    sourceType: "interview",
+    sourceLabel: "Follow-up household interviews",
+    supports: ["Exposure history", "Statistical pattern", "Common-source testing"],
+    complicates: ["Anecdote alone", "Person-to-person spread alone", "Miasma alone"],
   },
   {
     id: "pump-water-inspection",
@@ -302,6 +320,14 @@ export const dialogueNodes: DialogueNode[] = [
           "The family fetched from the Broad Street pump because it was near and well regarded. Record the address, the water source, and the time symptoms began.",
         unlocksEvidenceId: "household-exposure",
       },
+      {
+        id: "household-pattern-question",
+        prompt: "Conduct interviews at other households",
+        response:
+          "Taken one by one, the accounts are imperfect; taken together, they become a pattern. Of 75 early deaths where pump use could be learned, 68 were Broad Street pump users, one was a probable user, and six were non-users.",
+        unlocksEvidenceId: "household-water-pattern",
+        requiresEvidenceIds: ["household-exposure"],
+      },
     ],
   },
   {
@@ -357,7 +383,7 @@ export const locations: InvestigationLocation[] = [
   },
   {
     id: "household",
-    title: "Broad Street Household",
+    title: "Golden Square Household",
     shortTitle: "Household",
     description: "A household interview turns a death mark into timing, care, and water-use testimony.",
     mapPoint: { x: 45, y: 67 },

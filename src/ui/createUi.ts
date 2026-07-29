@@ -52,6 +52,14 @@ const mapAnnotations: Array<{
     kind: "household",
   },
   {
+    evidenceId: "household-water-pattern",
+    title: "Interview tally",
+    body: "Most early deaths with known histories connect back to Broad Street pump use.",
+    x: 43,
+    y: 67,
+    kind: "household",
+  },
+  {
     evidenceId: "pump-water-inspection",
     title: "Sample inconclusive",
     body: "The water does not visibly prove danger; the map must carry more weight.",
@@ -96,7 +104,7 @@ const mapAnnotations: Array<{
 const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
   "snow-desk": ["snow-method", "pump-cluster"],
   "broad-street": ["pump-water-inspection"],
-  household: ["household-exposure"],
+  household: ["household-exposure", "household-water-pattern"],
   registrar: ["attack-timeline"],
   workhouse: ["workhouse-exception"],
   brewery: ["brewery-exception"],
@@ -593,6 +601,10 @@ function missingEvidencePrompt(card: EvidenceCard, collectedIds: Set<string>): s
     return "Find the matching source location to add this note.";
   }
 
+  if (card.id === "household-water-pattern" && !collectedIds.has("household-exposure")) {
+    return `First complete the household water-use interview at ${location.title}; then conduct interviews at other households to add this note.`;
+  }
+
   const prompt = locationPrompt(card, location);
 
   if (location.unlocksWith && !collectedIds.has(location.unlocksWith)) {
@@ -605,6 +617,10 @@ function missingEvidencePrompt(card: EvidenceCard, collectedIds: Set<string>): s
 }
 
 function locationPrompt(card: EvidenceCard, location: InvestigationLocation): string {
+  if (card.id === "household-water-pattern") {
+    return `Return to ${location.title} and conduct interviews at other households to add this note.`;
+  }
+
   if (card.sourceType === "interview") {
     return `Interview witnesses at ${location.title} to add this note.`;
   }

@@ -342,6 +342,10 @@ export class GameState {
       findings.push("A household interview ties one death mark to water use, attack timing, and close care.");
     }
 
+    if (this.hasEvidence("household-water-pattern")) {
+      findings.push("Other household interviews turn individual accounts into a pump-use pattern.");
+    }
+
     if (this.hasEvidence("pump-water-inspection")) {
       findings.push("The pump-water sample gives no decisive visible proof of danger.");
     }
