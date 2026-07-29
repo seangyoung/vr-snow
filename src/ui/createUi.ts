@@ -1023,6 +1023,7 @@ function renderLocationNode(
   const unlocked = gameState.isLocationUnlocked(location);
   const active = location.id === currentLocationId;
   const canTravel = gameState.canTravelToLocation(location.id) && !active;
+  const boardPresentationReady = location.boardOnly && gameState.preparedForBoard && gameState.getStage() === "synthesis";
   const offMapDirection = getOffMapDirection(location.id);
   const offMap = Boolean(offMapDirection);
   const popover = renderLocationEvidencePopover(location.id, gameState);
@@ -1030,6 +1031,7 @@ function renderLocationNode(
     "map-node",
     active ? "is-current" : "",
     unlocked ? "is-unlocked" : "is-locked",
+    boardPresentationReady ? "is-board-ready" : "",
     offMap ? "is-off-map" : "",
     offMapDirection ? `is-off-map-${offMapDirection}` : "",
     popover ? "has-evidence-popover" : "",
@@ -1039,16 +1041,19 @@ function renderLocationNode(
   ]
     .filter(Boolean)
     .join(" ");
-  const boardReady = location.boardOnly && unlocked;
   const label = active
     ? `Current location: ${location.title}`
-    : boardReady
-      ? `${location.title} is ready; use Present prepared argument`
+    : boardPresentationReady
+      ? `Present prepared argument to ${location.title}`
     : canTravel
       ? `Travel to ${location.title}`
       : `${location.title} is locked`;
-  const actionAttributes = canTravel ? `data-action="travel" data-location-id="${location.id}"` : "";
-  const disabledAttribute = !canTravel && !active ? "disabled" : "";
+  const actionAttributes = boardPresentationReady
+    ? `data-action="map-primary"`
+    : canTravel
+      ? `data-action="travel" data-location-id="${location.id}"`
+      : "";
+  const disabledAttribute = !canTravel && !active && !boardPresentationReady ? "disabled" : "";
 
   return `
     <button

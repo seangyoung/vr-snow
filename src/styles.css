@@ -1238,6 +1238,15 @@ button {
   background: #2f6f69;
 }
 
+.map-node.is-board-ready {
+  color: #1f170c;
+  border-color: rgba(242, 211, 122, 0.86);
+  background: #ffe5a3;
+  box-shadow:
+    0 0 0 3px rgba(242, 211, 122, 0.24),
+    0 12px 24px rgba(0, 0, 0, 0.24);
+}
+
 .map-node.is-locked {
   opacity: 0.48;
 }
@@ -1286,6 +1295,11 @@ button {
 
 .map-node.is-current .node-dot {
   background: var(--water);
+}
+
+.map-node.is-board-ready .node-dot {
+  background: #c7772e;
+  box-shadow: 0 0 0 2px rgba(199, 119, 46, 0.22);
 }
 
 .map-node.is-locked .node-dot {
