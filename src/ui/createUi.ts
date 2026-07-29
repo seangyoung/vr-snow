@@ -1003,7 +1003,6 @@ function renderLocationNode(
     "map-node",
     active ? "is-current" : "",
     unlocked ? "is-unlocked" : "is-locked",
-    location.boardOnly ? "is-board" : "",
     offMap ? "is-off-map" : "",
     offMapDirection ? `is-off-map-${offMapDirection}` : "",
     popover ? "has-evidence-popover" : "",
@@ -1041,14 +1040,11 @@ function renderLocationNode(
   `;
 }
 
-function getOffMapDirection(locationId: LocationId): "southwest" | "northwest" | "southeast" | undefined {
+function getOffMapDirection(locationId: LocationId): "east" | "southwest" | "southeast" | undefined {
   if (locationId === "snow-desk") {
-    return "southwest";
+    return "east";
   }
   if (locationId === "registrar") {
-    return "northwest";
-  }
-  if (locationId === "board-room") {
     return "southeast";
   }
   return undefined;

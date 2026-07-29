@@ -982,7 +982,7 @@ button {
 }
 
 .imported-map-layer--deaths {
-  opacity: 0.32;
+  opacity: 0.52;
   mix-blend-mode: multiply;
 }
 
@@ -1036,6 +1036,9 @@ button {
 }
 
 .map-legend-swatch.is-death {
+  width: 14px;
+  height: 9px;
+  border-radius: 3px;
   background: rgba(107, 35, 31, 0.72);
 }
 
@@ -1262,10 +1265,6 @@ button {
   opacity: 0.48;
 }
 
-.map-node.is-board {
-  border-color: rgba(64, 55, 42, 0.38);
-}
-
 .map-node.is-off-map {
   border-style: dashed;
   border-color: rgba(91, 73, 42, 0.72);
@@ -1288,10 +1287,10 @@ button {
   transform: rotate(135deg);
 }
 
-.map-node.is-off-map-northwest::after {
-  right: calc(100% - 1px);
-  bottom: calc(100% - 3px);
-  transform: rotate(-135deg);
+.map-node.is-off-map-east::after {
+  left: calc(100% - 1px);
+  top: calc(50% - 5px);
+  transform: rotate(45deg);
 }
 
 .map-node.is-off-map-southeast::after {

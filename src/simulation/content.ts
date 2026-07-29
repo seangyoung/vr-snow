@@ -346,7 +346,7 @@ export const locations: InvestigationLocation[] = [
     title: "Snow's Desk",
     shortTitle: "Desk",
     description: "Return to Snow's working notes and the wider question of waterborne transmission.",
-    mapPoint: { x: 9, y: 88 },
+    mapPoint: { x: 103, y: 30 },
   },
   {
     id: "broad-street",
@@ -368,7 +368,7 @@ export const locations: InvestigationLocation[] = [
     title: "Registrar's Ledger",
     shortTitle: "Ledger",
     description: "Daily returns and addresses that turn rumor into a line list.",
-    mapPoint: { x: 15, y: 17 },
+    mapPoint: { x: 92, y: 92 },
   },
   {
     id: "workhouse",
@@ -389,7 +389,7 @@ export const locations: InvestigationLocation[] = [
     title: "Board of Guardians",
     shortTitle: "Board",
     description: "Where the evidence becomes a public health recommendation.",
-    mapPoint: { x: 92, y: 88 },
+    mapPoint: { x: 50, y: 80 },
     boardOnly: true,
   },
 ];
