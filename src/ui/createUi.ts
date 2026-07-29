@@ -1,5 +1,5 @@
 import { createIcons, icons } from "lucide";
-import { boardThreshold, locations as investigationLocations } from "../simulation/content";
+import { boardThreshold, fieldStudyGoal, locations as investigationLocations } from "../simulation/content";
 import type { GameState } from "../simulation/gameState";
 import type {
   ChapterScene,
@@ -33,7 +33,7 @@ const mapAnnotations: Array<{
   body: string;
   x: number;
   y: number;
-  kind: "cluster" | "record" | "household" | "conflict" | "exception" | "method";
+  kind: "cluster" | "record" | "household" | "conflict" | "exception";
 }> = [
   {
     evidenceId: "pump-cluster",
@@ -91,18 +91,10 @@ const mapAnnotations: Array<{
     y: 77,
     kind: "exception",
   },
-  {
-    evidenceId: "snow-method",
-    title: "Outliers checked",
-    body: "Snow keeps exceptions and distant addresses in the argument.",
-    x: 23,
-    y: 35,
-    kind: "method",
-  },
 ];
 
 const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
-  "snow-desk": ["snow-method", "pump-cluster"],
+  "snow-desk": ["pump-cluster"],
   "broad-street": ["pump-water-inspection"],
   household: ["household-exposure", "household-water-pattern"],
   registrar: ["attack-timeline"],
@@ -128,7 +120,6 @@ export interface PrototypeUi {
 
 export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeUi {
   let overlayMode: OverlayMode = "none";
-  let focusedHotspot: Hotspot | undefined;
   let message = "Speak with Snow at the desk to receive your field assignment.";
   let isTransitioning = false;
   let snowReviewOpen = false;
@@ -148,10 +139,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       render();
     },
     render,
-    setPrompt(hotspot?: Hotspot) {
-      focusedHotspot = hotspot;
-      render();
-    },
+    setPrompt(_hotspot?: Hotspot) {},
     setMessage(nextMessage: string) {
       message = nextMessage;
     },
@@ -321,13 +309,11 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         </nav>
 
         <div class="reticle" aria-hidden="true"></div>
-        <div class="prompt-strip">${renderPrompt()}</div>
-        <div class="toast-line">${escapeHtml(message)}</div>
 
         ${showChapterPanel ? renderChapterPanel(gameState.getCurrentScene(), stage, gameState) : ""}
         ${showSynthesisPanel ? renderSynthesisPanel(gameState) : ""}
         ${activeDialogue && overlayMode === "none" ? renderDialoguePanel(activeDialogue, gameState) : ""}
-        ${overlayMode === "notebook" ? renderNotebook(collected, allEvidence) : ""}
+        ${overlayMode === "notebook" ? renderNotebook(collected, allEvidence, gameState) : ""}
         ${overlayMode === "map" ? renderMap(collected, gameState) : ""}
         ${isTransitioning ? renderTravelFade(message) : ""}
       </div>
@@ -364,53 +350,6 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         render();
       }, 260);
     }, 260);
-  }
-
-  function renderPrompt(): string {
-    if (gameState.getStage() === "briefing") {
-      return `<span class="prompt-muted">Read Snow's desk briefing, then begin fieldwork.</span>`;
-    }
-
-    if (gameState.getStage() === "board") {
-      return `<span class="prompt-muted">The Board is considering temporary pump closure.</span>`;
-    }
-
-    if (gameState.getStage() === "complete") {
-      return `<span class="prompt-muted">Late September records are open. Review evidence or reset the inquiry.</span>`;
-    }
-
-    if (!focusedHotspot) {
-      if (
-        gameState.getStage() === "field" &&
-        gameState.getCurrentLocation().id === "snow-desk" &&
-        !gameState.hasEvidence("snow-method")
-      ) {
-        return `<span class="prompt-muted">Look toward John Snow, then press Enter or select him.</span>`;
-      }
-
-      return `<span class="prompt-muted">Look toward an interview or evidence marker.</span>`;
-    }
-
-    if (
-      focusedHotspot.id === "john-snow" &&
-      gameState.getStage() === "synthesis" &&
-      gameState.getCurrentLocation().id === "snow-desk"
-    ) {
-      return `
-        <span class="prompt-title">John Snow</span>
-        <span class="prompt-copy">Review the evidence against each possible theory.</span>
-        <span class="prompt-state">Press Enter or select</span>
-      `;
-    }
-
-    const inspected = gameState.hasInspected(focusedHotspot.id);
-    const evidence = gameState.getEvidence(focusedHotspot.evidenceId);
-    const recorded = evidence ? gameState.hasEvidence(evidence.id) : false;
-    return `
-      <span class="prompt-title">${escapeHtml(focusedHotspot.label)}</span>
-      <span class="prompt-copy">${escapeHtml(focusedHotspot.description)}</span>
-      <span class="prompt-state">${recorded ? "Recorded" : inspected ? "Interview open" : "Press Enter or select"}</span>
-    `;
   }
 
   function canOpenSnowReview(): boolean {
@@ -546,9 +485,10 @@ function renderPreparedArgument(gameState: GameState): string {
   `;
 }
 
-function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[]): string {
+function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[], gameState: GameState): string {
   const readiness = evidenceReadinessText(collected.length);
   const collectedIds = new Set(collected.map((card) => card.id));
+  const studyGoalCompleted = gameState.hasFieldAssignment();
   const evidenceRows = allEvidence
     .map((card) => {
       const unlocked = collectedIds.has(card.id);
@@ -588,9 +528,29 @@ function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[]):
         <button class="icon-button" data-action="close" aria-label="Close notebook"><i data-lucide="x"></i></button>
       </div>
       <div class="panel-body evidence-list">
+        ${renderStudyGoal(studyGoalCompleted)}
         ${evidenceRows}
       </div>
     </aside>
+  `;
+}
+
+function renderStudyGoal(completed: boolean): string {
+  return `
+    <article class="study-goal ${completed ? "is-complete" : ""}">
+      <div class="evidence-status">
+        <i data-lucide="${completed ? "check-circle-2" : "circle-dot"}"></i>
+      </div>
+      <div>
+        <span>Study Goal</span>
+        <h3>${escapeHtml(fieldStudyGoal.title)}</h3>
+        <p>${escapeHtml(
+          completed
+            ? fieldStudyGoal.summary
+            : "Speak with Snow at his desk to receive the field inquiry goal before traveling to other locations.",
+        )}</p>
+      </div>
+    </article>
   `;
 }
 
@@ -804,7 +764,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
 
   const stage = gameState.getStage();
   const evidenceReady = gameState.hasEnoughEvidenceForSynthesis();
-  const fieldAssigned = gameState.hasEvidence("snow-method");
+  const fieldAssigned = gameState.hasFieldAssignment();
   const canPresent = gameState.preparedForBoard && stage === "synthesis";
   const needsSnowReview = evidenceReady && !gameState.preparedForBoard && stage === "synthesis";
   const currentLocation = gameState.getCurrentLocation();

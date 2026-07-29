@@ -23,6 +23,11 @@ export interface EvidenceCard {
   complicates?: string[];
 }
 
+export interface StudyGoal {
+  title: string;
+  summary: string;
+}
+
 export interface ChapterScene {
   id: ChapterStage;
   title: string;
@@ -46,7 +51,7 @@ export interface Hotspot {
   label: string;
   shortLabel: string;
   description: string;
-  evidenceId: string;
+  evidenceId?: string;
   position: [number, number, number];
 }
 

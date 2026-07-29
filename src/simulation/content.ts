@@ -5,6 +5,7 @@ import type {
   Hotspot,
   HypothesisDefinition,
   InvestigationLocation,
+  StudyGoal,
 } from "./types";
 
 export const chapterScenes: ChapterScene[] = [
@@ -197,18 +198,13 @@ export const evidenceCards: EvidenceCard[] = [
     supports: ["Exposure history", "Negative evidence"],
     complicates: ["Street-level miasma"],
   },
-  {
-    id: "snow-method",
-    title: "Snow combines records with interviews",
-    summary:
-      "Snow's case depends on death records, addresses, household interviews, and exceptions, not a conclusive water test.",
-    confidence: "inferred",
-    sourceType: "inference",
-    sourceLabel: "Snow's methodological briefing",
-    supports: ["Field epidemiology", "Reasoning under uncertainty"],
-    complicates: ["Single-proof explanations"],
-  },
 ];
+
+export const fieldStudyGoal: StudyGoal = {
+  title: "Build the inquiry from records, testimony, and exceptions",
+  summary:
+    "Begin at the General Register Office and consult the daily returns ledger for cholera deaths. Use those records to guide interviews, check water histories, inspect the pump sample, and test exceptions before drawing conclusions.",
+};
 
 export const dialogueNodes: DialogueNode[] = [
   {
@@ -221,10 +217,9 @@ export const dialogueNodes: DialogueNode[] = [
     questions: [
       {
         id: "snow-method-question",
-        prompt: "How should I begin the inquiry?",
+        prompt: "Where should I begin the inquiry?",
         response:
-          "Begin in Broad Street with particulars. Where did the person live, when did the attack begin, and what water did the household use? Bring me addresses, dates, exposure histories, and exceptions; the map must grow out of testimony and records, not guesswork.",
-        unlocksEvidenceId: "snow-method",
+          "Begin with the records, not guesses. Go to the General Register Office and consult the daily returns ledger for cholera deaths: dates, addresses, and fatal attacks. Then use those records to guide household interviews, check water histories, inspect the pump sample, and test exceptions.",
       },
       {
         id: "ledger-address-question",
@@ -472,7 +467,6 @@ export const hotspots: Hotspot[] = [
     label: "John Snow",
     shortLabel: "Snow",
     description: "Snow asks what the pattern would look like if the water were the vehicle.",
-    evidenceId: "snow-method",
     position: [-2.8, 1.55, 2.4],
   },
 ];

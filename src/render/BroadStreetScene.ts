@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { VRButton } from "three/addons/webxr/VRButton.js";
-import { boardThreshold } from "../simulation/content";
+import { boardThreshold, fieldStudyGoal } from "../simulation/content";
 import type { GameState } from "../simulation/gameState";
 import type { Hotspot, HypothesisId, LocationId, SynthesisConfidence } from "../simulation/types";
 
@@ -576,7 +576,7 @@ export class BroadStreetScene {
         const alreadyAsked = this.gameState.hasAskedQuestion(action.questionId);
         const result = this.gameState.askQuestion(action.questionId);
         this.vrPanelMode = "home";
-        if (result.evidence) {
+        if (result.evidence || action.questionId === "snow-method-question") {
           this.vrMapNeedsAttention = true;
         }
         this.vrStatus = this.formatVrQuestionResponse(result, alreadyAsked);
@@ -798,7 +798,7 @@ export class BroadStreetScene {
         }
       }
 
-      if (activeDialogue.id === "snow-briefing" && this.gameState.hasEvidence("snow-method") && availableQuestions.length === 1) {
+      if (activeDialogue.id === "snow-briefing" && this.gameState.hasFieldAssignment() && availableQuestions.length === 1) {
         this.addVrText("Use the MAP in the top left corner to travel to other locations.", 0, -0.76, vrPanelContentWidth, 0.12, {
           color: "#b9c9c4",
           fontSize: 24,
@@ -865,20 +865,28 @@ export class BroadStreetScene {
 
   private buildVrNotebookPanel(): void {
     const evidence = this.gameState.getCollectedEvidence();
+    const studyGoalText = this.gameState.hasFieldAssignment()
+      ? `Study Goal: ${fieldStudyGoal.title}`
+      : "Study Goal: Speak with Snow at his desk to receive the field inquiry goal.";
     const progressText =
       evidence.length >= boardThreshold
         ? `${evidence.length} recorded. Snow review ready.`
         : `${evidence.length}/${boardThreshold} recorded for Snow review.`;
-    this.addVrText(progressText, 0, 0.3, vrPanelContentWidth, 0.16, {
+    this.addVrText(studyGoalText, 0, 0.26, vrPanelContentWidth, 0.22, {
       color: "#f1d79c",
-      fontSize: 38,
+      fontSize: 28,
+      weight: "700",
+    });
+    this.addVrText(progressText, 0, 0.02, vrPanelContentWidth, 0.14, {
+      color: "#f1d79c",
+      fontSize: 32,
       weight: "700",
     });
 
     if (evidence.length === 0) {
-      this.addVrText("No evidence cards have been recorded yet.", 0, 0, vrPanelContentWidth, 0.34, {
+      this.addVrText("No evidence cards have been recorded yet.", 0, -0.25, vrPanelContentWidth, 0.26, {
         color: "#e7ece8",
-        fontSize: 36,
+        fontSize: 32,
       });
     } else {
       this.addVrText(
@@ -887,10 +895,10 @@ export class BroadStreetScene {
           .map((card) => card.title)
           .join(". "),
         0,
-        -0.08,
+        -0.34,
         vrPanelContentWidth,
-        0.62,
-        { color: "#e7ece8", fontSize: 34 },
+        0.42,
+        { color: "#e7ece8", fontSize: 30 },
       );
     }
   }

@@ -99,11 +99,11 @@ export class GameState {
         evidence && !alreadyAsked
           ? reachedSynthesis
             ? `${evidence.title} added to your notebook. Return to Snow's Desk to prepare the theory.`
-            : evidence.id === "snow-method"
-              ? "Snow assigns you to begin in Broad Street: collect addresses, water histories, dates, and exceptions before drawing conclusions."
-              : evidence.id === "pump-cluster"
+            : evidence.id === "pump-cluster"
                 ? `${evidence.title} added to your notebook. Open the map to inspect the plotted deaths around the pump.`
               : `${evidence.title} added to your notebook.`
+          : question.id === "snow-method-question" && !alreadyAsked
+            ? "Study goal added to your Field Notebook. The inquiry map is now available."
           : alreadyAsked
             ? "You have already recorded that answer."
             : `${dialogue.speaker} answered your question.`,
@@ -115,7 +115,7 @@ export class GameState {
       return "Begin at Snow's desk, then enter Broad Street with a field notebook.";
     }
 
-    if (this.stage === "field" && !this.hasEvidence("snow-method")) {
+    if (this.stage === "field" && !this.hasFieldAssignment()) {
       return "Talk with Snow and receive the field assignment.";
     }
 
@@ -364,10 +364,6 @@ export class GameState {
       findings.push("The brewery on Broad Street had no deaths, and did not rely on the Broad Street pump.");
     }
 
-    if (this.hasEvidence("snow-method")) {
-      findings.push("Snow's argument combines death records, household interviews, sample inspection, and exceptions.");
-    }
-
     return findings;
   }
 
@@ -511,7 +507,7 @@ export class GameState {
       return false;
     }
 
-    if (!this.hasEvidence("snow-method")) {
+    if (!this.hasFieldAssignment()) {
       return location.id === "snow-desk";
     }
 
@@ -527,7 +523,7 @@ export class GameState {
       return location.id === "snow-desk";
     }
 
-    if (!this.hasEvidence("snow-method")) {
+    if (!this.hasFieldAssignment()) {
       return location.id === "snow-desk";
     }
 
@@ -544,6 +540,10 @@ export class GameState {
 
   hasEvidence(id: string): boolean {
     return this.collectedEvidence.has(id);
+  }
+
+  hasFieldAssignment(): boolean {
+    return this.askedQuestions.has("snow-method-question");
   }
 
   private isDialogueQuestionAvailable(question: DialogueQuestion): boolean {
