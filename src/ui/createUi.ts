@@ -1,5 +1,5 @@
 import { createIcons, icons } from "lucide";
-import { boardThreshold } from "../simulation/content";
+import { boardThreshold, locations as investigationLocations } from "../simulation/content";
 import type { GameState } from "../simulation/gameState";
 import type {
   ChapterScene,
@@ -101,6 +101,14 @@ const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
   workhouse: ["workhouse-exception"],
   brewery: ["brewery-exception"],
 };
+
+const evidenceLocationById = new Map<string, InvestigationLocation>();
+
+investigationLocations.forEach((location) => {
+  (locationEvidenceIds[location.id] ?? []).forEach((evidenceId) => {
+    evidenceLocationById.set(evidenceId, location);
+  });
+});
 
 export interface PrototypeUi {
   onReset?: () => void;
@@ -532,9 +540,10 @@ function renderPreparedArgument(gameState: GameState): string {
 
 function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[]): string {
   const readiness = evidenceReadinessText(collected.length);
+  const collectedIds = new Set(collected.map((card) => card.id));
   const evidenceRows = allEvidence
     .map((card) => {
-      const unlocked = collected.some((collectedCard) => collectedCard.id === card.id);
+      const unlocked = collectedIds.has(card.id);
       return `
         <article class="evidence-row ${unlocked ? "is-unlocked" : ""}">
           <div class="evidence-status">
@@ -542,7 +551,7 @@ function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[]):
           </div>
           <div>
             <h3>${escapeHtml(unlocked ? card.title : "Unrecorded evidence")}</h3>
-            <p>${escapeHtml(unlocked ? card.summary : "Inspect the street scene to add this note.")}</p>
+            <p>${escapeHtml(unlocked ? card.summary : missingEvidencePrompt(card, collectedIds))}</p>
             ${
               unlocked
                 ? `<div class="source-line">
@@ -575,6 +584,48 @@ function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[]):
       </div>
     </aside>
   `;
+}
+
+function missingEvidencePrompt(card: EvidenceCard, collectedIds: Set<string>): string {
+  const location = evidenceLocationById.get(card.id);
+
+  if (!location) {
+    return "Find the matching source location to add this note.";
+  }
+
+  const prompt = locationPrompt(card, location);
+
+  if (location.unlocksWith && !collectedIds.has(location.unlocksWith)) {
+    const prerequisiteLocation = evidenceLocationById.get(location.unlocksWith);
+    const prerequisite = prerequisiteLocation ? ` at ${prerequisiteLocation.title}` : "";
+    return `First follow the related lead${prerequisite}; then ${lowercaseFirst(prompt)}`;
+  }
+
+  return prompt;
+}
+
+function locationPrompt(card: EvidenceCard, location: InvestigationLocation): string {
+  if (card.sourceType === "interview") {
+    return `Interview witnesses at ${location.title} to add this note.`;
+  }
+
+  if (card.sourceType === "document") {
+    return `Review records at ${location.title} to add this note.`;
+  }
+
+  if (card.sourceType === "observation") {
+    return `Inspect ${location.title} to add this note.`;
+  }
+
+  if (location.id === "snow-desk") {
+    return "Speak with Snow at his desk to add this note.";
+  }
+
+  return `Go to ${location.title} to add this note.`;
+}
+
+function lowercaseFirst(value: string): string {
+  return value.charAt(0).toLowerCase() + value.slice(1);
 }
 
 function evidenceReadinessText(collectedCount: number): string {
