@@ -393,8 +393,8 @@ export class BroadStreetScene {
       const deltaX = event.clientX - this.previousPointer.x;
       const deltaY = event.clientY - this.previousPointer.y;
       this.previousPointer = { x: event.clientX, y: event.clientY };
-      this.yaw -= deltaX * 0.004;
-      this.pitch -= deltaY * 0.003;
+      this.yaw += deltaX * 0.004;
+      this.pitch += deltaY * 0.003;
       this.pitch = THREE.MathUtils.clamp(this.pitch, -1.15, 1.15);
       this.applyCameraOrientation();
     });
