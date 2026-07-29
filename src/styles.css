@@ -963,23 +963,32 @@ button {
 }
 
 .imported-map-layer--pumps {
-  opacity: 0.96;
+  opacity: 0.35;
   color: #0b766d;
   fill: none;
-  stroke: #0b766d;
-  stroke-width: 28;
+  stroke: currentColor;
   mix-blend-mode: multiply;
 }
 
 .imported-map-layer--pumps use {
   fill: none;
   stroke: currentColor;
-  stroke-width: 28;
 }
 
 .imported-map-layer--deaths {
   opacity: 0.32;
   mix-blend-mode: multiply;
+}
+
+.map-pump-highlights {
+  color: #0b766d;
+  pointer-events: none;
+}
+
+.map-pump-highlights circle {
+  fill: currentColor;
+  stroke: rgba(248, 239, 210, 0.96);
+  stroke-width: 55;
 }
 
 .map-legend {

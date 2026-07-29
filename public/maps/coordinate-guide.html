@@ -188,11 +188,20 @@
       }
 
       .basemap-pumps {
-        opacity: 1;
+        opacity: 0.35;
         color: #0b766d;
         fill: none;
         stroke: currentColor;
-        stroke-width: 28;
+      }
+
+      .pump-highlights {
+        pointer-events: none;
+      }
+
+      .pump-highlights circle {
+        fill: #0b766d;
+        stroke: rgba(255, 248, 230, 0.96);
+        stroke-width: 0.28;
       }
 
       .cursor-lines {
@@ -235,6 +244,14 @@
             <use href="./broad-street.svg#Streets" />
             <use class="basemap-label" href="./broad-street.svg#Broad-Street" />
             <use class="basemap-pumps" href="./broad-street.svg#Pumps" />
+          </g>
+          <g class="pump-highlights" aria-hidden="true">
+            <circle cx="34.4" cy="91.1" r="0.75" />
+            <circle cx="65.4" cy="86.2" r="0.75" />
+            <circle cx="97.4" cy="73.2" r="0.75" />
+            <circle cx="56.1" cy="45.7" r="0.75" />
+            <circle cx="16.4" cy="33.9" r="0.75" />
+            <circle cx="15.2" cy="10.8" r="0.75" />
           </g>
           <g id="minor-grid"></g>
           <g id="major-grid"></g>

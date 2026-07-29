@@ -18,6 +18,14 @@ import type {
 type OverlayMode = "none" | "notebook" | "map";
 const broadStreetMapSvgPath = "maps/broad-street.svg";
 const broadStreetMapViewBoxSize = 20020;
+const broadStreetPumpPoints = [
+  { x: 6879.5, y: 18244.7 },
+  { x: 13095.5, y: 17251.7 },
+  { x: 19502.5, y: 14655.7 },
+  { x: 11239.5, y: 9152.7 },
+  { x: 3286.5, y: 6782.7 },
+  { x: 3045.5, y: 2163.7 },
+];
 
 const mapAnnotations: Array<{
   evidenceId: string;
@@ -844,6 +852,9 @@ function renderCustomMapBase(collectedIds: Set<string>): string {
     <g class="imported-map-layer imported-map-layer--pumps" aria-hidden="true">
       <use href="${href("Pumps")}" />
     </g>
+    <g class="map-pump-highlights" aria-hidden="true">
+      ${renderPumpHighlights()}
+    </g>
   `;
 }
 
@@ -868,6 +879,10 @@ function renderMapLegend(deathsVisible: boolean): string {
       }
     </div>
   `;
+}
+
+function renderPumpHighlights(): string {
+  return broadStreetPumpPoints.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="150" />`).join("");
 }
 
 function publicAssetPath(path: string): string {
