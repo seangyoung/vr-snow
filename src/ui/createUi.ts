@@ -813,7 +813,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
         <div class="map-brief">
           <div class="layer-summary">
             <span>Map evidence</span>
-            <p>Use the Broad Street map to travel between sources; Snow's death marks appear once the ledger and cluster evidence agree.</p>
+            <p>Use the Broad Street map to travel between sources.</p>
           </div>
           <ul class="map-findings">
             ${mapFindings}
