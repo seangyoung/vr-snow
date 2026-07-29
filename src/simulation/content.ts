@@ -375,14 +375,14 @@ export const locations: InvestigationLocation[] = [
     title: "Poland Street Workhouse",
     shortTitle: "Workhouse",
     description: "A nearby institution that complicates any simple bad-air explanation.",
-    mapPoint: { x: 50, y: 30 },
+    mapPoint: { x: 45, y: 25 },
   },
   {
     id: "brewery",
     title: "Broad Street Brewery",
     shortTitle: "Brewery",
     description: "A workplace exception that makes exposure history matter.",
-    mapPoint: { x: 78, y: 45 },
+    mapPoint: { x: 75, y: 45 },
   },
   {
     id: "board-room",

@@ -725,6 +725,7 @@ function renderEvidenceFit(label: string, evidenceCards: EvidenceCard[], kind: "
 
 function renderMap(collected: EvidenceCard[], gameState: GameState): string {
   const collectedIds = new Set(collected.map((card) => card.id));
+  const deathsVisible = shouldShowDeathLayer(collectedIds);
 
   const stage = gameState.getStage();
   const evidenceReady = gameState.hasEnoughEvidenceForSynthesis();
@@ -796,6 +797,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
           <svg class="snow-map snow-map--custom" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="Broad Street evidence map">
             ${renderCustomMapBase(collectedIds)}
           </svg>
+          ${renderMapLegend(deathsVisible)}
           ${locationNodes}
         </div>
         <div class="map-brief">
@@ -822,7 +824,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
 function renderCustomMapBase(collectedIds: Set<string>): string {
   const mapSource = publicAssetPath(broadStreetMapSvgPath);
   const href = (id: string) => escapeHtml(`${mapSource}#${id}`);
-  const showDeaths = collectedIds.has("attack-timeline") && collectedIds.has("pump-cluster");
+  const showDeaths = shouldShowDeathLayer(collectedIds);
 
   return `
     <rect class="map-paper" x="0" y="0" width="${broadStreetMapViewBoxSize}" height="${broadStreetMapViewBoxSize}" />
@@ -842,6 +844,29 @@ function renderCustomMapBase(collectedIds: Set<string>): string {
     <g class="imported-map-layer imported-map-layer--pumps" aria-hidden="true">
       <use href="${href("Pumps")}" />
     </g>
+  `;
+}
+
+function shouldShowDeathLayer(collectedIds: Set<string>): boolean {
+  return collectedIds.has("attack-timeline") && collectedIds.has("pump-cluster");
+}
+
+function renderMapLegend(deathsVisible: boolean): string {
+  return `
+    <div class="map-legend" aria-label="Map legend">
+      <span class="map-legend-item">
+        <span class="map-legend-swatch is-pump"></span>
+        Pumps
+      </span>
+      ${
+        deathsVisible
+          ? `<span class="map-legend-item">
+              <span class="map-legend-swatch is-death"></span>
+              Death marks
+            </span>`
+          : ""
+      }
+    </div>
   `;
 }
 
