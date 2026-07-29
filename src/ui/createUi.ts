@@ -996,7 +996,8 @@ function renderLocationNode(
   const unlocked = gameState.isLocationUnlocked(location);
   const active = location.id === currentLocationId;
   const canTravel = gameState.canTravelToLocation(location.id) && !active;
-  const offMap = location.id === "snow-desk" || location.id === "registrar" || location.id === "board-room";
+  const offMapDirection = getOffMapDirection(location.id);
+  const offMap = Boolean(offMapDirection);
   const popover = renderLocationEvidencePopover(location.id, gameState);
   const classes = [
     "map-node",
@@ -1004,6 +1005,7 @@ function renderLocationNode(
     unlocked ? "is-unlocked" : "is-locked",
     location.boardOnly ? "is-board" : "",
     offMap ? "is-off-map" : "",
+    offMapDirection ? `is-off-map-${offMapDirection}` : "",
     popover ? "has-evidence-popover" : "",
     location.mapPoint.y < 26 ? "has-popover-below" : "",
     location.mapPoint.x < 28 ? "has-popover-right" : "",
@@ -1037,6 +1039,19 @@ function renderLocationNode(
       ${popover}
     </button>
   `;
+}
+
+function getOffMapDirection(locationId: LocationId): "southwest" | "northwest" | "southeast" | undefined {
+  if (locationId === "snow-desk") {
+    return "southwest";
+  }
+  if (locationId === "registrar") {
+    return "northwest";
+  }
+  if (locationId === "board-room") {
+    return "southeast";
+  }
+  return undefined;
 }
 
 function renderLocationEvidencePopover(locationId: LocationId, gameState: GameState): string {

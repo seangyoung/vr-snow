@@ -1267,11 +1267,37 @@ button {
 }
 
 .map-node.is-off-map {
+  border-style: dashed;
+  border-color: rgba(91, 73, 42, 0.72);
   background: rgba(239, 225, 189, 0.84);
 }
 
 .map-node.is-off-map::after {
-  content: none;
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  opacity: 0.78;
+}
+
+.map-node.is-off-map-southwest::after {
+  right: calc(100% - 1px);
+  top: calc(100% - 3px);
+  transform: rotate(135deg);
+}
+
+.map-node.is-off-map-northwest::after {
+  right: calc(100% - 1px);
+  bottom: calc(100% - 3px);
+  transform: rotate(-135deg);
+}
+
+.map-node.is-off-map-southeast::after {
+  left: calc(100% - 1px);
+  top: calc(100% - 3px);
+  transform: rotate(45deg);
 }
 
 .node-dot {
