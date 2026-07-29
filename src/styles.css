@@ -959,6 +959,40 @@ button {
   fill: currentColor;
 }
 
+.snow-map--custom {
+  background:
+    linear-gradient(rgba(89, 72, 45, 0.08), rgba(89, 72, 45, 0.08)),
+    var(--paper);
+}
+
+.imported-map-layer {
+  pointer-events: none;
+}
+
+.imported-map-layer--streets {
+  opacity: 0.58;
+  mix-blend-mode: multiply;
+}
+
+.imported-map-layer--label,
+.imported-map-layer--pumps {
+  opacity: 0.72;
+  mix-blend-mode: multiply;
+}
+
+.imported-map-layer--service {
+  opacity: 0.28;
+}
+
+.imported-map-layer--deaths {
+  opacity: 0.2;
+  mix-blend-mode: multiply;
+}
+
+.game-map-overlay {
+  pointer-events: none;
+}
+
 .map-paper {
   fill: rgba(239, 226, 190, 0.96);
 }

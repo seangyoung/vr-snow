@@ -18,6 +18,9 @@ import type {
 
 type OverlayMode = "none" | "notebook" | "map";
 type MapLayerId = "evidence" | HypothesisId;
+const broadStreetMapSvgPath = "maps/broad-street.svg";
+const broadStreetMapViewBoxSize = 20020;
+const broadStreetMapOverlayScale = broadStreetMapViewBoxSize / 100;
 
 const mapLayers: Array<{ id: MapLayerId; label: string; icon: string; summary: string }> = [
   {
@@ -866,13 +869,15 @@ function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: Ma
       </div>
       <div class="map-layout">
         <div class="map-canvas" data-layer="${activeLayer.id}">
-          <svg class="snow-map" viewBox="0 0 100 100" role="img" aria-label="Stylized Broad Street evidence map">
-            ${renderHistoricMapBase()}
-            ${renderHypothesisOverlay(activeLayer.id, collectedIds)}
-            ${points}
-            ${renderExceptionMarkers(collectedIds)}
-            ${renderSampleMarkers(collectedIds)}
-            <circle class="pump-point" cx="51" cy="50" r="4.4" />
+          <svg class="snow-map snow-map--custom" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="Broad Street evidence map">
+            ${renderCustomMapBase(activeLayer.id, collectedIds)}
+            <g class="game-map-overlay" transform="scale(${broadStreetMapOverlayScale})">
+              ${renderHypothesisOverlay(activeLayer.id, collectedIds)}
+              ${points}
+              ${renderExceptionMarkers(collectedIds)}
+              ${renderSampleMarkers(collectedIds)}
+              <circle class="pump-point" cx="51" cy="50" r="4.4" />
+            </g>
           </svg>
           ${locationNodes}
         </div>
@@ -895,6 +900,45 @@ function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: Ma
       </div>
     </aside>
   `;
+}
+
+function renderCustomMapBase(activeLayerId: MapLayerId, collectedIds: Set<string>): string {
+  const mapSource = publicAssetPath(broadStreetMapSvgPath);
+  const href = (id: string) => escapeHtml(`${mapSource}#${id}`);
+  const showServiceArea = activeLayerId === "waterborne";
+  const showDeaths = activeLayerId === "evidence" && collectedIds.has("pump-cluster");
+
+  return `
+    <rect class="map-paper" x="0" y="0" width="${broadStreetMapViewBoxSize}" height="${broadStreetMapViewBoxSize}" />
+    <g class="imported-map-layer imported-map-layer--streets" aria-hidden="true">
+      <use href="${href("Streets")}" />
+    </g>
+    <g class="imported-map-layer imported-map-layer--label" aria-hidden="true">
+      <use href="${href("Broad-Street")}" />
+    </g>
+    ${
+      showServiceArea
+        ? `<g class="imported-map-layer imported-map-layer--service" aria-hidden="true">
+            <use href="${href("PumpServiceArea")}" />
+          </g>`
+        : ""
+    }
+    ${
+      showDeaths
+        ? `<g class="imported-map-layer imported-map-layer--deaths" aria-hidden="true">
+            <use href="${href("Deaths")}" />
+          </g>`
+        : ""
+    }
+    <g class="imported-map-layer imported-map-layer--pumps" aria-hidden="true">
+      <use href="${href("Pumps")}" />
+    </g>
+  `;
+}
+
+function publicAssetPath(path: string): string {
+  const base = import.meta.env.BASE_URL || "/";
+  return `${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
 }
 
 function renderDeathStack(point: MapDeathPoint): string {
