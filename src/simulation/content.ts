@@ -227,6 +227,13 @@ export const dialogueNodes: DialogueNode[] = [
         unlocksEvidenceId: "snow-method",
       },
       {
+        id: "ledger-address-question",
+        prompt: "Why copy addresses from the registrar's ledger?",
+        response:
+          "The register's totals show severity. Its addresses show pattern. Snow needs both to compare the timing with the geography.",
+        requiresEvidenceIds: ["attack-timeline"],
+      },
+      {
         id: "pump-cluster-question",
         prompt: "What do the plotted addresses show?",
         response:
@@ -240,13 +247,6 @@ export const dialogueNodes: DialogueNode[] = [
         response:
           "No. A cluster is a lead, not proof. You still need timing, exposure histories, exceptions, and a way to explain why the water did not plainly reveal its danger.",
         requiresEvidenceIds: ["pump-cluster", "pump-water-inspection"],
-      },
-      {
-        id: "ledger-address-question",
-        prompt: "Why copy addresses instead of totals alone?",
-        response:
-          "Totals show severity. Addresses show pattern. Snow needs both to compare the timing with the geography.",
-        requiresEvidenceIds: ["attack-timeline"],
       },
       {
         id: "household-contact-question",
