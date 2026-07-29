@@ -5,7 +5,6 @@ import type {
   Hotspot,
   HypothesisDefinition,
   InvestigationLocation,
-  MapDeathPoint,
 } from "./types";
 
 export const chapterScenes: ChapterScene[] = [
@@ -354,14 +353,14 @@ export const locations: InvestigationLocation[] = [
     title: "Broad Street Pump",
     shortTitle: "Pump",
     description: "The public pump at the center of the first visible cluster.",
-    mapPoint: { x: 51, y: 50 },
+    mapPoint: { x: 50, y: 50 },
   },
   {
     id: "household",
     title: "Broad Street Household",
     shortTitle: "Household",
     description: "A household interview turns a death mark into timing, care, and water-use testimony.",
-    mapPoint: { x: 55, y: 56 },
+    mapPoint: { x: 45, y: 70 },
     unlocksWith: "pump-cluster",
   },
   {
@@ -376,14 +375,14 @@ export const locations: InvestigationLocation[] = [
     title: "Poland Street Workhouse",
     shortTitle: "Workhouse",
     description: "A nearby institution that complicates any simple bad-air explanation.",
-    mapPoint: { x: 73, y: 53 },
+    mapPoint: { x: 40, y: 30 },
   },
   {
     id: "brewery",
     title: "Broad Street Brewery",
     shortTitle: "Brewery",
     description: "A workplace exception that makes exposure history matter.",
-    mapPoint: { x: 63, y: 67 },
+    mapPoint: { x: 70, y: 40 },
   },
   {
     id: "board-room",
@@ -450,20 +449,6 @@ export const hotspots: Hotspot[] = [
     evidenceId: "snow-method",
     position: [-2.8, 1.55, 2.4],
   },
-];
-
-export const mapDeathPoints: MapDeathPoint[] = [
-  { id: "broad-1", x: 48, y: 50, count: 12, unlocksWith: "pump-cluster" },
-  { id: "broad-2", x: 43, y: 53, count: 9, unlocksWith: "pump-cluster" },
-  { id: "cambridge-1", x: 55, y: 45, count: 8, unlocksWith: "pump-cluster" },
-  { id: "pulteney-1", x: 39, y: 60, count: 7, unlocksWith: "pump-cluster" },
-  { id: "household-broad", x: 55, y: 56, count: 1, unlocksWith: "household-exposure" },
-  { id: "marshall-1", x: 33, y: 70, count: 5, unlocksWith: "attack-timeline" },
-  { id: "berwick-1", x: 31, y: 38, count: 4, unlocksWith: "attack-timeline" },
-  { id: "workhouse", x: 73, y: 53, count: 1, unlocksWith: "workhouse-exception" },
-  { id: "brewery", x: 63, y: 67, count: 1, unlocksWith: "brewery-exception" },
-  { id: "outlier-1", x: 19, y: 28, count: 2, unlocksWith: "snow-method" },
-  { id: "outlier-2", x: 83, y: 31, count: 1, unlocksWith: "snow-method" },
 ];
 
 export const boardThreshold = 6;

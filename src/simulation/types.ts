@@ -78,14 +78,6 @@ export interface HypothesisDefinition {
   snowChallenge: string;
 }
 
-export interface MapDeathPoint {
-  id: string;
-  x: number;
-  y: number;
-  count: number;
-  unlocksWith?: string;
-}
-
 export interface InvestigationSnapshot {
   inspectedHotspots: Set<string>;
   collectedEvidence: Set<string>;

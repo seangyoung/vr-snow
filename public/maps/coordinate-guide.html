@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Broad Street Map Coordinate Guide</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #251f17;
+        --muted: #6f6048;
+        --paper: #efe2be;
+        --panel: #fff8e6;
+        --line: rgba(65, 50, 31, 0.22);
+        --line-strong: rgba(65, 50, 31, 0.48);
+        --gold: #d9a82e;
+        --gold-ink: #4b3506;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        background: #d9ccb0;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 18px;
+        min-height: 100vh;
+        padding: 18px;
+      }
+
+      .map-frame {
+        display: grid;
+        place-items: center;
+        min-width: 0;
+        border: 1px solid rgba(52, 42, 27, 0.36);
+        background: var(--paper);
+        box-shadow: 0 18px 50px rgba(45, 35, 20, 0.2);
+      }
+
+      svg {
+        display: block;
+        width: min(100%, 92vh);
+        max-height: calc(100vh - 36px);
+        aspect-ratio: 1;
+        cursor: crosshair;
+        background: var(--paper);
+      }
+
+      aside {
+        min-width: 0;
+        padding: 16px;
+        overflow: auto;
+        border: 1px solid rgba(52, 42, 27, 0.26);
+        background: var(--panel);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.1rem;
+        line-height: 1.2;
+      }
+
+      p {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.45;
+      }
+
+      .readout {
+        display: grid;
+        gap: 4px;
+        margin: 12px 0;
+        padding: 10px;
+        border: 1px solid rgba(52, 42, 27, 0.24);
+        background: rgba(255, 255, 255, 0.42);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.92rem;
+      }
+
+      fieldset {
+        margin: 14px 0;
+        padding: 10px;
+        border: 1px solid rgba(52, 42, 27, 0.24);
+      }
+
+      legend {
+        padding: 0 5px;
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 8px 0;
+        font-size: 0.9rem;
+      }
+
+      button {
+        width: 100%;
+        min-height: 34px;
+        border: 1px solid rgba(52, 42, 27, 0.34);
+        background: #2d513f;
+        color: white;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .legend-list,
+      .picked-list {
+        margin: 8px 0 0;
+        padding: 0;
+        list-style: none;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.78rem;
+        line-height: 1.45;
+      }
+
+      .legend-list li,
+      .picked-list li {
+        padding: 3px 0;
+        border-bottom: 1px solid rgba(52, 42, 27, 0.12);
+      }
+
+      .grid-minor {
+        stroke: var(--line);
+        stroke-width: 0.08;
+      }
+
+      .grid-major {
+        stroke: var(--line-strong);
+        stroke-width: 0.16;
+      }
+
+      .axis-label,
+      .marker-label {
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        paint-order: stroke;
+        stroke: rgba(255, 248, 230, 0.9);
+        stroke-linejoin: round;
+      }
+
+      .axis-label {
+        fill: rgba(28, 24, 18, 0.78);
+        stroke-width: 0.34;
+        font-size: 1.4px;
+        font-weight: 800;
+        text-anchor: middle;
+      }
+
+      .marker-label {
+        fill: #191510;
+        stroke-width: 0.38;
+        font-size: 1.55px;
+        font-weight: 900;
+      }
+
+      .marker-location circle {
+        fill: var(--gold);
+        stroke: var(--gold-ink);
+        stroke-width: 0.42;
+      }
+
+      .basemap {
+        opacity: 0.72;
+        pointer-events: none;
+      }
+
+      .basemap-pumps,
+      .basemap-label {
+        opacity: 0.9;
+      }
+
+      .cursor-lines {
+        pointer-events: none;
+      }
+
+      .cursor-lines line {
+        stroke: rgba(30, 86, 75, 0.82);
+        stroke-width: 0.18;
+        stroke-dasharray: 0.8 0.8;
+      }
+
+      .is-hidden {
+        display: none;
+      }
+
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+
+        svg {
+          width: 100%;
+          max-height: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="map-frame" aria-label="Broad Street map with coordinate grid">
+        <svg id="guide" viewBox="0 0 100 100" role="img" aria-labelledby="guide-title guide-desc">
+          <title id="guide-title">Broad Street coordinate guide</title>
+          <desc id="guide-desc">
+            Coordinate grid for placing map markers. X increases left to right and Y increases
+            top to bottom.
+          </desc>
+          <rect x="0" y="0" width="100" height="100" fill="#efe2be" />
+          <g class="basemap" transform="scale(0.004995004995)">
+            <use href="./broad-street.svg#Streets" />
+            <use class="basemap-label" href="./broad-street.svg#Broad-Street" />
+            <use class="basemap-pumps" href="./broad-street.svg#Pumps" />
+          </g>
+          <g id="minor-grid"></g>
+          <g id="major-grid"></g>
+          <g id="axis-labels"></g>
+          <g id="location-markers"></g>
+          <g class="cursor-lines" aria-hidden="true">
+            <line id="cursor-x-line" x1="0" y1="0" x2="100" y2="0" />
+            <line id="cursor-y-line" x1="0" y1="0" x2="0" y2="100" />
+          </g>
+        </svg>
+      </section>
+
+      <aside>
+        <h1>Coordinate Guide</h1>
+        <p>
+          Use this to send revised marker locations as <strong>x,y</strong>. The origin is the
+          upper-left corner. X increases rightward; Y increases downward.
+        </p>
+        <div class="readout">
+          <span>cursor: <strong id="cursor-readout">--,--</strong></span>
+          <span>last click: <strong id="click-readout">none</strong></span>
+        </div>
+
+        <fieldset>
+          <legend>Visible Layers</legend>
+          <label><input type="checkbox" data-toggle="location-markers" checked /> Travel nodes</label>
+          <label><input type="checkbox" data-toggle="minor-grid" checked /> 5-unit grid</label>
+          <label><input type="checkbox" data-toggle="major-grid" checked /> 10-unit grid</label>
+        </fieldset>
+
+        <button id="clear-picks" type="button">Clear clicked coordinates</button>
+
+        <h2>Clicked Coordinates</h2>
+        <ul id="picked-list" class="picked-list">
+          <li>No clicks yet.</li>
+        </ul>
+
+        <h2>Current Travel Nodes</h2>
+        <ul id="location-list" class="legend-list"></ul>
+      </aside>
+    </main>
+
+    <script>
+      const svg = document.querySelector("#guide");
+      const cursorReadout = document.querySelector("#cursor-readout");
+      const clickReadout = document.querySelector("#click-readout");
+      const pickedList = document.querySelector("#picked-list");
+
+      const locations = [
+        { id: "snow-desk", label: "Desk", x: 9, y: 88 },
+        { id: "broad-street", label: "Pump", x: 50, y: 50 },
+        { id: "household", label: "Household", x: 45, y: 70 },
+        { id: "registrar", label: "Ledger", x: 15, y: 12 },
+        { id: "workhouse", label: "Workhouse", x: 40, y: 30 },
+        { id: "brewery", label: "Brewery", x: 70, y: 40 },
+        { id: "board-room", label: "Board", x: 92, y: 88 },
+      ];
+
+      const svgNS = "http://www.w3.org/2000/svg";
+      let pickCount = 0;
+
+      function makeSvg(name, attrs = {}) {
+        const element = document.createElementNS(svgNS, name);
+        for (const [key, value] of Object.entries(attrs)) {
+          element.setAttribute(key, value);
+        }
+        return element;
+      }
+
+      function formatCoord(point) {
+        return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+      }
+
+      function eventToSvgPoint(event) {
+        const point = svg.createSVGPoint();
+        point.x = event.clientX;
+        point.y = event.clientY;
+        const transformed = point.matrixTransform(svg.getScreenCTM().inverse());
+        return {
+          x: Math.min(100, Math.max(0, transformed.x)),
+          y: Math.min(100, Math.max(0, transformed.y)),
+        };
+      }
+
+      function buildGrid() {
+        const minor = document.querySelector("#minor-grid");
+        const major = document.querySelector("#major-grid");
+        const labels = document.querySelector("#axis-labels");
+
+        for (let value = 0; value <= 100; value += 5) {
+          const target = value % 10 === 0 ? major : minor;
+          const className = value % 10 === 0 ? "grid-major" : "grid-minor";
+          target.append(
+            makeSvg("line", { class: className, x1: value, y1: 0, x2: value, y2: 100 }),
+            makeSvg("line", { class: className, x1: 0, y1: value, x2: 100, y2: value }),
+          );
+        }
+
+        for (let value = 0; value <= 100; value += 10) {
+          const top = makeSvg("text", { class: "axis-label", x: value, y: 2.2 });
+          top.textContent = value;
+          const bottom = makeSvg("text", { class: "axis-label", x: value, y: 99 });
+          bottom.textContent = value;
+          const left = makeSvg("text", { class: "axis-label", x: 2.2, y: value + 0.5 });
+          left.textContent = value;
+          const right = makeSvg("text", { class: "axis-label", x: 97.8, y: value + 0.5 });
+          right.textContent = value;
+          labels.append(top, bottom, left, right);
+        }
+      }
+
+      function renderMarker(targetId, markerClass, items, radius) {
+        const target = document.querySelector(`#${targetId}`);
+        target.innerHTML = "";
+        for (const item of items) {
+          const group = makeSvg("g", {
+            class: `marker ${markerClass}`,
+            transform: `translate(${item.x} ${item.y})`,
+          });
+          const textX = item.x > 82 ? -1.7 : 1.7;
+          const textY = item.y < 9 ? 3.0 : -1.6;
+          const anchor = item.x > 82 ? "end" : "start";
+          const label = makeSvg("text", {
+            class: "marker-label",
+            x: textX,
+            y: textY,
+            "text-anchor": anchor,
+          });
+          label.textContent = item.label;
+          group.append(makeSvg("circle", { r: radius }), label);
+          target.append(group);
+        }
+      }
+
+      function renderLists() {
+        const locationList = document.querySelector("#location-list");
+        locationList.innerHTML = locations
+          .map((item) => `<li>${item.id}: ${item.x},${item.y}</li>`)
+          .join("");
+      }
+
+      function addPick(point) {
+        if (pickCount === 0) {
+          pickedList.innerHTML = "";
+        }
+        pickCount += 1;
+        const item = document.createElement("li");
+        item.textContent = `${pickCount}. ${formatCoord(point)}`;
+        pickedList.append(item);
+        clickReadout.textContent = formatCoord(point);
+      }
+
+      buildGrid();
+      renderMarker("location-markers", "marker-location", locations, 1.15);
+      renderLists();
+
+      svg.addEventListener("mousemove", (event) => {
+        const point = eventToSvgPoint(event);
+        cursorReadout.textContent = formatCoord(point);
+        document.querySelector("#cursor-x-line").setAttribute("y1", point.y);
+        document.querySelector("#cursor-x-line").setAttribute("y2", point.y);
+        document.querySelector("#cursor-y-line").setAttribute("x1", point.x);
+        document.querySelector("#cursor-y-line").setAttribute("x2", point.x);
+      });
+
+      svg.addEventListener("click", (event) => {
+        addPick(eventToSvgPoint(event));
+      });
+
+      document.querySelectorAll("[data-toggle]").forEach((input) => {
+        input.addEventListener("change", () => {
+          document.querySelector(`#${input.dataset.toggle}`).classList.toggle("is-hidden", !input.checked);
+        });
+      });
+
+      document.querySelector("#clear-picks").addEventListener("click", () => {
+        pickCount = 0;
+        clickReadout.textContent = "none";
+        pickedList.innerHTML = "<li>No clicks yet.</li>";
+      });
+    </script>
+  </body>
+</html>

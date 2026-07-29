@@ -1,5 +1,5 @@
 import { createIcons, icons } from "lucide";
-import { boardThreshold, mapDeathPoints } from "../simulation/content";
+import { boardThreshold } from "../simulation/content";
 import type { GameState } from "../simulation/gameState";
 import type {
   ChapterScene,
@@ -12,7 +12,6 @@ import type {
   HypothesisId,
   InvestigationLocation,
   LocationId,
-  MapDeathPoint,
   SynthesisConfidence,
 } from "../simulation/types";
 
@@ -27,7 +26,8 @@ const mapLayers: Array<{ id: MapLayerId; label: string; icon: string; summary: s
     id: "evidence",
     label: "Evidence",
     icon: "map-pinned",
-    summary: "Plot the deaths, pump, exceptions, and outliers as the notebook fills.",
+    summary:
+      "Use the Broad Street map to travel between sources; Snow's death marks appear once the ledger and cluster evidence agree.",
   },
   {
     id: "waterborne",
@@ -778,10 +778,6 @@ function renderEvidenceFit(label: string, evidenceCards: EvidenceCard[], kind: "
 function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: MapLayerId): string {
   const collectedIds = new Set(collected.map((card) => card.id));
   const activeLayer = mapLayers.find((layer) => layer.id === mapLayer) ?? mapLayers[0];
-  const points = mapDeathPoints
-    .filter((point) => !point.unlocksWith || collectedIds.has(point.unlocksWith))
-    .map((point) => renderDeathStack(point))
-    .join("");
 
   const stage = gameState.getStage();
   const evidenceReady = gameState.hasEnoughEvidenceForSynthesis();
@@ -850,7 +846,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: Ma
       <div class="panel-header">
         <div>
           <span>Map table</span>
-          <strong>Deaths, pumps, and exceptions</strong>
+          <strong>Sources and locations</strong>
         </div>
         <button class="icon-button" data-action="close" aria-label="Close map"><i data-lucide="x"></i></button>
       </div>
@@ -873,10 +869,6 @@ function renderMap(collected: EvidenceCard[], gameState: GameState, mapLayer: Ma
             ${renderCustomMapBase(activeLayer.id, collectedIds)}
             <g class="game-map-overlay" transform="scale(${broadStreetMapOverlayScale})">
               ${renderHypothesisOverlay(activeLayer.id, collectedIds)}
-              ${points}
-              ${renderExceptionMarkers(collectedIds)}
-              ${renderSampleMarkers(collectedIds)}
-              <circle class="pump-point" cx="51" cy="50" r="4.4" />
             </g>
           </svg>
           ${locationNodes}
@@ -906,7 +898,7 @@ function renderCustomMapBase(activeLayerId: MapLayerId, collectedIds: Set<string
   const mapSource = publicAssetPath(broadStreetMapSvgPath);
   const href = (id: string) => escapeHtml(`${mapSource}#${id}`);
   const showServiceArea = activeLayerId === "waterborne";
-  const showDeaths = activeLayerId === "evidence" && collectedIds.has("pump-cluster");
+  const showDeaths = activeLayerId === "evidence" && collectedIds.has("attack-timeline") && collectedIds.has("pump-cluster");
 
   return `
     <rect class="map-paper" x="0" y="0" width="${broadStreetMapViewBoxSize}" height="${broadStreetMapViewBoxSize}" />
@@ -939,29 +931,6 @@ function renderCustomMapBase(activeLayerId: MapLayerId, collectedIds: Set<string
 function publicAssetPath(path: string): string {
   const base = import.meta.env.BASE_URL || "/";
   return `${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
-}
-
-function renderDeathStack(point: MapDeathPoint): string {
-  const maxRows = 6;
-  const barWidth = 1.05;
-  const barHeight = 3.05;
-  const gap = 0.26;
-  const columns = Math.ceil(point.count / maxRows);
-  const totalWidth = columns * barWidth + (columns - 1) * gap;
-  const bars = Array.from({ length: point.count }, (_, index) => {
-    const column = Math.floor(index / maxRows);
-    const row = index % maxRows;
-    const x = column * (barWidth + gap) - totalWidth / 2;
-    const y = -row * (barHeight + gap) - barHeight / 2;
-    return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barWidth}" height="${barHeight}" rx="0.12" />`;
-  }).join("");
-
-  return `
-    <g class="death-stack" transform="translate(${point.x} ${point.y})" style="--plot-delay: ${plotDelay(point.id)}ms">
-      <title>${point.count} recorded ${point.count === 1 ? "death" : "deaths"}</title>
-      ${bars}
-    </g>
-  `;
 }
 
 function renderHistoricMapBase(): string {
@@ -1046,13 +1015,10 @@ function renderHypothesisOverlay(layerId: MapLayerId, collectedIds: Set<string>)
   if (layerId === "waterborne") {
     return `
       <g class="hypothesis-overlay is-waterborne">
-        <circle class="source-wash" cx="51" cy="50" r="11" />
-        ${collectedIds.has("household-exposure") ? `<circle class="household-wash" cx="55" cy="56" r="5" />` : ""}
-        ${
-          collectedIds.has("workhouse-exception") || collectedIds.has("brewery-exception")
-            ? `<rect class="exception-wash" x="61" y="48" width="15" height="23" rx="4" />`
-            : ""
-        }
+        <circle class="source-wash" cx="50" cy="50" r="11" />
+        ${collectedIds.has("household-exposure") ? `<circle class="household-wash" cx="45" cy="70" r="5" />` : ""}
+        ${collectedIds.has("workhouse-exception") ? `<circle class="exception-wash" cx="40" cy="30" r="5" />` : ""}
+        ${collectedIds.has("brewery-exception") ? `<circle class="exception-wash" cx="70" cy="40" r="5" />` : ""}
       </g>
     `;
   }
@@ -1074,53 +1040,16 @@ function renderHypothesisOverlay(layerId: MapLayerId, collectedIds: Set<string>)
         <circle class="household-node" cx="55" cy="45" r="3.6" />
         <circle class="household-node" cx="61" cy="52" r="3.6" />
         <circle class="household-node" cx="31" cy="38" r="3.6" />
-        ${collectedIds.has("household-exposure") ? `<circle class="household-wash" cx="55" cy="56" r="5.2" />` : ""}
+        ${collectedIds.has("household-exposure") ? `<circle class="household-wash" cx="45" cy="70" r="5.2" />` : ""}
       </g>
     `;
   }
 
   return `
     <g class="hypothesis-overlay is-crowding">
-      <rect class="crowding-wash" x="67" y="45" width="17" height="17" rx="3" />
-      <rect class="crowding-wash" x="23" y="29" width="17" height="21" rx="3" />
-      <rect class="crowding-wash" x="56" y="61" width="16" height="15" rx="3" />
-    </g>
-  `;
-}
-
-function renderExceptionMarkers(collectedIds: Set<string>): string {
-  const markers = [
-    collectedIds.has("household-exposure")
-      ? `<g class="household-marker" transform="translate(55 56)">
-          <circle r="4.6" />
-          <text y="1.5">H</text>
-        </g>`
-      : "",
-    collectedIds.has("workhouse-exception")
-      ? `<g class="exception-marker" transform="translate(73 53)">
-          <path d="M0 -5 L5 0 L0 5 L-5 0 Z" />
-          <text y="1.5">W</text>
-        </g>`
-      : "",
-    collectedIds.has("brewery-exception")
-      ? `<g class="exception-marker" transform="translate(63 67)">
-          <path d="M0 -5 L5 0 L0 5 L-5 0 Z" />
-          <text y="1.5">B</text>
-        </g>`
-      : "",
-  ];
-  return markers.join("");
-}
-
-function renderSampleMarkers(collectedIds: Set<string>): string {
-  if (!collectedIds.has("pump-water-inspection")) {
-    return "";
-  }
-
-  return `
-    <g class="sample-marker" transform="translate(58 43)">
-      <path d="M-3 -6 L3 -6 L2 0 L5 5 L-5 5 L-2 0 Z" />
-      <text y="2">?</text>
+      <rect class="crowding-wash" x="64" y="34" width="13" height="13" rx="3" />
+      <rect class="crowding-wash" x="34" y="24" width="13" height="13" rx="3" />
+      <rect class="crowding-wash" x="39" y="64" width="13" height="13" rx="3" />
     </g>
   `;
 }
@@ -1145,10 +1074,6 @@ function renderMapEvidenceDocket(gameState: GameState): string {
       <ul>${rows}</ul>
     </section>
   `;
-}
-
-function plotDelay(id: string): number {
-  return Array.from(id).reduce((total, char) => total + char.charCodeAt(0), 0) % 420;
 }
 
 function renderLocationNode(
