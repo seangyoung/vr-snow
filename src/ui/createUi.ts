@@ -802,11 +802,13 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
       </div>
       <div class="map-layout">
         <div class="map-canvas">
-          <svg class="snow-map snow-map--custom" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="Broad Street evidence map">
-            ${renderCustomMapBase(collectedIds)}
-          </svg>
-          ${renderMapLegend(deathsVisible)}
-          ${locationNodes}
+          <div class="map-frame">
+            <svg class="snow-map snow-map--custom" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="Broad Street evidence map">
+              ${renderCustomMapBase(collectedIds)}
+            </svg>
+            ${renderMapLegend(deathsVisible)}
+            ${locationNodes}
+          </div>
         </div>
         <div class="map-brief">
           <div class="layer-summary">
