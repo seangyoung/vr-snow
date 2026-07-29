@@ -188,9 +188,9 @@ export const evidenceCards: EvidenceCard[] = [
   },
   {
     id: "brewery-exception",
-    title: "Brewery workers are largely spared",
+    title: "No brewery workers died during the outbreak",
     summary:
-      "Broad Street brewery workers had beer or brewery water available and were not regular users of the street pump.",
+      "The Broad Street brewery was close to the outbreak, but no workers died; they had beer or brewery water available and were not regular users of the street pump.",
     confidence: "reported",
     sourceType: "interview",
     sourceLabel: "Brewery worker interview",
@@ -277,7 +277,7 @@ export const dialogueNodes: DialogueNode[] = [
     speaker: "Broad Street pump",
     role: "Street observation",
     intro:
-      "The pump is busy even in the anxious quiet. Its position matters only if the addresses and exposures begin to point back to it.",
+      "Snow suspects the pump water may carry the danger, but suspicion is not the same as proof. The sample must be inspected for any visible sign of contamination.",
     questions: [
       {
         id: "pump-caution-question",
@@ -311,13 +311,13 @@ export const dialogueNodes: DialogueNode[] = [
     speaker: "Bereaved household survivor",
     role: "Household witness",
     intro:
-      "A black ribbon hangs at the door. The survivor has already told the story to neighbors, but Snow needs the exact address, timing, care, and water habits.",
+      "A black ribbon hangs at the door. Snow has the address from the returns; now he needs the timing, care, and water habits behind the death mark.",
     questions: [
       {
         id: "household-water-question",
         prompt: "What water did the household use before the illness?",
         response:
-          "The family fetched from the Broad Street pump because it was near and well regarded. Record the address, the water source, and the time symptoms began.",
+          "The family fetched from the Broad Street pump because it was near and well regarded. Record the water source and the time symptoms began.",
         unlocksEvidenceId: "household-exposure",
       },
       {
@@ -353,13 +353,13 @@ export const dialogueNodes: DialogueNode[] = [
     speaker: "Brewery worker",
     role: "Workplace witness",
     intro:
-      "The brewery stands near the affected area, yet the workers' daily habits differ from nearby households.",
+      "The brewery stands near the affected area, yet no workers are reported dead. Snow wants to know what made this workplace different.",
     questions: [
       {
         id: "brewery-drink-question",
         prompt: "What did workers drink during the day?",
         response:
-          "Workers had beer or brewery water available and were not regular users of the Broad Street pump.",
+          "No brewery workers died during the outbreak. Workers had beer or brewery water available and were not regular users of the Broad Street pump.",
         unlocksEvidenceId: "brewery-exception",
       },
     ],
@@ -378,7 +378,7 @@ export const locations: InvestigationLocation[] = [
     id: "broad-street",
     title: "Broad Street Pump",
     shortTitle: "Pump",
-    description: "The public pump at the center of the first visible cluster.",
+    description: "The public pump whose water Snow suspects may be contaminated.",
     mapPoint: { x: 60, y: 45 },
   },
   {
@@ -444,7 +444,7 @@ export const hotspots: Hotspot[] = [
     locationId: "household",
     label: "Bereaved household",
     shortLabel: "Household",
-    description: "A survivor can give the address, water source, and timing behind one death mark.",
+    description: "A survivor can confirm the water source and timing behind one death mark.",
     evidenceId: "household-exposure",
     position: [-2.25, 1.42, -0.95],
   },
@@ -462,7 +462,7 @@ export const hotspots: Hotspot[] = [
     locationId: "brewery",
     label: "Broad Street brewery",
     shortLabel: "Brewery",
-    description: "Workers nearby do not fit a simple distance-from-smell explanation.",
+    description: "No workers died here despite the brewery's proximity to the outbreak.",
     evidenceId: "brewery-exception",
     position: [3.4, 1.7, 1.8],
   },
