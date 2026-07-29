@@ -360,7 +360,7 @@ export const locations: InvestigationLocation[] = [
     title: "Broad Street Household",
     shortTitle: "Household",
     description: "A household interview turns a death mark into timing, care, and water-use testimony.",
-    mapPoint: { x: 45, y: 70 },
+    mapPoint: { x: 45, y: 67 },
     unlocksWith: "pump-cluster",
   },
   {
@@ -375,14 +375,14 @@ export const locations: InvestigationLocation[] = [
     title: "Poland Street Workhouse",
     shortTitle: "Workhouse",
     description: "A nearby institution that complicates any simple bad-air explanation.",
-    mapPoint: { x: 50, y: 30 },
+    mapPoint: { x: 50, y: 28 },
   },
   {
     id: "brewery",
     title: "Broad Street Brewery",
     shortTitle: "Brewery",
     description: "A workplace exception that makes exposure history matter.",
-    mapPoint: { x: 80, y: 40 },
+    mapPoint: { x: 78, y: 40 },
   },
   {
     id: "board-room",
