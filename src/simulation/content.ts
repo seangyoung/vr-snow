@@ -257,14 +257,14 @@ export const dialogueNodes: DialogueNode[] = [
       },
       {
         id: "workhouse-miasma-question",
-        prompt: "If the street air were the cause, what would we expect?",
+        prompt: "What does the workhouse exception tell us about street air?",
         response:
           "We would expect the nearby institution to suffer heavily as well. Its relative escape pushes the inquiry back toward water source and exposure.",
         requiresEvidenceIds: ["workhouse-exception"],
       },
       {
         id: "brewery-exposure-question",
-        prompt: "Why does this exception matter?",
+        prompt: "Why does the brewery exception matter?",
         response:
           "It shows why place alone is not enough. The inquiry must ask what people actually consumed, not merely where they stood.",
         requiresEvidenceIds: ["brewery-exception"],
