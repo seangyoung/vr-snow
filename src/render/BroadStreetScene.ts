@@ -63,7 +63,28 @@ type VrPanelButtonCommand = {
   height: number;
 };
 
-type VrPanelDrawCommand = VrPanelTextCommand | VrPanelButtonCommand;
+type VrMapLocationCommand = {
+  id: LocationId;
+  label: string;
+  x: number;
+  y: number;
+  unlocked: boolean;
+  current: boolean;
+  boardReady: boolean;
+  offMapDirection?: "east" | "southeast";
+};
+
+type VrPanelMapCommand = {
+  kind: "map";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  locations: VrMapLocationCommand[];
+  deathsVisible: boolean;
+};
+
+type VrPanelDrawCommand = VrPanelTextCommand | VrPanelButtonCommand | VrPanelMapCommand;
 
 type VrControllerPointer = {
   group: THREE.Group;
@@ -842,24 +863,37 @@ export class BroadStreetScene {
   }
 
   private buildVrMapPanel(): void {
-    const locations = this.gameState
-      .getLocations()
-      .filter((location) => this.gameState.canTravelToLocation(location.id) && location.id !== this.gameState.getCurrentLocation().id);
+    this.addVrMap(0, -0.08, 2.08, 1.06);
+
+    const currentLocationId = this.gameState.getCurrentLocation().id;
+    const locations = this.gameState.getLocations().filter((location) => {
+      const boardReady = location.boardOnly && this.gameState.preparedForBoard && this.gameState.getStage() === "synthesis";
+      return (boardReady || this.gameState.canTravelToLocation(location.id)) && location.id !== currentLocationId;
+    });
 
     if (locations.length === 0) {
-      this.addVrText("No other field locations are available yet.", 0, 0.1, vrPanelContentWidth, 0.28, {
+      this.addVrText("No other field locations are available yet.", 0, -0.72, vrPanelContentWidth, 0.12, {
         color: "#e7ece8",
-        fontSize: 36,
+        fontSize: 26,
       });
     }
 
-    locations.slice(0, 8).forEach((location, index) => {
-      const column = index % 2 === 0 ? -0.62 : 0.62;
-      const row = Math.floor(index / 2);
-      this.addVrPanelButton(location.shortTitle, column, 0.3 - row * 0.25, 1.12, 0.22, {
-        type: "travel",
-        locationId: location.id,
-      });
+    locations.slice(0, 7).forEach((location, index) => {
+      const boardReady = location.boardOnly && this.gameState.preparedForBoard && this.gameState.getStage() === "synthesis";
+      const x = -1.04 + index * 0.35;
+      this.addVrPanelButton(
+        boardReady ? "Present" : location.shortTitle,
+        x,
+        -0.76,
+        0.31,
+        0.14,
+        boardReady
+          ? { type: "present-board" }
+          : {
+              type: "travel",
+              locationId: location.id,
+            },
+      );
     });
   }
 
@@ -889,16 +923,17 @@ export class BroadStreetScene {
         fontSize: 32,
       });
     } else {
-      this.addVrText(
+      this.addPaginatedVrText(
+        "notebook:evidence",
         evidence
-          .slice(-4)
-          .map((card) => card.title)
-          .join(". "),
+          .map((card) => `${card.title}. ${card.summary}`)
+          .join(" "),
         0,
         -0.34,
         vrPanelContentWidth,
         0.42,
-        { color: "#e7ece8", fontSize: 30 },
+        { color: "#e7ece8", fontSize: 26 },
+        -0.66,
       );
     }
   }
@@ -918,12 +953,36 @@ export class BroadStreetScene {
 
     const selected = this.gameState.getSelectedHypothesis();
     const confidence = this.gameState.synthesisConfidence;
-    this.addVrText("Theory", -0.64, 0.32, 1.08, 0.14, { color: "#f1d79c", fontSize: 36, weight: "700" });
-    this.addVrText("Confidence", 0.64, 0.32, 1.08, 0.14, { color: "#f1d79c", fontSize: 36, weight: "700" });
+    const mappedFindings = this.gameState.getMappedEvidenceFindings();
+    const findingsText = mappedFindings.length
+      ? mappedFindings.join(" ")
+      : "Map evidence appears as you collect addresses, returns, and exceptions.";
+    const selectedEvidence = selected ? this.gameState.getHypothesisEvidence(selected) : undefined;
+    const supportsText = selectedEvidence?.supporting.length
+      ? selectedEvidence.supporting.map((card) => card.title).join("; ")
+      : "No recorded evidence selected yet.";
+    const complicatesText = selectedEvidence?.complicating.length
+      ? selectedEvidence.complicating.map((card) => card.title).join("; ")
+      : "No major conflict recorded.";
+    const reviewText = selected
+      ? `${this.gameState.getSnowSynthesisFeedback()} Map evidence: ${findingsText} Evidence fit for ${selected.title}. Supports: ${supportsText} Complicates: ${complicatesText}`
+      : `${this.gameState.getSnowSynthesisFeedback()} Map evidence: ${findingsText} Select a theory to compare supporting and complicating evidence.`;
+
+    this.addVrText("Evidence Review", -0.54, 0.34, 1.22, 0.1, {
+      color: "#f1d79c",
+      fontSize: 28,
+      weight: "700",
+    });
+    this.addPaginatedVrText("synthesis:review", reviewText, -0.54, 0.02, 1.24, 0.58, {
+      color: "#e7ece8",
+      fontSize: 24,
+    }, -0.32);
+
+    this.addVrText("Theory", 0.76, 0.34, 0.96, 0.1, { color: "#f1d79c", fontSize: 28, weight: "700" });
 
     this.gameState.getHypotheses().forEach((hypothesis, index) => {
       const label = selected?.id === hypothesis.id ? `Selected: ${hypothesis.shortTitle}` : hypothesis.shortTitle;
-      this.addVrPanelButton(label, -0.64, 0.12 - index * 0.18, 1.12, 0.16, {
+      this.addVrPanelButton(label, 0.76, 0.2 - index * 0.13, 0.94, 0.11, {
         type: "select-hypothesis",
         hypothesisId: hypothesis.id,
       });
@@ -936,7 +995,7 @@ export class BroadStreetScene {
     ];
     confidenceOptions.forEach((option, index) => {
       const label = confidence === option.id ? `Set: ${option.label}` : option.label;
-      this.addVrPanelButton(label, 0.64, 0.12 - index * 0.18, 1.12, 0.16, {
+      this.addVrPanelButton(label, -0.64 + index * 0.64, -0.53, 0.58, 0.13, {
         type: "set-confidence",
         confidence: option.id,
       });
@@ -957,6 +1016,28 @@ export class BroadStreetScene {
       color: options.color ?? "#ffffff",
       fontSize: options.fontSize ?? 36,
       weight: options.weight ?? "500",
+    });
+  }
+
+  private addVrMap(x: number, y: number, width: number, height: number): void {
+    const currentLocationId = this.gameState.getCurrentLocation().id;
+    this.vrPanelDrawCommands.push({
+      kind: "map",
+      x,
+      y,
+      width,
+      height,
+      deathsVisible: this.gameState.hasEvidence("attack-timeline") && this.gameState.hasEvidence("pump-cluster"),
+      locations: this.gameState.getLocations().map((location) => ({
+        id: location.id,
+        label: location.shortTitle,
+        x: location.mapPoint.x,
+        y: location.mapPoint.y,
+        unlocked: this.gameState.isLocationUnlocked(location),
+        current: location.id === currentLocationId,
+        boardReady: Boolean(location.boardOnly && this.gameState.preparedForBoard && this.gameState.getStage() === "synthesis"),
+        offMapDirection: getVrMapOffMapDirection(location.id),
+      })),
     });
   }
 
@@ -1464,6 +1545,11 @@ function createVrPanelSurface(commands: VrPanelDrawCommand[]): THREE.Mesh {
       return;
     }
 
+    if (command.kind === "map") {
+      drawVrPanelMap(ctx, command);
+      return;
+    }
+
     drawVrPanelText(ctx, command);
   });
 
@@ -1541,12 +1627,12 @@ function drawVrPanelButton(ctx: CanvasRenderingContext2D, command: VrPanelButton
     return;
   }
 
-  const fontSize = command.height < 0.18 ? 36 : 40;
+  const fontSize = command.height < 0.14 ? 30 : command.height < 0.18 ? 34 : 40;
   drawTextIntoRect(ctx, command.label ?? "", rect, {
     color: "#fff4d8",
     fontSize,
     weight: "800",
-    maxLines: 1,
+    maxLines: command.height < 0.11 ? 1 : 2,
   });
 }
 
@@ -1615,6 +1701,453 @@ function drawVrPanelIcon(
   ctx.restore();
 }
 
+function drawVrPanelMap(ctx: CanvasRenderingContext2D, command: VrPanelMapCommand): void {
+  const rect = getPanelCanvasRect(command.x, command.y, command.width, command.height);
+  const radius = Math.min(rect.width, rect.height) * 0.035;
+
+  drawRoundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius);
+  ctx.fillStyle = "#efe0bc";
+  ctx.fill();
+  ctx.lineWidth = Math.max(6, rect.width * 0.006);
+  ctx.strokeStyle = "#8b7650";
+  ctx.stroke();
+
+  ctx.save();
+  drawRoundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius);
+  ctx.clip();
+  ctx.fillStyle = "#ead9b0";
+  ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+  drawVrMapBlocks(ctx, rect);
+  drawVrMapStreets(ctx, rect);
+  drawVrMapLabels(ctx, rect);
+  if (command.deathsVisible) {
+    drawVrMapDeaths(ctx, rect);
+  }
+  drawVrMapPumps(ctx, rect);
+  command.locations.forEach((location) => drawVrMapLocation(ctx, rect, location));
+  drawVrMapLegend(ctx, rect, command.deathsVisible);
+  ctx.restore();
+}
+
+function drawVrMapBlocks(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+): void {
+  const blocks = [
+    [
+      [5, 5],
+      [21, 5],
+      [24, 24],
+      [7, 28],
+    ],
+    [
+      [27, 5],
+      [47, 5],
+      [48, 23],
+      [31, 25],
+    ],
+    [
+      [55, 5],
+      [72, 5],
+      [71, 23],
+      [57, 24],
+    ],
+    [
+      [80, 5],
+      [96, 8],
+      [95, 23],
+      [80, 22],
+    ],
+    [
+      [8, 32],
+      [25, 29],
+      [27, 44],
+      [9, 46],
+    ],
+    [
+      [34, 29],
+      [48, 27],
+      [48, 43],
+      [35, 44],
+    ],
+    [
+      [58, 28],
+      [70, 27],
+      [70, 42],
+      [59, 43],
+    ],
+    [
+      [79, 28],
+      [95, 29],
+      [94, 43],
+      [80, 43],
+    ],
+    [
+      [8, 56],
+      [28, 54],
+      [29, 64],
+      [12, 67],
+    ],
+    [
+      [36, 54],
+      [49, 53],
+      [49, 63],
+      [36, 64],
+    ],
+    [
+      [59, 53],
+      [70, 52],
+      [71, 63],
+      [60, 64],
+    ],
+    [
+      [79, 54],
+      [96, 55],
+      [96, 66],
+      [82, 66],
+    ],
+    [
+      [10, 70],
+      [30, 67],
+      [32, 78],
+      [9, 83],
+    ],
+    [
+      [39, 68],
+      [56, 66],
+      [57, 79],
+      [38, 82],
+    ],
+    [
+      [65, 67],
+      [80, 65],
+      [85, 77],
+      [67, 80],
+    ],
+    [
+      [35, 84],
+      [58, 81],
+      [62, 96],
+      [34, 96],
+    ],
+    [
+      [69, 82],
+      [90, 79],
+      [96, 96],
+      [72, 96],
+    ],
+  ];
+
+  ctx.fillStyle = "#d4c6a3";
+  ctx.strokeStyle = "rgba(102, 84, 52, 0.32)";
+  ctx.lineWidth = Math.max(2, rect.width * 0.0025);
+  blocks.forEach((block) => {
+    ctx.beginPath();
+    block.forEach(([x, y], index) => {
+      const point = getVrMapCanvasPoint(rect, x, y);
+      if (index === 0) {
+        ctx.moveTo(point.x, point.y);
+      } else {
+        ctx.lineTo(point.x, point.y);
+      }
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  });
+}
+
+function drawVrMapStreets(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+): void {
+  const streets: Array<{
+    start: [number, number];
+    cp1: [number, number];
+    cp2: [number, number];
+    end: [number, number];
+    major?: boolean;
+  }> = [
+    { start: [4, 50], cp1: [20, 49], cp2: [66, 47], end: [96, 50], major: true },
+    { start: [6, 76], cp1: [23, 74], cp2: [74, 70], end: [97, 72], major: true },
+    { start: [10, 63], cp1: [25, 61], cp2: [66, 60], end: [94, 63] },
+    { start: [25, 4], cp1: [26, 18], cp2: [31, 65], end: [24, 97], major: true },
+    { start: [52, 4], cp1: [52, 20], cp2: [50, 80], end: [46, 97] },
+    { start: [59, 4], cp1: [58, 21], cp2: [62, 82], end: [67, 97], major: true },
+    { start: [77, 5], cp1: [77, 23], cp2: [80, 72], end: [93, 97], major: true },
+    { start: [6, 26], cp1: [23, 24], cp2: [72, 21], end: [97, 25] },
+    { start: [38, 34], cp1: [47, 35], cp2: [80, 37], end: [96, 38] },
+    { start: [33, 58], cp1: [41, 55], cp2: [74, 42], end: [83, 40] },
+  ];
+
+  streets.forEach((street) => {
+    drawVrMapStreet(ctx, rect, street, true);
+  });
+  streets.forEach((street) => {
+    drawVrMapStreet(ctx, rect, street, false);
+  });
+}
+
+function drawVrMapStreet(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  street: {
+    start: [number, number];
+    cp1: [number, number];
+    cp2: [number, number];
+    end: [number, number];
+    major?: boolean;
+  },
+  casing: boolean,
+): void {
+  const start = getVrMapCanvasPoint(rect, street.start[0], street.start[1]);
+  const cp1 = getVrMapCanvasPoint(rect, street.cp1[0], street.cp1[1]);
+  const cp2 = getVrMapCanvasPoint(rect, street.cp2[0], street.cp2[1]);
+  const end = getVrMapCanvasPoint(rect, street.end[0], street.end[1]);
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = rect.width * (casing ? (street.major ? 0.036 : 0.027) : street.major ? 0.022 : 0.015);
+  ctx.strokeStyle = casing ? "rgba(86, 70, 46, 0.45)" : "#f4ebcf";
+  ctx.stroke();
+}
+
+function drawVrMapLabels(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+): void {
+  const labels: Array<{ text: string; x: number; y: number; rotation: number }> = [
+    { text: "BROAD STREET", x: 55, y: 47, rotation: -0.04 },
+    { text: "POLAND ST", x: 79, y: 31, rotation: -1.35 },
+    { text: "BREWER ST", x: 69, y: 75, rotation: -0.12 },
+  ];
+  ctx.save();
+  ctx.fillStyle = "rgba(67, 56, 39, 0.72)";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `700 ${Math.max(18, rect.width * 0.027)}px Georgia, "Times New Roman", serif`;
+  labels.forEach((label) => {
+    const point = getVrMapCanvasPoint(rect, label.x, label.y);
+    ctx.save();
+    ctx.translate(point.x, point.y);
+    ctx.rotate(label.rotation);
+    ctx.fillText(label.text, 0, 0);
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+function drawVrMapDeaths(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+): void {
+  const deathMarks = [
+    [54, 42],
+    [56, 43],
+    [58, 41],
+    [59, 45],
+    [61, 43],
+    [63, 46],
+    [57, 49],
+    [60, 50],
+    [64, 51],
+    [52, 47],
+    [49, 45],
+    [67, 47],
+    [55, 55],
+    [62, 57],
+    [45, 52],
+    [70, 39],
+    [50, 59],
+    [72, 53],
+  ];
+  const width = rect.width * 0.013;
+  const height = rect.height * 0.034;
+  ctx.fillStyle = "rgba(125, 45, 48, 0.72)";
+  ctx.strokeStyle = "rgba(80, 27, 31, 0.58)";
+  ctx.lineWidth = Math.max(1.5, rect.width * 0.0018);
+  deathMarks.forEach(([x, y]) => {
+    const point = getVrMapCanvasPoint(rect, x, y);
+    drawRoundRect(ctx, point.x - width / 2, point.y - height / 2, width, height, width * 0.22);
+    ctx.fill();
+    ctx.stroke();
+  });
+}
+
+function drawVrMapPumps(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+): void {
+  const pumpPoints = [
+    [34.4, 91.1],
+    [65.4, 86.2],
+    [97.4, 73.2],
+    [56.1, 45.7],
+    [16.4, 33.9],
+    [15.2, 10.8],
+  ];
+  const radius = rect.width * 0.012;
+  pumpPoints.forEach(([x, y]) => {
+    const point = getVrMapCanvasPoint(rect, x, y);
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = "#0b766d";
+    ctx.fill();
+    ctx.lineWidth = Math.max(3, rect.width * 0.0035);
+    ctx.strokeStyle = "rgba(255, 246, 218, 0.95)";
+    ctx.stroke();
+  });
+}
+
+function drawVrMapLocation(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  location: VrMapLocationCommand,
+): void {
+  const x = clampValue(location.x, 3, 97);
+  const y = clampValue(location.y, 5, 95);
+  const point = getVrMapCanvasPoint(rect, x, y);
+  const radius = rect.width * 0.018;
+  const activeColor = location.boardReady ? "#e9b653" : location.current ? "#2f6f69" : location.unlocked ? "#a6463e" : "#777065";
+  const labelColor = location.current || location.boardReady ? "#fff4d8" : "#24190d";
+
+  if (location.offMapDirection) {
+    drawVrMapOffMapArrow(ctx, point, radius, location.offMapDirection, activeColor);
+  }
+
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = activeColor;
+  ctx.globalAlpha = location.unlocked || location.current || location.boardReady ? 1 : 0.45;
+  ctx.fill();
+  ctx.lineWidth = Math.max(3, rect.width * 0.0035);
+  ctx.strokeStyle = location.boardReady ? "#fff1bd" : "#24190d";
+  if (location.offMapDirection) {
+    ctx.setLineDash([8, 7]);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const fontSize = Math.max(22, rect.width * 0.026);
+  ctx.font = `800 ${fontSize}px Arial, Helvetica, sans-serif`;
+  const paddingX = fontSize * 0.45;
+  const labelWidth = ctx.measureText(location.label).width + paddingX * 2;
+  const labelHeight = fontSize * 1.35;
+  const preferredX = point.x + radius * 1.35;
+  const labelX = clampValue(preferredX, rect.x + 8, rect.x + rect.width - labelWidth - 8);
+  const labelY = clampValue(point.y - labelHeight / 2, rect.y + 8, rect.y + rect.height - labelHeight - 8);
+  drawRoundRect(ctx, labelX, labelY, labelWidth, labelHeight, labelHeight * 0.48);
+  ctx.fillStyle = location.current ? "#2f6f69" : location.boardReady ? "#5c4320" : "rgba(247, 235, 202, 0.94)";
+  ctx.fill();
+  ctx.lineWidth = Math.max(2, rect.width * 0.0025);
+  ctx.strokeStyle = "rgba(37, 26, 12, 0.45)";
+  ctx.stroke();
+  ctx.fillStyle = labelColor;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(location.label, labelX + labelWidth / 2, labelY + labelHeight / 2);
+  ctx.globalAlpha = 1;
+}
+
+function drawVrMapOffMapArrow(
+  ctx: CanvasRenderingContext2D,
+  point: { x: number; y: number },
+  radius: number,
+  direction: "east" | "southeast",
+  color: string,
+): void {
+  const length = radius * 2.4;
+  const angle = direction === "east" ? 0 : Math.PI / 4;
+  const startX = point.x + Math.cos(angle) * radius * 1.2;
+  const startY = point.y + Math.sin(angle) * radius * 1.2;
+  const endX = point.x + Math.cos(angle) * length;
+  const endY = point.y + Math.sin(angle) * length;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = Math.max(4, radius * 0.35);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+  ctx.translate(endX, endY);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(radius * 0.68, 0);
+  ctx.lineTo(-radius * 0.35, -radius * 0.45);
+  ctx.lineTo(-radius * 0.35, radius * 0.45);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawVrMapLegend(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  deathsVisible: boolean,
+): void {
+  const width = rect.width * 0.25;
+  const height = rect.height * (deathsVisible ? 0.16 : 0.1);
+  const x = rect.x + rect.width - width - rect.width * 0.018;
+  const y = rect.y + rect.height * 0.025;
+  drawRoundRect(ctx, x, y, width, height, height * 0.12);
+  ctx.fillStyle = "rgba(255, 245, 219, 0.94)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(75, 61, 38, 0.34)";
+  ctx.lineWidth = Math.max(2, rect.width * 0.0025);
+  ctx.stroke();
+
+  const fontSize = Math.max(20, rect.width * 0.025);
+  ctx.font = `800 ${fontSize}px Arial, Helvetica, sans-serif`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#271d10";
+  const swatchX = x + width * 0.12;
+  const textX = x + width * 0.26;
+  const pumpY = y + height * (deathsVisible ? 0.32 : 0.5);
+  ctx.beginPath();
+  ctx.arc(swatchX, pumpY, fontSize * 0.34, 0, Math.PI * 2);
+  ctx.fillStyle = "#0b766d";
+  ctx.fill();
+  ctx.fillStyle = "#271d10";
+  ctx.fillText("Pumps", textX, pumpY);
+
+  if (!deathsVisible) {
+    return;
+  }
+
+  const deathY = y + height * 0.72;
+  drawRoundRect(ctx, swatchX - fontSize * 0.35, deathY - fontSize * 0.22, fontSize * 0.7, fontSize * 0.44, fontSize * 0.1);
+  ctx.fillStyle = "rgba(125, 45, 48, 0.74)";
+  ctx.fill();
+  ctx.fillStyle = "#271d10";
+  ctx.fillText("Deaths", textX, deathY);
+}
+
+function getVrMapCanvasPoint(
+  rect: { x: number; y: number; width: number; height: number },
+  xPercent: number,
+  yPercent: number,
+): { x: number; y: number } {
+  return {
+    x: rect.x + (xPercent / 100) * rect.width,
+    y: rect.y + (yPercent / 100) * rect.height,
+  };
+}
+
+function getVrMapOffMapDirection(locationId: LocationId): "east" | "southeast" | undefined {
+  if (locationId === "snow-desk") {
+    return "east";
+  }
+  if (locationId === "registrar") {
+    return "southeast";
+  }
+  return undefined;
+}
+
 function drawVrPanelText(ctx: CanvasRenderingContext2D, command: VrPanelTextCommand): void {
   const rect = getPanelCanvasRect(command.x, command.y, command.width, command.height);
   drawTextIntoRect(ctx, command.text, rect, {
@@ -1663,15 +2196,15 @@ function drawTextIntoRect(
 ): void {
   const scale = vrPanelTextureWidth / vrPanelDesignWidth;
   const baseFontSize = options.fontSize * scale;
-  const minimumFontSize = options.maxLines === undefined ? Math.max(22 * scale, baseFontSize * 0.72) : baseFontSize;
+  const minimumFontSize = Math.max(20 * scale, baseFontSize * 0.58);
   const fontStep = 2 * scale;
   let layout = measureWrappedText(ctx, text, rect, options.weight, baseFontSize, options.maxLines);
 
-  while (options.maxLines === undefined && !layout.fits && layout.fontSize - fontStep >= minimumFontSize) {
-    layout = measureWrappedText(ctx, text, rect, options.weight, layout.fontSize - fontStep);
+  while (!layout.fits && layout.fontSize - fontStep >= minimumFontSize) {
+    layout = measureWrappedText(ctx, text, rect, options.weight, layout.fontSize - fontStep, options.maxLines);
   }
 
-  if (options.maxLines === undefined && !layout.fits) {
+  if (!layout.fits) {
     const maxLines = getMaxLinesForRect(rect, layout.fontSize);
     layout = measureWrappedText(ctx, text, rect, options.weight, layout.fontSize, maxLines);
   }
@@ -1712,7 +2245,7 @@ function measureWrappedText(
     fontSize,
     lineHeight,
     lines,
-    fits: lines.length <= maxLinesByHeight && (maxLines === undefined || maxLines <= maxLinesByHeight),
+    fits: lines.length <= maxLinesByHeight,
   };
 }
 
@@ -1812,6 +2345,10 @@ function ellipsizeCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWid
   }
 
   return trimmed ? `${trimmed}${ellipsis}` : ellipsis;
+}
+
+function clampValue(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function disposeObjectTree(object: THREE.Object3D): void {
