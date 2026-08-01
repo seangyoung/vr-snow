@@ -5,6 +5,7 @@ import type {
   Hotspot,
   HypothesisDefinition,
   InvestigationLocation,
+  LocationId,
   StudyGoal,
 } from "./types";
 
@@ -367,7 +368,7 @@ export const locations: InvestigationLocation[] = [
     title: "Snow's Desk",
     shortTitle: "Desk",
     description: "Return to Snow's working notes and the wider question of waterborne transmission.",
-    mapPoint: { x: 103, y: 30 },
+    mapPoint: { x: 9, y: 91 },
   },
   {
     id: "broad-street",
@@ -414,6 +415,15 @@ export const locations: InvestigationLocation[] = [
     boardOnly: true,
   },
 ];
+
+export const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
+  "snow-desk": ["pump-cluster"],
+  "broad-street": ["pump-water-inspection"],
+  household: ["household-exposure", "household-water-pattern"],
+  registrar: ["attack-timeline"],
+  workhouse: ["workhouse-exception"],
+  brewery: ["brewery-exception"],
+};
 
 export const hotspots: Hotspot[] = [
   {

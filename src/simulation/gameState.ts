@@ -6,6 +6,7 @@ import {
   hotspots,
   hypothesisDefinitions,
   locations,
+  locationEvidenceIds,
 } from "./content";
 import type {
   ChapterScene,
@@ -153,6 +154,28 @@ export class GameState {
 
   getAllEvidence(): EvidenceCard[] {
     return evidenceCards;
+  }
+
+  getMissingEvidencePrompt(card: EvidenceCard): string {
+    const location = this.getEvidenceLocation(card.id);
+
+    if (!location) {
+      return "Find the matching source location to add this note.";
+    }
+
+    if (card.id === "household-water-pattern" && !this.hasEvidence("household-exposure")) {
+      return `First complete the household water-use interview at ${location.title}; then conduct interviews at other households to add this note.`;
+    }
+
+    const prompt = this.getLocationEvidencePrompt(card, location);
+
+    if (location.unlocksWith && !this.hasEvidence(location.unlocksWith)) {
+      const prerequisiteLocation = this.getEvidenceLocation(location.unlocksWith);
+      const prerequisite = prerequisiteLocation ? ` at ${prerequisiteLocation.title}` : "";
+      return `First follow the related lead${prerequisite}; then ${lowercaseFirst(prompt)}`;
+    }
+
+    return prompt;
   }
 
   getCurrentScene(): ChapterScene {
@@ -538,6 +561,35 @@ export class GameState {
     return evidenceCards.find((card) => card.id === id);
   }
 
+  private getEvidenceLocation(evidenceId: string): InvestigationLocation | undefined {
+    const locationEntry = Object.entries(locationEvidenceIds).find(([, evidenceIds]) => evidenceIds?.includes(evidenceId));
+    return locationEntry ? this.getLocation(locationEntry[0] as LocationId) : undefined;
+  }
+
+  private getLocationEvidencePrompt(card: EvidenceCard, location: InvestigationLocation): string {
+    if (card.id === "household-water-pattern") {
+      return `Return to ${location.title} and conduct interviews at other households to add this note.`;
+    }
+
+    if (card.sourceType === "interview") {
+      return `Interview witnesses at ${location.title} to add this note.`;
+    }
+
+    if (card.sourceType === "document") {
+      return `Review records at ${location.title} to add this note.`;
+    }
+
+    if (card.sourceType === "observation") {
+      return `Inspect ${location.title} to add this note.`;
+    }
+
+    if (location.id === "snow-desk") {
+      return "Speak with Snow at his desk to add this note.";
+    }
+
+    return `Go to ${location.title} to add this note.`;
+  }
+
   hasEvidence(id: string): boolean {
     return this.collectedEvidence.has(id);
   }
@@ -597,4 +649,8 @@ export class GameState {
   private emitChange(): void {
     this.changeHandlers.forEach((handler) => handler());
   }
+}
+
+function lowercaseFirst(value: string): string {
+  return value.charAt(0).toLowerCase() + value.slice(1);
 }

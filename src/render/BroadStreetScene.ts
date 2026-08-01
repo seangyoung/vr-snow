@@ -71,7 +71,7 @@ type VrMapLocationCommand = {
   unlocked: boolean;
   current: boolean;
   boardReady: boolean;
-  offMapDirection?: "east" | "southeast";
+  offMapDirection?: "east" | "southwest" | "southeast";
 };
 
 type VrPanelMapCommand = {
@@ -85,7 +85,22 @@ type VrPanelMapCommand = {
   mapImage?: HTMLImageElement;
 };
 
-type VrPanelDrawCommand = VrPanelTextCommand | VrPanelButtonCommand | VrPanelMapCommand;
+type VrPanelNotebookCardCommand = {
+  kind: "notebook-card";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  eyebrow: string;
+  title: string;
+  body: string;
+  meta?: string;
+  tags?: string[];
+  unlocked: boolean;
+  studyGoal?: boolean;
+};
+
+type VrPanelDrawCommand = VrPanelTextCommand | VrPanelButtonCommand | VrPanelMapCommand | VrPanelNotebookCardCommand;
 
 type VrControllerPointer = {
   group: THREE.Group;
@@ -749,7 +764,7 @@ export class BroadStreetScene {
       fontSize: 48,
       weight: "700",
     });
-    if (this.vrPanelMode !== "map") {
+    if (this.vrPanelMode !== "map" && this.vrPanelMode !== "notebook") {
       this.addVrText(this.gameState.getObjective(), 0, 0.55, vrPanelContentWidth, 0.25, {
         color: "#d9e5e1",
         fontSize: 34,
@@ -928,43 +943,93 @@ export class BroadStreetScene {
   }
 
   private buildVrNotebookPanel(): void {
-    const evidence = this.gameState.getCollectedEvidence();
-    const studyGoalText = this.gameState.hasFieldAssignment()
-      ? `Study Goal: ${fieldStudyGoal.title}`
-      : "Study Goal: Speak with Snow at his desk to receive the field inquiry goal.";
+    const collectedEvidence = this.gameState.getCollectedEvidence();
+    const allEvidence = this.gameState.getAllEvidence();
+    const collectedIds = new Set(collectedEvidence.map((card) => card.id));
+    const studyGoalCompleted = this.gameState.hasFieldAssignment();
     const progressText =
-      evidence.length >= boardThreshold
-        ? `${evidence.length} recorded. Snow review ready.`
-        : `${evidence.length}/${boardThreshold} recorded for Snow review.`;
-    this.addVrText(studyGoalText, 0, 0.26, vrPanelContentWidth, 0.22, {
-      color: "#f1d79c",
-      fontSize: 28,
-      weight: "700",
-    });
-    this.addVrText(progressText, 0, 0.02, vrPanelContentWidth, 0.14, {
+      collectedEvidence.length >= boardThreshold
+        ? `${collectedEvidence.length}/${allEvidence.length} evidence cards. Snow review ready.`
+        : `${collectedEvidence.length}/${allEvidence.length} evidence cards. ${boardThreshold - collectedEvidence.length} more for Snow review.`;
+    const notebookCards: VrPanelNotebookCardCommand[] = [
+      {
+        kind: "notebook-card",
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        eyebrow: "Study Goal",
+        title: fieldStudyGoal.title,
+        body: studyGoalCompleted
+          ? fieldStudyGoal.summary
+          : "Speak with Snow at his desk to receive the field inquiry goal before traveling to other locations.",
+        unlocked: studyGoalCompleted,
+        studyGoal: true,
+      },
+      ...allEvidence.map((card) => {
+        const unlocked = collectedIds.has(card.id);
+        return {
+          kind: "notebook-card" as const,
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+          eyebrow: unlocked ? "Recorded Evidence" : "Evidence Card",
+          title: unlocked ? card.title : "Unrecorded evidence",
+          body: unlocked ? card.summary : this.gameState.getMissingEvidencePrompt(card),
+          meta: unlocked ? card.sourceLabel : undefined,
+          tags: unlocked ? card.supports.slice(0, 2) : undefined,
+          unlocked,
+        };
+      }),
+    ];
+
+    this.addVrText("Field Notebook", 0, 0.52, vrPanelContentWidth, 0.11, {
       color: "#f1d79c",
       fontSize: 32,
       weight: "700",
     });
+    this.addVrText(progressText, 0, 0.4, vrPanelContentWidth, 0.1, {
+      color: "#d9e5e1",
+      fontSize: 24,
+      weight: "700",
+    });
 
-    if (evidence.length === 0) {
-      this.addVrText("No evidence cards have been recorded yet.", 0, -0.25, vrPanelContentWidth, 0.26, {
-        color: "#e7ece8",
-        fontSize: 32,
+    const pageKey = "notebook:cards";
+    const cardsPerPage = 2;
+    const pageIndex = this.getVrListPage(pageKey, notebookCards.length, cardsPerPage);
+    const pageCount = this.vrTextPageCounts.get(pageKey) ?? 1;
+    const visibleCards = notebookCards.slice(pageIndex * cardsPerPage, pageIndex * cardsPerPage + cardsPerPage);
+    visibleCards.forEach((card, index) => {
+      this.addVrNotebookCard({
+        ...card,
+        x: 0,
+        y: 0.15 - index * 0.47,
+        width: vrPanelContentWidth,
+        height: 0.41,
       });
-    } else {
-      this.addPaginatedVrText(
-        "notebook:evidence",
-        evidence
-          .map((card) => `${card.title}. ${card.summary}`)
-          .join(" "),
-        0,
-        -0.34,
-        vrPanelContentWidth,
-        0.42,
-        { color: "#e7ece8", fontSize: 26 },
-        -0.66,
-      );
+    });
+
+    if (pageCount > 1) {
+      this.addVrText(`${pageIndex + 1}/${pageCount}`, 0, -0.75, 0.42, 0.1, {
+        color: "#b9c9c4",
+        fontSize: 24,
+        weight: "700",
+      });
+      if (pageIndex > 0) {
+        this.addVrPanelButton("<", -0.46, -0.75, 0.18, 0.12, {
+          type: "page-text",
+          pageKey,
+          direction: -1,
+        });
+      }
+      if (pageIndex < pageCount - 1) {
+        this.addVrPanelButton(">", 0.46, -0.75, 0.18, 0.12, {
+          type: "page-text",
+          pageKey,
+          direction: 1,
+        });
+      }
     }
   }
 
@@ -1071,6 +1136,10 @@ export class BroadStreetScene {
         offMapDirection: getVrMapOffMapDirection(location.id),
       })),
     });
+  }
+
+  private addVrNotebookCard(command: VrPanelNotebookCardCommand): void {
+    this.vrPanelDrawCommands.push(command);
   }
 
   private addPaginatedVrText(
@@ -1310,6 +1379,17 @@ export class BroadStreetScene {
 
     this.vrTextPageIndexes.set(pageKey, nextPage);
     this.markVrPanelDirty();
+  }
+
+  private getVrListPage(pageKey: string, itemCount: number, pageSize: number): number {
+    const pageCount = Math.max(1, Math.ceil(itemCount / pageSize));
+    const pageIndex = THREE.MathUtils.clamp(this.vrTextPageIndexes.get(pageKey) ?? 0, 0, pageCount - 1);
+    this.vrTextPageIndexes.set(pageKey, pageIndex);
+    this.vrTextPageCounts.set(pageKey, pageCount);
+    if (pageCount > 1) {
+      this.vrActivePageKey = pageKey;
+    }
+    return pageIndex;
   }
 
   private getVrQuestionPage(pageKey: string, questionCount: number, pageSize: number): number {
@@ -1579,6 +1659,11 @@ function createVrPanelSurface(commands: VrPanelDrawCommand[]): THREE.Mesh {
 
     if (command.kind === "map") {
       drawVrPanelMap(ctx, command);
+      return;
+    }
+
+    if (command.kind === "notebook-card") {
+      drawVrNotebookCard(ctx, command);
       return;
     }
 
@@ -2108,11 +2193,11 @@ function drawVrMapOffMapArrow(
   ctx: CanvasRenderingContext2D,
   point: { x: number; y: number },
   radius: number,
-  direction: "east" | "southeast",
+  direction: "east" | "southwest" | "southeast",
   color: string,
 ): void {
   const length = radius * 2.4;
-  const angle = direction === "east" ? 0 : Math.PI / 4;
+  const angle = direction === "east" ? 0 : direction === "southwest" ? (Math.PI * 3) / 4 : Math.PI / 4;
   const startX = point.x + Math.cos(angle) * radius * 1.2;
   const startY = point.y + Math.sin(angle) * radius * 1.2;
   const endX = point.x + Math.cos(angle) * length;
@@ -2180,6 +2265,139 @@ function drawVrMapLegend(
   ctx.fillText("Deaths", textX, deathY);
 }
 
+function drawVrNotebookCard(ctx: CanvasRenderingContext2D, command: VrPanelNotebookCardCommand): void {
+  const rect = getPanelCanvasRect(command.x, command.y, command.width, command.height);
+  const scale = vrPanelTextureWidth / vrPanelDesignWidth;
+  const radius = Math.min(rect.height * 0.1, 28 * scale);
+  const isComplete = command.unlocked;
+
+  drawRoundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius);
+  ctx.fillStyle = command.studyGoal
+    ? isComplete
+      ? "#243f39"
+      : "#1b3032"
+    : isComplete
+      ? "#21383d"
+      : "#17262a";
+  ctx.fill();
+  ctx.lineWidth = Math.max(4 * scale, rect.height * 0.018);
+  ctx.strokeStyle = isComplete ? "#d9c489" : "rgba(159, 198, 192, 0.45)";
+  ctx.stroke();
+
+  const padding = 22 * scale;
+  const statusRadius = 18 * scale;
+  const statusX = rect.x + padding + statusRadius;
+  const statusY = rect.y + padding + statusRadius * 0.95;
+  ctx.beginPath();
+  ctx.arc(statusX, statusY, statusRadius, 0, Math.PI * 2);
+  ctx.fillStyle = isComplete ? "#f1d79c" : "rgba(185, 201, 196, 0.2)";
+  ctx.fill();
+  ctx.lineWidth = Math.max(3 * scale, statusRadius * 0.16);
+  ctx.strokeStyle = isComplete ? "#fff4d8" : "rgba(185, 201, 196, 0.64)";
+  ctx.stroke();
+
+  if (isComplete) {
+    ctx.beginPath();
+    ctx.strokeStyle = "#173336";
+    ctx.lineWidth = Math.max(4 * scale, statusRadius * 0.18);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.moveTo(statusX - statusRadius * 0.45, statusY - statusRadius * 0.02);
+    ctx.lineTo(statusX - statusRadius * 0.12, statusY + statusRadius * 0.34);
+    ctx.lineTo(statusX + statusRadius * 0.5, statusY - statusRadius * 0.4);
+    ctx.stroke();
+  }
+
+  const contentX = rect.x + padding * 2 + statusRadius * 2;
+  const contentWidth = rect.x + rect.width - padding - contentX;
+  let cursorY = rect.y + padding * 0.88;
+
+  cursorY = drawVrNotebookLeftText(ctx, command.eyebrow, contentX, cursorY, contentWidth, 18, "800", "#f1d79c", 1, 0.95);
+  cursorY = drawVrNotebookLeftText(ctx, command.title, contentX, cursorY + 4 * scale, contentWidth, 27, "800", "#fff4d8", 1);
+  cursorY = drawVrNotebookLeftText(
+    ctx,
+    command.body,
+    contentX,
+    cursorY + 7 * scale,
+    contentWidth,
+    22,
+    "600",
+    isComplete ? "#e7ece8" : "#b9c9c4",
+    command.meta ? 2 : 3,
+    1.12,
+  );
+
+  if (command.meta) {
+    cursorY = drawVrNotebookLeftText(ctx, command.meta, contentX, cursorY + 5 * scale, contentWidth, 18, "700", "#b9c9c4", 1);
+  }
+
+  if (command.tags?.length) {
+    let tagX = contentX;
+    const tagY = Math.min(cursorY + 7 * scale, rect.y + rect.height - 34 * scale);
+    command.tags.forEach((tag) => {
+      tagX = drawVrNotebookTag(ctx, tag, tagX, tagY, rect.x + rect.width - padding);
+    });
+  }
+}
+
+function drawVrNotebookLeftText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  fontSize: number,
+  weight: string,
+  color: string,
+  maxLines: number,
+  lineHeightMultiplier = 1.14,
+): number {
+  const scale = vrPanelTextureWidth / vrPanelDesignWidth;
+  const scaledFontSize = fontSize * scale;
+  const lineHeight = scaledFontSize * lineHeightMultiplier;
+  ctx.font = `${weight} ${scaledFontSize}px Arial, Helvetica, sans-serif`;
+  ctx.fillStyle = color;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+
+  const lines = wrapCanvasText(ctx, text, maxWidth, maxLines);
+  lines.forEach((line, index) => {
+    ctx.fillText(line, x, y + index * lineHeight);
+  });
+
+  return y + lines.length * lineHeight;
+}
+
+function drawVrNotebookTag(
+  ctx: CanvasRenderingContext2D,
+  label: string,
+  x: number,
+  y: number,
+  maxRight: number,
+): number {
+  const scale = vrPanelTextureWidth / vrPanelDesignWidth;
+  const fontSize = 16 * scale;
+  const paddingX = 10 * scale;
+  const height = 26 * scale;
+  ctx.font = `800 ${fontSize}px Arial, Helvetica, sans-serif`;
+  const width = Math.min(ctx.measureText(label).width + paddingX * 2, Math.max(0, maxRight - x));
+  if (width < 45 * scale) {
+    return x;
+  }
+
+  drawRoundRect(ctx, x, y, width, height, height * 0.45);
+  ctx.fillStyle = "rgba(241, 215, 156, 0.14)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(241, 215, 156, 0.36)";
+  ctx.lineWidth = Math.max(1.5 * scale, 2);
+  ctx.stroke();
+  ctx.fillStyle = "#f1d79c";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(ellipsizeCanvasText(ctx, label, Math.max(fontSize, width - paddingX * 2)), x + width / 2, y + height / 2);
+  return x + width + 8 * scale;
+}
+
 function getVrMapCanvasPoint(
   rect: { x: number; y: number; width: number; height: number },
   xPercent: number,
@@ -2191,9 +2409,9 @@ function getVrMapCanvasPoint(
   };
 }
 
-function getVrMapOffMapDirection(locationId: LocationId): "east" | "southeast" | undefined {
+function getVrMapOffMapDirection(locationId: LocationId): "east" | "southwest" | "southeast" | undefined {
   if (locationId === "snow-desk") {
-    return "east";
+    return "southwest";
   }
   if (locationId === "registrar") {
     return "southeast";
