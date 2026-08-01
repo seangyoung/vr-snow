@@ -398,6 +398,7 @@ export const locations: InvestigationLocation[] = [
     shortTitle: "Workhouse",
     description: "A nearby institution that complicates any simple bad-air explanation.",
     mapPoint: { x: 50, y: 28 },
+    unlocksWith: "pump-cluster",
   },
   {
     id: "brewery",
@@ -405,6 +406,7 @@ export const locations: InvestigationLocation[] = [
     shortTitle: "Brewery",
     description: "A workplace exception that makes exposure history matter.",
     mapPoint: { x: 78, y: 40 },
+    unlocksWith: "pump-cluster",
   },
   {
     id: "board-room",
