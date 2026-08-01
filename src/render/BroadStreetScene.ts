@@ -82,6 +82,7 @@ type VrPanelMapCommand = {
   height: number;
   locations: VrMapLocationCommand[];
   deathsVisible: boolean;
+  mapImage?: HTMLImageElement;
 };
 
 type VrPanelDrawCommand = VrPanelTextCommand | VrPanelButtonCommand | VrPanelMapCommand;
@@ -96,6 +97,8 @@ type VrControllerButtonState = {
   nextPagePressed: boolean;
   previousPagePressed: boolean;
 };
+
+type VrMapVariant = "base" | "deaths";
 
 type VrTextOptions = {
   color?: string;
@@ -184,6 +187,8 @@ export class BroadStreetScene {
   private readonly panoramaLoader = new THREE.TextureLoader();
   private readonly panoramaTextureCache = new Map<LocationId, THREE.Texture | null>();
   private readonly locationsWithLoadedPanorama = new Set<LocationId>();
+  private readonly vrMapImages = new Map<VrMapVariant, HTMLImageElement>();
+  private readonly vrMapObjectUrls: string[] = [];
   private readonly allowCanvasCapture: boolean;
   private activePanoramaLocationId?: LocationId;
   private focusedHotspot?: Hotspot;
@@ -239,6 +244,7 @@ export class BroadStreetScene {
 
     this.buildScene();
     this.buildHotspots();
+    this.loadVrMapImages();
     this.addInputHandlers();
     this.addVrEntryButton();
     this.resize();
@@ -346,6 +352,39 @@ export class BroadStreetScene {
     const objects = this.locationObjects.get(locationId) ?? [];
     objects.push(object);
     this.locationObjects.set(locationId, objects);
+  }
+
+  private loadVrMapImages(): void {
+    fetch(resolvePublicAssetPath(broadStreetMapSvgPath))
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Could not load ${broadStreetMapSvgPath}`);
+        }
+        return response.text();
+      })
+      .then((svgText) => {
+        this.createVrMapImage("base", svgText, false);
+        this.createVrMapImage("deaths", svgText, true);
+      })
+      .catch(() => {
+        this.markVrPanelDirty();
+      });
+  }
+
+  private createVrMapImage(variant: VrMapVariant, svgText: string, deathsVisible: boolean): void {
+    const image = new Image();
+    const svg = createVrMapSvgVariant(svgText, deathsVisible);
+    const objectUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    this.vrMapObjectUrls.push(objectUrl);
+
+    image.onload = () => {
+      this.vrMapImages.set(variant, image);
+      this.markVrPanelDirty();
+    };
+    image.onerror = () => {
+      this.markVrPanelDirty();
+    };
+    image.src = objectUrl;
   }
 
   private applyPanorama(locationId: LocationId): void {
@@ -594,13 +633,12 @@ export class BroadStreetScene {
         break;
       }
       case "ask": {
-        const alreadyAsked = this.gameState.hasAskedQuestion(action.questionId);
         const result = this.gameState.askQuestion(action.questionId);
         this.vrPanelMode = "home";
         if (result.evidence || action.questionId === "snow-method-question") {
           this.vrMapNeedsAttention = true;
         }
-        this.vrStatus = this.formatVrQuestionResponse(result, alreadyAsked);
+        this.vrStatus = this.formatVrQuestionResponse(result);
         break;
       }
       case "close-dialogue":
@@ -654,18 +692,8 @@ export class BroadStreetScene {
     this.markVrPanelDirty();
   }
 
-  private formatVrQuestionResponse(
-    result: { evidence?: unknown; response?: string; message: string },
-    alreadyAsked: boolean,
-  ): string {
-    if (result.evidence && result.response) {
-      const notebookStatus = alreadyAsked
-        ? "Already recorded in Field Notebook."
-        : "Evidence added to Field Notebook.";
-      return `${result.response} ${notebookStatus}`;
-    }
-
-    return result.response ? `${result.message} ${result.response}` : result.message;
+  private formatVrQuestionResponse(result: { response?: string; message: string }): string {
+    return result.response ?? result.message;
   }
 
   private showVrPanel(placeInFront = true): void {
@@ -721,10 +749,12 @@ export class BroadStreetScene {
       fontSize: 48,
       weight: "700",
     });
-    this.addVrText(this.gameState.getObjective(), 0, 0.55, vrPanelContentWidth, 0.25, {
-      color: "#d9e5e1",
-      fontSize: 34,
-    });
+    if (this.vrPanelMode !== "map") {
+      this.addVrText(this.gameState.getObjective(), 0, 0.55, vrPanelContentWidth, 0.25, {
+        color: "#d9e5e1",
+        fontSize: 34,
+      });
+    }
 
     if (this.vrPanelMode === "map") {
       this.buildVrMapPanel();
@@ -863,7 +893,7 @@ export class BroadStreetScene {
   }
 
   private buildVrMapPanel(): void {
-    this.addVrMap(0, -0.08, 2.08, 1.06);
+    this.addVrMap(0, -0.06, 1.48, 1.26);
 
     const currentLocationId = this.gameState.getCurrentLocation().id;
     const locations = this.gameState.getLocations().filter((location) => {
@@ -1021,13 +1051,15 @@ export class BroadStreetScene {
 
   private addVrMap(x: number, y: number, width: number, height: number): void {
     const currentLocationId = this.gameState.getCurrentLocation().id;
+    const deathsVisible = this.gameState.hasEvidence("attack-timeline") && this.gameState.hasEvidence("pump-cluster");
     this.vrPanelDrawCommands.push({
       kind: "map",
       x,
       y,
       width,
       height,
-      deathsVisible: this.gameState.hasEvidence("attack-timeline") && this.gameState.hasEvidence("pump-cluster"),
+      deathsVisible,
+      mapImage: this.vrMapImages.get(deathsVisible ? "deaths" : "base"),
       locations: this.gameState.getLocations().map((location) => ({
         id: location.id,
         label: location.shortTitle,
@@ -1703,6 +1735,7 @@ function drawVrPanelIcon(
 
 function drawVrPanelMap(ctx: CanvasRenderingContext2D, command: VrPanelMapCommand): void {
   const rect = getPanelCanvasRect(command.x, command.y, command.width, command.height);
+  const mapRect = getCenteredVrMapRect(rect);
   const radius = Math.min(rect.width, rect.height) * 0.035;
 
   drawRoundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius);
@@ -1713,20 +1746,40 @@ function drawVrPanelMap(ctx: CanvasRenderingContext2D, command: VrPanelMapComman
   ctx.stroke();
 
   ctx.save();
-  drawRoundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius);
+  drawRoundRect(ctx, mapRect.x, mapRect.y, mapRect.width, mapRect.height, radius);
   ctx.clip();
   ctx.fillStyle = "#ead9b0";
-  ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
-  drawVrMapBlocks(ctx, rect);
-  drawVrMapStreets(ctx, rect);
-  drawVrMapLabels(ctx, rect);
-  if (command.deathsVisible) {
-    drawVrMapDeaths(ctx, rect);
+  ctx.fillRect(mapRect.x, mapRect.y, mapRect.width, mapRect.height);
+  if (command.mapImage?.complete && command.mapImage.naturalWidth > 0) {
+    ctx.drawImage(command.mapImage, mapRect.x, mapRect.y, mapRect.width, mapRect.height);
+    drawVrMapPumps(ctx, mapRect);
+  } else {
+    drawVrMapBlocks(ctx, mapRect);
+    drawVrMapStreets(ctx, mapRect);
+    drawVrMapLabels(ctx, mapRect);
+    if (command.deathsVisible) {
+      drawVrMapDeaths(ctx, mapRect);
+    }
+    drawVrMapPumps(ctx, mapRect);
   }
-  drawVrMapPumps(ctx, rect);
-  command.locations.forEach((location) => drawVrMapLocation(ctx, rect, location));
-  drawVrMapLegend(ctx, rect, command.deathsVisible);
+  command.locations.forEach((location) => drawVrMapLocation(ctx, mapRect, location));
+  drawVrMapLegend(ctx, mapRect, command.deathsVisible);
   ctx.restore();
+}
+
+function getCenteredVrMapRect(rect: { x: number; y: number; width: number; height: number }): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const size = Math.min(rect.width, rect.height) * 0.96;
+  return {
+    x: rect.x + (rect.width - size) / 2,
+    y: rect.y + (rect.height - size) / 2,
+    width: size,
+    height: size,
+  };
 }
 
 function drawVrMapBlocks(
@@ -2379,6 +2432,10 @@ const locationLookTargets: Record<LocationId, [number, number, number]> = {
   "board-room": [0, 1.2, 2.8],
 };
 
+const broadStreetMapSvgPath = "maps/broad-street.svg";
+const vrMapRasterSize = 2048;
+const svgNamespace = "http://www.w3.org/2000/svg";
+
 const panoramaAssetPaths: Record<LocationId, string> = {
   "snow-desk": "panoramas/snow-desk.jpg",
   "broad-street": "panoramas/broad-street.jpg",
@@ -2393,6 +2450,72 @@ function resolvePublicAssetPath(path: string): string {
   const base = import.meta.env.BASE_URL || "/";
   const normalizedBase = base.endsWith("/") ? base : `${base}/`;
   return `${normalizedBase}${path}`;
+}
+
+function createVrMapSvgVariant(svgText: string, deathsVisible: boolean): string {
+  const document = new DOMParser().parseFromString(svgText, "image/svg+xml");
+  if (document.querySelector("parsererror")) {
+    throw new Error("Could not parse Broad Street SVG.");
+  }
+
+  const svg = document.documentElement;
+  svg.setAttribute("width", `${vrMapRasterSize}`);
+  svg.setAttribute("height", `${vrMapRasterSize}`);
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+  const paper = document.createElementNS(svgNamespace, "rect");
+  paper.setAttribute("x", "0");
+  paper.setAttribute("y", "0");
+  paper.setAttribute("width", "20020");
+  paper.setAttribute("height", "20020");
+  paper.setAttribute("fill", "#efe0bc");
+  svg.insertBefore(paper, svg.firstChild);
+
+  removeSvgLayer(document, "PumpServiceArea");
+  if (!deathsVisible) {
+    removeSvgLayer(document, "Deaths");
+  }
+
+  styleSvgLayer(document, "Streets", {
+    fill: "none",
+    stroke: "#4e412b",
+    "stroke-width": "18",
+    opacity: "0.7",
+  });
+  styleSvgLayer(document, "Broad-Street", {
+    opacity: "0.78",
+  });
+  styleSvgLayer(document, "Pumps", {
+    fill: "none",
+    stroke: "#0b766d",
+    "stroke-width": "42",
+    opacity: "0.72",
+  });
+  if (deathsVisible) {
+    styleSvgLayer(document, "Deaths", {
+      fill: "#7d2d30",
+      stroke: "#5f2026",
+      "stroke-width": "18",
+      opacity: "0.6",
+    });
+  }
+
+  return new XMLSerializer().serializeToString(svg);
+}
+
+function removeSvgLayer(document: Document, id: string): void {
+  document.getElementById(id)?.remove();
+}
+
+function styleSvgLayer(document: Document, id: string, attributes: Record<string, string>): void {
+  const layer = document.getElementById(id);
+  if (!layer) {
+    return;
+  }
+
+  Object.entries(attributes).forEach(([attribute, value]) => {
+    layer.setAttribute(attribute, value);
+  });
 }
 
 function preparePanoramaTexture(texture: THREE.Texture): void {
