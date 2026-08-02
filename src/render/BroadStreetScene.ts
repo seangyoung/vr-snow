@@ -126,6 +126,24 @@ type CaptureWindow = Window & {
   __vrSnowCapture?: () => string;
 };
 
+type DeviceOrientationPermissionState = "granted" | "denied" | "prompt";
+
+type DeviceOrientationEventConstructorWithPermission = {
+  requestPermission?: () => Promise<DeviceOrientationPermissionState>;
+};
+
+type WindowWithDeviceOrientation = Window & {
+  DeviceOrientationEvent?: DeviceOrientationEventConstructorWithPermission;
+};
+
+export type MotionLookStatus = "unavailable" | "idle" | "requesting" | "enabled" | "denied";
+
+export type MotionLookResult = {
+  enabled: boolean;
+  status: MotionLookStatus;
+  message: string;
+};
+
 type WrappedTextLayout = {
   fontSize: number;
   lineHeight: number;
@@ -149,10 +167,14 @@ const snapTurnReleaseThreshold = 0.22;
 const vrIdleHintDelaySeconds = 10;
 const vrIdleHintDistance = 2;
 const vrIdleHintLowerOffset = 0.44;
+const motionLookPitchLimit = 1.15;
+const motionLookCameraCorrection = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
+const motionLookZAxis = new THREE.Vector3(0, 0, 1);
 
 export class BroadStreetScene {
   onFocusChange?: (hotspot?: Hotspot) => void;
   onHotspotActivate?: (hotspot: Hotspot) => void;
+  onMotionLookChange?: () => void;
 
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(65, 1, 0.05, 100);
@@ -175,6 +197,11 @@ export class BroadStreetScene {
   private readonly vrPanelWorldPosition = new THREE.Vector3();
   private readonly vrPanelWorldDirection = new THREE.Vector3();
   private readonly vrPanelLookTarget = new THREE.Vector3();
+  private readonly motionLookEuler = new THREE.Euler();
+  private readonly motionLookQuaternion = new THREE.Quaternion();
+  private readonly motionLookScreenQuaternion = new THREE.Quaternion();
+  private readonly motionLookForward = new THREE.Vector3();
+  private readonly handleDeviceOrientation = (event: DeviceOrientationEvent) => this.updateMotionLookFromDevice(event);
   private readonly hotspotVisuals = new Map<string, HotspotVisual>();
   private readonly locationObjects = new Map<LocationId, THREE.Object3D[]>();
   private readonly sharedExterior = new THREE.Group();
@@ -204,6 +231,7 @@ export class BroadStreetScene {
   private readonly locationsWithLoadedPanorama = new Set<LocationId>();
   private readonly vrMapImages = new Map<VrMapVariant, HTMLImageElement>();
   private readonly vrMapObjectUrls: string[] = [];
+  private readonly motionLookAvailable: boolean;
   private readonly allowCanvasCapture: boolean;
   private activePanoramaLocationId?: LocationId;
   private focusedHotspot?: Hotspot;
@@ -221,12 +249,20 @@ export class BroadStreetScene {
   private snapTurnLocked = false;
   private dragging = false;
   private previousPointer = { x: 0, y: 0 };
+  private motionLookEnabled = false;
+  private motionLookStatus: MotionLookStatus = "unavailable";
+  private motionReferenceYaw?: number;
+  private motionReferencePitch?: number;
+  private motionYawOffset = 0;
+  private motionPitchOffset = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly gameState: GameState,
   ) {
     this.allowCanvasCapture = new URLSearchParams(window.location.search).has("capture");
+    this.motionLookAvailable = this.detectMotionLookAvailability();
+    this.motionLookStatus = this.motionLookAvailable ? "idle" : "unavailable";
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
@@ -283,6 +319,7 @@ export class BroadStreetScene {
   resetView(): void {
     this.yaw = 0;
     this.pitch = 0;
+    this.primeMotionLookReference();
     this.applyCameraOrientation();
   }
 
@@ -292,6 +329,7 @@ export class BroadStreetScene {
     this.applyPanorama(location.id);
     this.yaw = Math.atan2(-target[0], -target[2]);
     this.pitch = THREE.MathUtils.clamp((target[1] - cameraHeight) * 0.12, -0.18, 0.18);
+    this.primeMotionLookReference();
     this.applyCameraOrientation();
     this.focusedHotspot = undefined;
     this.onFocusChange?.(undefined);
@@ -320,6 +358,174 @@ export class BroadStreetScene {
     }
 
     this.markVrPanelDirty();
+  }
+
+  isMotionLookAvailable(): boolean {
+    return this.motionLookAvailable;
+  }
+
+  isMotionLookEnabled(): boolean {
+    return this.motionLookEnabled;
+  }
+
+  getMotionLookStatus(): MotionLookStatus {
+    return this.motionLookStatus;
+  }
+
+  async setMotionLookEnabled(enabled: boolean): Promise<MotionLookResult> {
+    if (!this.motionLookAvailable) {
+      return {
+        enabled: false,
+        status: "unavailable",
+        message: "Motion look is not available on this device or browser.",
+      };
+    }
+
+    if (!enabled) {
+      this.disableMotionLook("idle");
+      return {
+        enabled: false,
+        status: this.motionLookStatus,
+        message: "Motion look off. Drag the view to look around.",
+      };
+    }
+
+    if (this.motionLookEnabled) {
+      return {
+        enabled: true,
+        status: this.motionLookStatus,
+        message: "Motion look is already on. Drag the view to fine-tune it.",
+      };
+    }
+
+    this.motionLookStatus = "requesting";
+    this.onMotionLookChange?.();
+
+    try {
+      const orientationEventConstructor = (window as WindowWithDeviceOrientation).DeviceOrientationEvent;
+      if (typeof orientationEventConstructor?.requestPermission === "function") {
+        const permission = await orientationEventConstructor.requestPermission();
+        if (permission !== "granted") {
+          this.disableMotionLook("denied");
+          return {
+            enabled: false,
+            status: this.motionLookStatus,
+            message: "Motion look permission was not granted.",
+          };
+        }
+      }
+    } catch {
+      this.disableMotionLook("denied");
+      return {
+        enabled: false,
+        status: this.motionLookStatus,
+        message: "Motion look could not start. This browser may require HTTPS or sensor permission.",
+      };
+    }
+
+    this.motionLookEnabled = true;
+    this.motionLookStatus = "enabled";
+    this.primeMotionLookReference();
+    window.addEventListener("deviceorientation", this.handleDeviceOrientation, true);
+    this.onMotionLookChange?.();
+
+    return {
+      enabled: true,
+      status: this.motionLookStatus,
+      message: "Motion look on. Drag the view to fine-tune it.",
+    };
+  }
+
+  private detectMotionLookAvailability(): boolean {
+    const orientationEventConstructor = (window as WindowWithDeviceOrientation).DeviceOrientationEvent;
+    if (!orientationEventConstructor) {
+      return false;
+    }
+
+    const coarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+    const hasTouch = navigator.maxTouchPoints > 0;
+    const mobileUserAgent = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const iPadDesktopUserAgent = /Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+    return (coarsePointer && hasTouch) || mobileUserAgent || iPadDesktopUserAgent;
+  }
+
+  private disableMotionLook(status: MotionLookStatus): void {
+    if (!this.motionLookAvailable) {
+      this.motionLookStatus = "unavailable";
+      return;
+    }
+
+    window.removeEventListener("deviceorientation", this.handleDeviceOrientation, true);
+    this.motionLookEnabled = false;
+    this.motionLookStatus = status;
+    this.motionReferenceYaw = undefined;
+    this.motionReferencePitch = undefined;
+    this.motionYawOffset = this.yaw;
+    this.motionPitchOffset = this.pitch;
+    this.onMotionLookChange?.();
+  }
+
+  private primeMotionLookReference(): void {
+    if (!this.motionLookEnabled) {
+      return;
+    }
+
+    this.motionReferenceYaw = undefined;
+    this.motionReferencePitch = undefined;
+    this.motionYawOffset = this.yaw;
+    this.motionPitchOffset = this.pitch;
+  }
+
+  private updateMotionLookFromDevice(event: DeviceOrientationEvent): void {
+    if (!this.motionLookEnabled || this.renderer.xr.isPresenting) {
+      return;
+    }
+
+    const lookAngles = this.getDeviceLookAngles(event);
+    if (!lookAngles) {
+      return;
+    }
+
+    if (this.motionReferenceYaw === undefined || this.motionReferencePitch === undefined) {
+      this.motionReferenceYaw = lookAngles.yaw;
+      this.motionReferencePitch = lookAngles.pitch;
+    }
+
+    const yawDelta = shortestAngleDelta(lookAngles.yaw, this.motionReferenceYaw);
+    const pitchDelta = lookAngles.pitch - this.motionReferencePitch;
+    this.yaw = this.motionYawOffset + yawDelta;
+    this.pitch = THREE.MathUtils.clamp(
+      this.motionPitchOffset + pitchDelta,
+      -motionLookPitchLimit,
+      motionLookPitchLimit,
+    );
+    this.applyCameraOrientation();
+  }
+
+  private getDeviceLookAngles(event: DeviceOrientationEvent): { yaw: number; pitch: number } | undefined {
+    const { alpha, beta, gamma } = event;
+    if (alpha === null || beta === null || gamma === null) {
+      return undefined;
+    }
+
+    const screenOrientation = THREE.MathUtils.degToRad(screen.orientation?.angle ?? 0);
+    this.motionLookEuler.set(
+      THREE.MathUtils.degToRad(beta),
+      THREE.MathUtils.degToRad(alpha),
+      THREE.MathUtils.degToRad(-gamma),
+      "YXZ",
+    );
+    this.motionLookQuaternion.setFromEuler(this.motionLookEuler);
+    this.motionLookQuaternion.multiply(motionLookCameraCorrection);
+    this.motionLookQuaternion.multiply(
+      this.motionLookScreenQuaternion.setFromAxisAngle(motionLookZAxis, -screenOrientation),
+    );
+
+    this.motionLookForward.set(0, 0, -1).applyQuaternion(this.motionLookQuaternion);
+    return {
+      yaw: Math.atan2(-this.motionLookForward.x, -this.motionLookForward.z),
+      pitch: Math.asin(THREE.MathUtils.clamp(this.motionLookForward.y, -1, 1)),
+    };
   }
 
   private buildScene(): void {
@@ -468,9 +674,18 @@ export class BroadStreetScene {
       const deltaX = event.clientX - this.previousPointer.x;
       const deltaY = event.clientY - this.previousPointer.y;
       this.previousPointer = { x: event.clientX, y: event.clientY };
-      this.yaw += deltaX * 0.004;
-      this.pitch += deltaY * 0.003;
-      this.pitch = THREE.MathUtils.clamp(this.pitch, -1.15, 1.15);
+      const deltaYaw = deltaX * 0.004;
+      const deltaPitch = deltaY * 0.003;
+      this.yaw += deltaYaw;
+      this.pitch = THREE.MathUtils.clamp(this.pitch + deltaPitch, -motionLookPitchLimit, motionLookPitchLimit);
+      if (this.motionLookEnabled) {
+        this.motionYawOffset += deltaYaw;
+        this.motionPitchOffset = THREE.MathUtils.clamp(
+          this.motionPitchOffset + deltaPitch,
+          -motionLookPitchLimit,
+          motionLookPitchLimit,
+        );
+      }
       this.applyCameraOrientation();
     });
     this.canvas.addEventListener("pointerup", (event) => {
@@ -521,6 +736,7 @@ export class BroadStreetScene {
   }
 
   private handleVrSessionStart(): void {
+    this.disableMotionLook("idle");
     this.vrPanelMode = "home";
     this.vrStatus = this.getDefaultVrStatus();
     this.snapTurnLocked = false;
@@ -1277,6 +1493,7 @@ export class BroadStreetScene {
     const target = locationLookTargets[location.id] ?? [0, 0, -4];
     this.yaw = Math.atan2(-target[0], -target[2]);
     this.pitch = THREE.MathUtils.clamp((target[1] - cameraHeight) * 0.12, -0.18, 0.18);
+    this.primeMotionLookReference();
     this.applyCameraOrientation();
   }
 
@@ -3628,6 +3845,10 @@ function createCaptureDataUrl(source: HTMLCanvasElement): string {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/jpeg", 0.86);
+}
+
+function shortestAngleDelta(angle: number, reference: number): number {
+  return Math.atan2(Math.sin(angle - reference), Math.cos(angle - reference));
 }
 
 function roundRect(

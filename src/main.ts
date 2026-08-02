@@ -15,6 +15,13 @@ const ui = createUi(app, gameState);
 const scene = new BroadStreetScene(canvas, gameState);
 let lastLocationId = gameState.getCurrentLocation().id;
 
+ui.setMotionLookControls({
+  isAvailable: () => scene.isMotionLookAvailable(),
+  isEnabled: () => scene.isMotionLookEnabled(),
+  getStatus: () => scene.getMotionLookStatus(),
+  setEnabled: (enabled) => scene.setMotionLookEnabled(enabled),
+});
+
 scene.onFocusChange = (hotspot) => ui.setPrompt(hotspot);
 scene.onHotspotActivate = (hotspot) => {
   if (
@@ -31,6 +38,7 @@ scene.onHotspotActivate = (hotspot) => {
   ui.render();
   scene.refreshHotspots();
 };
+scene.onMotionLookChange = () => ui.render();
 
 gameState.onChange(() => {
   ui.render();

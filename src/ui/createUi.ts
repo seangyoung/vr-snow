@@ -16,6 +16,15 @@ import type {
 } from "../simulation/types";
 
 type OverlayMode = "none" | "notebook" | "map";
+type MotionLookStatus = "unavailable" | "idle" | "requesting" | "enabled" | "denied";
+
+type MotionLookControls = {
+  isAvailable: () => boolean;
+  isEnabled: () => boolean;
+  getStatus: () => MotionLookStatus;
+  setEnabled: (enabled: boolean) => Promise<{ enabled: boolean; status: MotionLookStatus; message: string }>;
+};
+
 const broadStreetMapSvgPath = "maps/broad-street.svg";
 const broadStreetMapViewBoxSize = 20020;
 const broadStreetPumpPoints = [
@@ -97,6 +106,7 @@ export interface PrototypeUi {
   onReset?: () => void;
   openSnowReview: () => void;
   render: () => void;
+  setMotionLookControls: (controls: MotionLookControls) => void;
   setPrompt: (hotspot?: Hotspot) => void;
   setMessage: (message: string) => void;
 }
@@ -106,6 +116,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   let message = "Speak with Snow at the desk to receive your field assignment.";
   let isTransitioning = false;
   let snowReviewOpen = false;
+  let motionLookControls: MotionLookControls | undefined;
 
   const ui: PrototypeUi = {
     openSnowReview() {
@@ -119,6 +130,10 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       }
 
       message = "Return to Snow with enough evidence before preparing the Board argument.";
+      render();
+    },
+    setMotionLookControls(controls: MotionLookControls) {
+      motionLookControls = controls;
       render();
     },
     render,
@@ -138,6 +153,22 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 
     const stage = gameState.getStage();
     const toolsAvailable = stage !== "briefing" && stage !== "board";
+
+    if (action === "toggle-motion-look") {
+      if (!motionLookControls || !motionLookControls.isAvailable()) {
+        return;
+      }
+
+      const nextEnabled = !motionLookControls.isEnabled();
+      const motionResult = motionLookControls.setEnabled(nextEnabled);
+      message = nextEnabled ? "Requesting motion look permission..." : "Motion look off. Drag the view to look around.";
+      render();
+      void motionResult.then((result) => {
+        message = result.message;
+        render();
+      });
+      return;
+    }
 
     if (action === "travel") {
       const locationId = actionTarget.dataset.locationId as LocationId | undefined;
@@ -291,6 +322,8 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           </button>
         </nav>
 
+        ${renderMotionLookToggle(motionLookControls)}
+
         <div class="reticle" aria-hidden="true"></div>
 
         ${showChapterPanel ? renderChapterPanel(gameState.getCurrentScene(), stage, gameState) : ""}
@@ -404,6 +437,38 @@ function renderTravelFade(message: string): string {
         <span>${escapeHtml(message)}</span>
       </div>
     </div>
+  `;
+}
+
+function renderMotionLookToggle(controls?: MotionLookControls): string {
+  if (!controls?.isAvailable()) {
+    return "";
+  }
+
+  const enabled = controls.isEnabled();
+  const status = controls.getStatus();
+  const pending = status === "requesting";
+  const denied = status === "denied";
+  const label = pending ? "Requesting" : enabled ? "Motion on" : denied ? "Motion denied" : "Motion look";
+  const ariaLabel = enabled
+    ? "Turn off motion look"
+    : denied
+      ? "Retry motion look permission"
+      : "Turn on motion look";
+
+  return `
+    <button
+      class="icon-button motion-look-toggle ${enabled ? "is-active" : ""} ${pending ? "is-pending" : ""} ${
+        denied ? "is-denied" : ""
+      }"
+      data-action="toggle-motion-look"
+      aria-label="${escapeHtml(ariaLabel)}"
+      aria-pressed="${enabled}"
+      ${pending ? "disabled" : ""}
+    >
+      <i data-lucide="smartphone"></i>
+      <span>${escapeHtml(label)}</span>
+    </button>
   `;
 }
 
