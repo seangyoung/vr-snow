@@ -675,6 +675,9 @@ function renderSynthesisPanel(gameState: GameState): string {
       </div>
       <p class="synthesis-copy">${escapeHtml(gameState.getSnowSynthesisFeedback())}</p>
       ${renderSynthesisMapStrip(gameState)}
+      <div class="hypothesis-grid">
+        ${hypothesisRows}
+      </div>
       <div class="synthesis-controls">
         <div class="confidence-row" aria-label="Confidence">
           ${confidenceRows}
@@ -685,9 +688,6 @@ function renderSynthesisPanel(gameState: GameState): string {
             Prepare Board argument
           </button>
         </div>
-      </div>
-      <div class="hypothesis-grid">
-        ${hypothesisRows}
       </div>
     </aside>
   `;

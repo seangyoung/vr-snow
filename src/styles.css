@@ -785,14 +785,16 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 0 15px 14px;
+  margin: 0 15px 15px;
+  padding: 12px 0 0;
+  border-top: 1px solid rgba(238, 216, 164, 0.12);
 }
 
 .hypothesis-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  padding: 0 15px 14px;
+  padding: 0 15px 12px;
 }
 
 .hypothesis-card {
