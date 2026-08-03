@@ -96,18 +96,18 @@ export class GameState {
     return {
       evidence,
       response: question.response,
-      message:
-        evidence && !alreadyAsked
+        message:
+          evidence && !alreadyAsked
           ? reachedSynthesis
-            ? `${evidence.title} added to your notebook. Return to Snow's Desk to prepare the theory.`
+            ? `${evidence.title} added to the Field Notebook. Return to Snow's Desk to prepare the theory.`
             : evidence.id === "pump-cluster"
-                ? `${evidence.title} added to your notebook. Open the map to inspect the plotted deaths around the pump.`
-              : `${evidence.title} added to your notebook.`
+                ? `${evidence.title} added to the Field Notebook. Open the map to inspect the plotted deaths around the pump.`
+              : `${evidence.title} added to the Field Notebook.`
           : question.id === "snow-method-question" && !alreadyAsked
-            ? "Study goal added to your Field Notebook. The inquiry map is now available."
+            ? "Study goal added to the Field Notebook. The inquiry map is now available."
           : alreadyAsked
-            ? "You have already recorded that answer."
-            : `${dialogue.speaker} answered your question.`,
+            ? "That answer is already recorded."
+            : `${dialogue.speaker} answered the question.`,
     };
   }
 
@@ -189,13 +189,13 @@ export class GameState {
     if (this.stage === "board" && hypothesis) {
       if (hypothesis.id === "waterborne") {
         return [
-          `Snow presents your prepared theory: ${hypothesis.title}. The evidence is circumstantial, but it is specific, mapped, and action-oriented.`,
+          `Snow presents our prepared theory: ${hypothesis.title}. The evidence is circumstantial, but it is specific, mapped, and action-oriented.`,
           `Recommended action: ${hypothesis.boardAction}`,
         ];
       }
 
       return [
-        `Snow presents your prepared theory: ${hypothesis.title}, then tests it against the evidence that remains unexplained.`,
+        `Snow presents our prepared theory: ${hypothesis.title}, then tests it against the evidence that remains unexplained.`,
         `Recommended action: ${hypothesis.boardAction}`,
         "The pump handle case is not yet strong under this theory, so Snow urges more inquiry before a pump-specific intervention.",
       ];
@@ -236,7 +236,7 @@ export class GameState {
       return {
         accepted: false,
         message: this.hasEnoughEvidenceForSynthesis()
-          ? "Snow asks you to prepare a theory at his desk before going to the Board."
+          ? "Snow asks us to prepare a theory at his desk before going to the Board."
           : `The Board asks for ${boardThreshold} evidence cards before considering action.`,
       };
     }
@@ -320,7 +320,7 @@ export class GameState {
     }
 
     if (!this.synthesisConfidence) {
-      return { prepared: false, message: "State your confidence before going to the Board." };
+      return { prepared: false, message: "State our confidence before going to the Board." };
     }
 
     this.preparedForBoard = true;
@@ -490,7 +490,7 @@ export class GameState {
   getSnowSynthesisFeedback(): string {
     const hypothesis = this.getSelectedHypothesis();
     if (!hypothesis) {
-      return "Snow asks you to use the map as a test: what would each theory expect to see, and how should the clean-looking pump sample temper the argument?";
+      return "Snow asks us to use the map as a test: what would each theory expect to see, and how should the clean-looking pump sample temper the argument?";
     }
 
     if (hypothesis.id !== "waterborne") {

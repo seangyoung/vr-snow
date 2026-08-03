@@ -16,7 +16,7 @@ export const chapterScenes: ChapterScene[] = [
     subtitle: "September 1854",
     body: [
       "John Snow already suspects contaminated water can carry cholera, but the Broad Street outbreak must be investigated from field evidence, not certainty.",
-      "Your work is to collect addresses, listen for exposure histories, notice exceptions, and help turn scattered records into a map the parish can act on.",
+      "Our work is to collect addresses, listen for exposure histories, notice exceptions, and help turn scattered records into a map the parish can act on.",
     ],
   },
   {
@@ -75,7 +75,7 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
     ],
     complicatingEvidenceIds: ["pump-water-inspection"],
     snowChallenge:
-      "Strongest case. Snow still wants the uncertainty stated plainly: a clean-looking sample does not give final proof, but a mapped pattern and exposure histories may justify temporary action.",
+      "Strongest case. Snow wants us to state the uncertainty plainly: a clean-looking sample does not give final proof, but a mapped pattern and exposure histories may justify temporary action.",
   },
   {
     id: "miasma",
@@ -87,7 +87,7 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
     supportingEvidenceIds: ["pump-cluster", "pump-water-inspection"],
     complicatingEvidenceIds: ["household-exposure", "household-water-pattern", "workhouse-exception", "brewery-exception"],
     snowChallenge:
-      "Snow asks why nearby institutions and workplaces exposed to the same street air were not devastated in the same way.",
+      "Snow asks us why nearby institutions and workplaces exposed to the same street air were not devastated in the same way.",
   },
   {
     id: "person-to-person",
@@ -99,7 +99,7 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
     supportingEvidenceIds: ["household-exposure"],
     complicatingEvidenceIds: ["attack-timeline", "pump-cluster", "pump-water-inspection", "household-water-pattern"],
     snowChallenge:
-      "Snow asks whether a slow chain of household spread predicts the abrupt surge and dense pump-centered geography.",
+      "Snow asks us whether a slow chain of household spread predicts the abrupt surge and dense pump-centered geography.",
   },
   {
     id: "crowding",
@@ -117,7 +117,7 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
       "brewery-exception",
     ],
     snowChallenge:
-      "Snow asks why the workhouse and brewery complicate a simple social or occupational explanation.",
+      "Snow asks us why the workhouse and brewery complicate a simple social or occupational explanation.",
   },
 ];
 
@@ -214,26 +214,26 @@ export const dialogueNodes: DialogueNode[] = [
     speaker: "John Snow",
     role: "Physician and investigator",
     intro:
-      "Snow stands over his notes, careful rather than triumphant. He wants every claim tied to an address, a date, or a witness.",
+      "Snow stands over his notes, careful rather than triumphant. He wants every claim we make tied to an address, a date, or a witness.",
     questions: [
       {
         id: "snow-method-question",
-        prompt: "Where should I begin the inquiry?",
+        prompt: "Where should we begin the inquiry?",
         response:
-          "Begin with the records, not guesses. Go to the General Register Office and consult the daily returns ledger for cholera deaths: dates, addresses, and fatal attacks. Then use those records to guide household interviews, check water histories, inspect the pump sample, and test exceptions.",
+          "We begin with the records, not guesses. We should go to the General Register Office and consult the daily returns ledger for cholera deaths: dates, addresses, and fatal attacks. Then we can use those records to guide household interviews, check water histories, inspect the pump sample, and test exceptions.",
       },
       {
         id: "ledger-address-question",
         prompt: "Why copy addresses from the registrar's ledger?",
         response:
-          "The register's totals show severity. Its addresses show pattern. Snow needs both to compare the timing with the geography.",
+          "The register's totals show severity. Its addresses show pattern. We need both to compare the timing with the geography.",
         requiresEvidenceIds: ["attack-timeline"],
       },
       {
         id: "pump-cluster-question",
-        prompt: "What do the plotted addresses show?",
+        prompt: "What do our plotted addresses show?",
         response:
-          "The marks crowd around Broad Street. The pattern does not explain every case, but it gives the inquiry a center of gravity. Open the map to inspect the plotted deaths around the pump.",
+          "The marks crowd around Broad Street. The pattern does not explain every case, but it gives our inquiry a center of gravity. Open the map to inspect the plotted deaths around the pump.",
         unlocksEvidenceId: "pump-cluster",
         requiresEvidenceIds: ["attack-timeline"],
       },
@@ -241,14 +241,14 @@ export const dialogueNodes: DialogueNode[] = [
         id: "pump-limits-question",
         prompt: "Does the cluster alone settle the cause?",
         response:
-          "No. A cluster is a lead, not proof. You still need timing, exposure histories, exceptions, and a way to explain why the water did not plainly reveal its danger.",
+          "No. A cluster is a lead, not proof. We still need timing, exposure histories, exceptions, and a way to explain why the water did not plainly reveal its danger.",
         requiresEvidenceIds: ["pump-cluster", "pump-water-inspection"],
       },
       {
         id: "household-contact-question",
         prompt: "Could nursing the sick person explain the spread?",
         response:
-          "Close care may matter inside a home, but the question is whether many separate households were struck after drawing from the same pump.",
+          "Close care may matter inside a home, but we have to ask whether many separate households were struck after drawing from the same pump.",
         requiresEvidenceIds: ["household-exposure"],
       },
       {
@@ -262,7 +262,7 @@ export const dialogueNodes: DialogueNode[] = [
         id: "brewery-exposure-question",
         prompt: "Why does the brewery exception matter?",
         response:
-          "It shows why place alone is not enough. The inquiry must ask what people actually consumed, not merely where they stood.",
+          "It reminds us why place alone is not enough. We must ask what people actually consumed, not merely where they stood.",
         requiresEvidenceIds: ["brewery-exception"],
       },
     ],

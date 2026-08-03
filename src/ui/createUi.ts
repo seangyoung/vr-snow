@@ -113,7 +113,7 @@ export interface PrototypeUi {
 
 export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeUi {
   let overlayMode: OverlayMode = "none";
-  let message = "Speak with Snow at the desk to receive your field assignment.";
+  let message = "Speak with Snow at the desk to receive the field assignment.";
   let isTransitioning = false;
   let snowReviewOpen = false;
   let motionLookControls: MotionLookControls | undefined;
@@ -124,7 +124,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         gameState.closeDialogue();
         overlayMode = "none";
         snowReviewOpen = true;
-        message = "Snow reviews the competing theories with you.";
+        message = "Snow reviews the competing theories with us.";
         render();
         return;
       }
@@ -241,7 +241,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 
     if (action === "close-snow-review") {
       snowReviewOpen = false;
-      message = "Snow waits at the desk. Click him when you want to continue the review.";
+      message = "Snow waits at the desk. Click him when we are ready to continue the review.";
     }
 
     if (action === "begin") {
@@ -265,7 +265,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     if (action === "reset") {
       overlayMode = "none";
       snowReviewOpen = false;
-      message = "Speak with Snow at the desk to receive your field assignment.";
+      message = "Speak with Snow at the desk to receive the field assignment.";
       ui.onReset?.();
     }
     if (action === "present") {
@@ -776,7 +776,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
     actionText = "Assignment needed";
     primaryLabel = "Talk to Snow first";
     primaryIcon = "message-circle";
-    primaryCopy = "Snow has not sent you into the streets yet.";
+    primaryCopy = "Snow has not sent us into the streets yet.";
   } else if (canPresent) {
     actionText = "Ready for Board";
     primaryLabel = "Present prepared argument";

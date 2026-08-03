@@ -956,7 +956,7 @@ export class BroadStreetScene {
     }
 
     if (this.vrPanelMode === "synthesis") {
-      return "Choose a theory, state your confidence, and decide what to tell the Board.";
+      return "Choose a theory, state our confidence, and decide what we should tell the Board.";
     }
 
     return "Aim with the controller beam. Trigger selects. Squeeze toggles the panel. Thumbstick turns.";
