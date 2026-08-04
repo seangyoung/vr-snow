@@ -380,7 +380,7 @@ export class GameState {
     }
 
     if (this.hasEvidence("workhouse-exception")) {
-      findings.push("The St. James Workhouse near Broad Street had few deaths, and its own water supply.");
+      findings.push("The St. James Workhouse near Broad Street held over 500 inmates, had very few deaths, and had its own water supply.");
     }
 
     if (this.hasEvidence("brewery-exception")) {

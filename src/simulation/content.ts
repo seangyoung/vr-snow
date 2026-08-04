@@ -181,7 +181,7 @@ export const evidenceCards: EvidenceCard[] = [
     id: "workhouse-exception",
     title: "St. James Workhouse has few deaths",
     summary:
-      "The St. James Workhouse is close to affected streets, but its inmates used a separate water supply.",
+      "The St. James Workhouse held over 500 inmates near the affected streets, but had very few deaths and used a separate water supply.",
     confidence: "reported",
     sourceType: "interview",
     sourceLabel: "St. James Workhouse steward interview",
@@ -332,13 +332,13 @@ export const dialogueNodes: DialogueNode[] = [
     speaker: "St. James Workhouse steward",
     role: "Institutional witness",
     intro:
-      "The St. James Workhouse is close to affected streets, but its experience does not match the surrounding alarm.",
+      "The St. James Workhouse holds over 500 inmates close to affected streets, but reports very few deaths. Snow wants to know whether its water supply explains the exception.",
     questions: [
       {
         id: "workhouse-water-question",
         prompt: "Where did the inmates get water?",
         response:
-          "The St. James Workhouse had its own supply. Its nearness to Broad Street makes the small number of deaths important negative evidence.",
+          "The St. James Workhouse had its own supply. With over 500 inmates so near Broad Street, the very small number of deaths becomes important negative evidence.",
         unlocksEvidenceId: "workhouse-exception",
       },
     ],
@@ -366,7 +366,7 @@ export const locations: InvestigationLocation[] = [
   {
     id: "snow-desk",
     title: "Snow's Desk",
-    shortTitle: "Desk",
+    shortTitle: "Snow's Desk",
     description: "Return to Snow's working notes and the wider question of waterborne transmission.",
     mapPoint: { x: 50, y: 96 },
   },
@@ -395,7 +395,7 @@ export const locations: InvestigationLocation[] = [
   {
     id: "workhouse",
     title: "St. James Workhouse",
-    shortTitle: "St. James",
+    shortTitle: "St. James Workhouse",
     description: "A nearby institution that complicates any simple bad-air explanation.",
     mapPoint: { x: 50, y: 28 },
     unlocksWith: "pump-cluster",
@@ -459,7 +459,7 @@ export const hotspots: Hotspot[] = [
     id: "poland-workhouse",
     locationId: "workhouse",
     label: "St. James Workhouse",
-    shortLabel: "St. James",
+    shortLabel: "St. James Workhouse",
     description: "A nearby institution appears to have escaped the worst of the outbreak.",
     evidenceId: "workhouse-exception",
     position: [3.6, 1.55, -1.7],

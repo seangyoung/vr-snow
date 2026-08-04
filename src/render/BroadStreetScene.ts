@@ -165,7 +165,7 @@ const vrMapPanelHeight = 1.26;
 const vrMapMarkerHitboxSize = 0.2;
 const vrTravelButtonGap = 0.06;
 const vrTravelButtonMaxRowWidth = 2.48;
-const vrTravelButtonHeight = 0.14;
+const vrTravelButtonHeight = 0.16;
 const vrPanelTextureWidth = 4096;
 const vrPanelTextureHeight = Math.round((vrPanelTextureWidth * vrPanelHeight) / vrPanelWidth);
 const vrPanelDesignWidth = 1180;
@@ -2707,7 +2707,7 @@ function getVrMapPanelPoint(
 }
 
 function getVrTravelButtonWidth(label: string): number {
-  return clampValue(0.22 + label.length * 0.043, 0.38, 0.64);
+  return clampValue(0.22 + label.length * 0.043, 0.38, 0.86);
 }
 
 function getVrTravelButtonRowWidth(row: Array<{ width: number }>): number {

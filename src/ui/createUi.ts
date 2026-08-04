@@ -87,7 +87,7 @@ const mapAnnotations: Array<{
   {
     evidenceId: "workhouse-exception",
     title: "St. James Workhouse exception",
-    body: "Near the outbreak, but protected by a separate supply.",
+    body: "Over 500 inmates, very few deaths, and a separate water supply.",
     x: 76,
     y: 39,
     kind: "exception",
