@@ -178,10 +178,15 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 
     if (action === "map-primary") {
       if (gameState.preparedForBoard && stage === "synthesis") {
-        const result = gameState.presentToBoard();
-        overlayMode = "none";
-        message = result.message;
-        render();
+        if (gameState.getCurrentLocation().id === "snow-desk") {
+          snowReviewOpen = true;
+          overlayMode = "none";
+          message = "Present findings from Snow's review panel.";
+          render();
+          return;
+        }
+
+        beginTravel("snow-desk");
         return;
       }
 
@@ -636,6 +641,7 @@ function renderSynthesisPanel(gameState: GameState): string {
   const selectedHypothesis = gameState.getSelectedHypothesis();
   const confidenceOptions: SynthesisConfidence[] = ["tentative", "proportionate", "overstated"];
   const canPrepare = Boolean(selectedHypothesis && gameState.synthesisConfidence);
+  const boardPrepared = gameState.preparedForBoard && gameState.getStage() === "synthesis";
   const hypothesisRows = gameState
     .getHypotheses()
     .map((hypothesis) => renderHypothesisCard(hypothesis, gameState, selectedHypothesis?.id === hypothesis.id))
@@ -683,9 +689,13 @@ function renderSynthesisPanel(gameState: GameState): string {
           ${confidenceRows}
         </div>
         <div class="synthesis-actions">
-          <button class="primary-action wide-action" data-action="prepare-board" ${canPrepare ? "" : "disabled"}>
-            <i data-lucide="clipboard-check"></i>
-            Prepare Board argument
+          <button
+            class="primary-action wide-action"
+            data-action="${boardPrepared ? "present" : "prepare-board"}"
+            ${canPrepare || boardPrepared ? "" : "disabled"}
+          >
+            <i data-lucide="${boardPrepared ? "send" : "clipboard-check"}"></i>
+            ${boardPrepared ? "Present Findings" : "Prepare Board argument"}
           </button>
         </div>
       </div>
@@ -763,10 +773,10 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
   const stage = gameState.getStage();
   const evidenceReady = gameState.hasEnoughEvidenceForSynthesis();
   const fieldAssigned = gameState.hasFieldAssignment();
-  const canPresent = gameState.preparedForBoard && stage === "synthesis";
+  const boardPrepared = gameState.preparedForBoard && stage === "synthesis";
   const needsSnowReview = evidenceReady && !gameState.preparedForBoard && stage === "synthesis";
   const currentLocation = gameState.getCurrentLocation();
-  const canUseMapPrimary = fieldAssigned && (canPresent || needsSnowReview);
+  const canUseMapPrimary = fieldAssigned && (boardPrepared || needsSnowReview);
   let actionText = "Need more support";
   let primaryLabel = "Gather more evidence";
   let primaryIcon = "circle-dot";
@@ -777,11 +787,14 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
     primaryLabel = "Talk to Snow first";
     primaryIcon = "message-circle";
     primaryCopy = "Snow has not sent us into the streets yet.";
-  } else if (canPresent) {
+  } else if (boardPrepared) {
     actionText = "Ready for Board";
-    primaryLabel = "Present prepared argument";
-    primaryIcon = "map-pin";
-    primaryCopy = "Snow's theory is prepared for the Board.";
+    primaryLabel = currentLocation.id === "snow-desk" ? "Open Snow review" : "Return to Snow's Desk";
+    primaryIcon = "clipboard-check";
+    primaryCopy =
+      currentLocation.id === "snow-desk"
+        ? "Use Present Findings on Snow's review panel."
+        : "Return to Snow's desk to present the prepared findings.";
   } else if (stage === "complete") {
     actionText = "Presented";
     primaryLabel = "Evidence presented";
@@ -798,6 +811,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
   }
   const locationNodes = gameState
     .getLocations()
+    .filter((location) => !location.boardOnly)
     .map((location) => renderLocationNode(location, gameState, currentLocation.id))
     .join("");
   const evidenceDocket = renderMapEvidenceDocket(gameState);
@@ -1021,7 +1035,6 @@ function renderLocationNode(
   const unlocked = gameState.isLocationUnlocked(location);
   const active = location.id === currentLocationId;
   const canTravel = gameState.canTravelToLocation(location.id) && !active;
-  const boardPresentationReady = location.boardOnly && gameState.preparedForBoard && gameState.getStage() === "synthesis";
   const offMapDirection = getOffMapDirection(location.id);
   const offMap = Boolean(offMapDirection);
   const popover = renderLocationEvidencePopover(location.id, gameState);
@@ -1029,7 +1042,6 @@ function renderLocationNode(
     "map-node",
     active ? "is-current" : "",
     unlocked ? "is-unlocked" : "is-locked",
-    boardPresentationReady ? "is-board-ready" : "",
     offMap ? "is-off-map" : "",
     offMapDirection ? `is-off-map-${offMapDirection}` : "",
     popover ? "has-evidence-popover" : "",
@@ -1041,17 +1053,11 @@ function renderLocationNode(
     .join(" ");
   const label = active
     ? `Current location: ${location.title}`
-    : boardPresentationReady
-      ? `Present prepared argument to ${location.title}`
     : canTravel
       ? `Travel to ${location.title}`
       : `${location.title} is locked`;
-  const actionAttributes = boardPresentationReady
-    ? `data-action="map-primary"`
-    : canTravel
-      ? `data-action="travel" data-location-id="${location.id}"`
-      : "";
-  const disabledAttribute = !canTravel && !active && !boardPresentationReady ? "disabled" : "";
+  const actionAttributes = canTravel ? `data-action="travel" data-location-id="${location.id}"` : "";
+  const disabledAttribute = !canTravel && !active ? "disabled" : "";
 
   return `
     <button
@@ -1070,9 +1076,9 @@ function renderLocationNode(
   `;
 }
 
-function getOffMapDirection(locationId: LocationId): "east" | "southwest" | "southeast" | undefined {
+function getOffMapDirection(locationId: LocationId): "east" | "south" | "southwest" | "southeast" | undefined {
   if (locationId === "snow-desk") {
-    return "southwest";
+    return "south";
   }
   if (locationId === "registrar") {
     return "southeast";

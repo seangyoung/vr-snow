@@ -368,7 +368,7 @@ export const locations: InvestigationLocation[] = [
     title: "Snow's Desk",
     shortTitle: "Desk",
     description: "Return to Snow's working notes and the wider question of waterborne transmission.",
-    mapPoint: { x: 9, y: 91 },
+    mapPoint: { x: 50, y: 96 },
   },
   {
     id: "broad-street",

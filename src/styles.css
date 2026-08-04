@@ -1316,6 +1316,12 @@ button {
   transform: rotate(135deg);
 }
 
+.map-node.is-off-map-south::after {
+  left: calc(50% - 4px);
+  top: calc(100% - 1px);
+  transform: rotate(135deg);
+}
+
 .map-node.is-off-map-east::after {
   left: calc(100% - 1px);
   top: calc(50% - 5px);

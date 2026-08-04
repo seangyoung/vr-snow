@@ -71,7 +71,7 @@ type VrMapLocationCommand = {
   unlocked: boolean;
   current: boolean;
   boardReady: boolean;
-  offMapDirection?: "east" | "southwest" | "southeast";
+  offMapDirection?: "east" | "south" | "southwest" | "southeast";
 };
 
 type VrPanelMapCommand = {
@@ -1128,8 +1128,7 @@ export class BroadStreetScene {
 
     const currentLocationId = this.gameState.getCurrentLocation().id;
     const locations = this.gameState.getLocations().filter((location) => {
-      const boardReady = location.boardOnly && this.gameState.preparedForBoard && this.gameState.getStage() === "synthesis";
-      return (boardReady || this.gameState.canTravelToLocation(location.id)) && location.id !== currentLocationId;
+      return !location.boardOnly && this.gameState.canTravelToLocation(location.id) && location.id !== currentLocationId;
     });
 
     if (locations.length === 0) {
@@ -1140,20 +1139,17 @@ export class BroadStreetScene {
     }
 
     locations.slice(0, 7).forEach((location, index) => {
-      const boardReady = location.boardOnly && this.gameState.preparedForBoard && this.gameState.getStage() === "synthesis";
       const x = -1.04 + index * 0.35;
       this.addVrPanelButton(
-        boardReady ? "Present" : location.shortTitle,
+        location.shortTitle,
         x,
         -0.76,
         0.31,
         0.14,
-        boardReady
-          ? { type: "present-board" }
-          : {
-              type: "travel",
-              locationId: location.id,
-            },
+        {
+          type: "travel",
+          locationId: location.id,
+        },
       );
     });
   }
@@ -1264,6 +1260,7 @@ export class BroadStreetScene {
 
     const selected = this.gameState.getSelectedHypothesis();
     const confidence = this.gameState.synthesisConfidence;
+    const boardPrepared = this.gameState.preparedForBoard && this.gameState.getStage() === "synthesis";
     const mappedFindings = this.gameState.getMappedEvidenceFindings();
     const findingsText = mappedFindings.length
       ? mappedFindings.join(" ")
@@ -1312,8 +1309,14 @@ export class BroadStreetScene {
       });
     });
 
-    this.addVrPanelButton("Prepare Board Argument", -0.38, -0.72, 1.32, 0.2, { type: "prepare-board" });
-    this.addVrPanelButton("Present to Board", 0.78, -0.72, 0.96, 0.2, { type: "present-board" });
+    this.addVrPanelButton(
+      boardPrepared ? "Present Findings" : "Prepare Board Argument",
+      0,
+      -0.72,
+      1.42,
+      0.2,
+      { type: boardPrepared ? "present-board" : "prepare-board" },
+    );
   }
 
   private addVrText(text: string, x: number, y: number, width: number, height: number, options: VrTextOptions = {}): void {
@@ -1341,16 +1344,19 @@ export class BroadStreetScene {
       height,
       deathsVisible,
       mapImage: this.vrMapImages.get(deathsVisible ? "deaths" : "base"),
-      locations: this.gameState.getLocations().map((location) => ({
-        id: location.id,
-        label: location.shortTitle,
-        x: location.mapPoint.x,
-        y: location.mapPoint.y,
-        unlocked: this.gameState.isLocationUnlocked(location),
-        current: location.id === currentLocationId,
-        boardReady: Boolean(location.boardOnly && this.gameState.preparedForBoard && this.gameState.getStage() === "synthesis"),
-        offMapDirection: getVrMapOffMapDirection(location.id),
-      })),
+      locations: this.gameState
+        .getLocations()
+        .filter((location) => !location.boardOnly)
+        .map((location) => ({
+          id: location.id,
+          label: location.shortTitle,
+          x: location.mapPoint.x,
+          y: location.mapPoint.y,
+          unlocked: this.gameState.isLocationUnlocked(location),
+          current: location.id === currentLocationId,
+          boardReady: false,
+          offMapDirection: getVrMapOffMapDirection(location.id),
+        })),
     });
   }
 
@@ -2410,11 +2416,18 @@ function drawVrMapOffMapArrow(
   ctx: CanvasRenderingContext2D,
   point: { x: number; y: number },
   radius: number,
-  direction: "east" | "southwest" | "southeast",
+  direction: "east" | "south" | "southwest" | "southeast",
   color: string,
 ): void {
   const length = radius * 2.4;
-  const angle = direction === "east" ? 0 : direction === "southwest" ? (Math.PI * 3) / 4 : Math.PI / 4;
+  const angle =
+    direction === "east"
+      ? 0
+      : direction === "south"
+        ? Math.PI / 2
+      : direction === "southwest"
+        ? (Math.PI * 3) / 4
+        : Math.PI / 4;
   const startX = point.x + Math.cos(angle) * radius * 1.2;
   const startY = point.y + Math.sin(angle) * radius * 1.2;
   const endX = point.x + Math.cos(angle) * length;
@@ -2626,9 +2639,9 @@ function getVrMapCanvasPoint(
   };
 }
 
-function getVrMapOffMapDirection(locationId: LocationId): "east" | "southwest" | "southeast" | undefined {
+function getVrMapOffMapDirection(locationId: LocationId): "east" | "south" | "southwest" | "southeast" | undefined {
   if (locationId === "snow-desk") {
-    return "southwest";
+    return "south";
   }
   if (locationId === "registrar") {
     return "southeast";

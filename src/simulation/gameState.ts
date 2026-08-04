@@ -122,7 +122,7 @@ export class GameState {
 
     if (this.stage === "synthesis") {
       if (this.preparedForBoard) {
-        return "Open the map table and present the prepared argument to the Board.";
+        return "Return to Snow's review panel and present the findings to the Board.";
       }
 
       if (this.currentLocationId === "snow-desk") {
@@ -141,7 +141,7 @@ export class GameState {
     }
 
     if (this.preparedForBoard) {
-      return "Open the map table and present the prepared argument to the Board.";
+      return "Return to Snow's review panel and present the findings to the Board.";
     }
 
     const remaining = Math.max(boardThreshold - this.collectedEvidence.size, 0);
