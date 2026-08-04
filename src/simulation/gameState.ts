@@ -380,11 +380,11 @@ export class GameState {
     }
 
     if (this.hasEvidence("workhouse-exception")) {
-      findings.push("The workhouse near Broad Street had few deaths, and its own water supply.");
+      findings.push("The St. James Workhouse near Broad Street had few deaths, and its own water supply.");
     }
 
     if (this.hasEvidence("brewery-exception")) {
-      findings.push("The brewery on Broad Street had no deaths, and did not rely on the Broad Street pump.");
+      findings.push("The Lion Brewery on Broad Street had no deaths, and did not rely on the Broad Street pump.");
     }
 
     return findings;
@@ -408,7 +408,7 @@ export class GameState {
       return "The map accepts household contact and the ambiguous water sample as cautions, but leaves person-to-person spread struggling with the sudden rise and dense pump-centered geography.";
     }
 
-    return "The map leaves crowding or occupation struggling with household water use and the workhouse and brewery exceptions, even though the water sample is not decisive on its own.";
+    return "The map leaves crowding or occupation struggling with household water use and the St. James Workhouse and Lion Brewery exceptions, even though the water sample is not decisive on its own.";
   }
 
   getHotspots(): Hotspot[] {

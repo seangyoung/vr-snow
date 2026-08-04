@@ -86,7 +86,7 @@ const mapAnnotations: Array<{
   },
   {
     evidenceId: "workhouse-exception",
-    title: "Workhouse exception",
+    title: "St. James Workhouse exception",
     body: "Near the outbreak, but protected by a separate supply.",
     x: 76,
     y: 39,
@@ -94,7 +94,7 @@ const mapAnnotations: Array<{
   },
   {
     evidenceId: "brewery-exception",
-    title: "Brewery exception",
+    title: "Lion Brewery exception",
     body: "Near Broad Street, but workers did not rely on pump water.",
     x: 70,
     y: 77,

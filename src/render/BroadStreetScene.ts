@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { VRButton } from "three/addons/webxr/VRButton.js";
 import { boardThreshold, fieldStudyGoal } from "../simulation/content";
 import type { GameState } from "../simulation/gameState";
-import type { Hotspot, HypothesisId, LocationId, SynthesisConfidence } from "../simulation/types";
+import type { Hotspot, HypothesisId, InvestigationLocation, LocationId, SynthesisConfidence } from "../simulation/types";
 
 type HotspotMesh = THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial> & {
   userData: { hotspot: Hotspot };
@@ -158,6 +158,14 @@ const vrPanelScale = 1;
 const vrPanelWidth = 2.85;
 const vrPanelHeight = 2.05;
 const vrPanelContentWidth = 2.55;
+const vrMapPanelX = 0;
+const vrMapPanelY = -0.06;
+const vrMapPanelWidth = 1.48;
+const vrMapPanelHeight = 1.26;
+const vrMapMarkerHitboxSize = 0.2;
+const vrTravelButtonGap = 0.06;
+const vrTravelButtonMaxRowWidth = 2.48;
+const vrTravelButtonHeight = 0.14;
 const vrPanelTextureWidth = 4096;
 const vrPanelTextureHeight = Math.round((vrPanelTextureWidth * vrPanelHeight) / vrPanelWidth);
 const vrPanelDesignWidth = 1180;
@@ -1124,33 +1132,69 @@ export class BroadStreetScene {
   }
 
   private buildVrMapPanel(): void {
-    this.addVrMap(0, -0.06, 1.48, 1.26);
+    this.addVrMap(vrMapPanelX, vrMapPanelY, vrMapPanelWidth, vrMapPanelHeight);
 
     const currentLocationId = this.gameState.getCurrentLocation().id;
     const locations = this.gameState.getLocations().filter((location) => {
       return !location.boardOnly && this.gameState.canTravelToLocation(location.id) && location.id !== currentLocationId;
     });
+    this.addVrMapMarkerHitboxes(locations);
 
     if (locations.length === 0) {
       this.addVrText("No other field locations are available yet.", 0, -0.72, vrPanelContentWidth, 0.12, {
         color: "#e7ece8",
         fontSize: 26,
       });
+      return;
     }
 
-    locations.slice(0, 7).forEach((location, index) => {
-      const x = -1.04 + index * 0.35;
-      this.addVrPanelButton(
-        location.shortTitle,
-        x,
-        -0.76,
-        0.31,
-        0.14,
-        {
+    this.addVrMapTravelButtons(locations.slice(0, 7));
+  }
+
+  private addVrMapMarkerHitboxes(locations: InvestigationLocation[]): void {
+    locations.forEach((location) => {
+      const point = getVrMapPanelPoint(
+        vrMapPanelX,
+        vrMapPanelY,
+        vrMapPanelWidth,
+        vrMapPanelHeight,
+        location.mapPoint.x,
+        location.mapPoint.y,
+      );
+      this.addVrPanelHitbox(point.x, point.y, vrMapMarkerHitboxSize, vrMapMarkerHitboxSize, {
+        type: "travel",
+        locationId: location.id,
+      });
+    });
+  }
+
+  private addVrMapTravelButtons(locations: InvestigationLocation[]): void {
+    const rows: Array<Array<{ location: InvestigationLocation; width: number }>> = [[]];
+
+    locations.forEach((location) => {
+      const width = getVrTravelButtonWidth(location.shortTitle);
+      const currentRow = rows[rows.length - 1];
+      const currentWidth = getVrTravelButtonRowWidth(currentRow);
+      const nextWidth = currentWidth + (currentRow.length > 0 ? vrTravelButtonGap : 0) + width;
+      if (currentRow.length > 0 && nextWidth > vrTravelButtonMaxRowWidth && rows.length < 2) {
+        rows.push([{ location, width }]);
+        return;
+      }
+
+      currentRow.push({ location, width });
+    });
+
+    const rowYs = rows.length === 1 ? [-0.79] : [-0.74, -0.9];
+    rows.forEach((row, rowIndex) => {
+      const rowWidth = getVrTravelButtonRowWidth(row);
+      let x = -rowWidth / 2;
+      row.forEach(({ location, width }) => {
+        this.addVrPanelButton(location.shortTitle, x + width / 2, rowYs[rowIndex] ?? -0.9, width, vrTravelButtonHeight, {
           type: "travel",
           locationId: location.id,
-        },
-      );
+        });
+        x += width + vrTravelButtonGap;
+      });
     });
   }
 
@@ -1430,10 +1474,7 @@ export class BroadStreetScene {
     });
 
     const button = createVrButtonHitbox(width, height, action);
-    button.position.set(x, y, 0.04);
-    button.userData.baseScale = button.scale.clone();
-    this.vrPanelButtons.push(button);
-    this.vrPanel.add(button);
+    this.addVrPanelHitboxMesh(button, x, y);
   }
 
   private addVrIconButton(
@@ -1456,6 +1497,15 @@ export class BroadStreetScene {
     });
 
     const button = createVrButtonHitbox(size, size, action);
+    this.addVrPanelHitboxMesh(button, x, y);
+  }
+
+  private addVrPanelHitbox(x: number, y: number, width: number, height: number, action: VrButtonAction): void {
+    const button = createVrButtonHitbox(width, height, action);
+    this.addVrPanelHitboxMesh(button, x, y);
+  }
+
+  private addVrPanelHitboxMesh(button: VrButtonMesh, x: number, y: number): void {
     button.position.set(x, y, 0.04);
     button.userData.baseScale = button.scale.clone();
     this.vrPanelButtons.push(button);
@@ -2637,6 +2687,35 @@ function getVrMapCanvasPoint(
     x: rect.x + (xPercent / 100) * rect.width,
     y: rect.y + (yPercent / 100) * rect.height,
   };
+}
+
+function getVrMapPanelPoint(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  xPercent: number,
+  yPercent: number,
+): { x: number; y: number } {
+  const mapSize = Math.min(width, height) * 0.96;
+  const clampedX = clampValue(xPercent, 3, 97);
+  const clampedY = clampValue(yPercent, 5, 95);
+  return {
+    x: x - mapSize / 2 + (clampedX / 100) * mapSize,
+    y: y + mapSize / 2 - (clampedY / 100) * mapSize,
+  };
+}
+
+function getVrTravelButtonWidth(label: string): number {
+  return clampValue(0.22 + label.length * 0.043, 0.38, 0.64);
+}
+
+function getVrTravelButtonRowWidth(row: Array<{ width: number }>): number {
+  if (row.length === 0) {
+    return 0;
+  }
+
+  return row.reduce((total, item) => total + item.width, 0) + (row.length - 1) * vrTravelButtonGap;
 }
 
 function getVrMapOffMapDirection(locationId: LocationId): "east" | "south" | "southwest" | "southeast" | undefined {

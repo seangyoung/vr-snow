@@ -117,7 +117,7 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
       "brewery-exception",
     ],
     snowChallenge:
-      "Snow asks us why the workhouse and brewery complicate a simple social or occupational explanation.",
+      "Snow asks us why the St. James Workhouse and Lion Brewery complicate a simple social or occupational explanation.",
   },
 ];
 
@@ -179,23 +179,23 @@ export const evidenceCards: EvidenceCard[] = [
   },
   {
     id: "workhouse-exception",
-    title: "Nearby workhouse has few deaths",
+    title: "St. James Workhouse has few deaths",
     summary:
-      "The Poland Street workhouse is close to affected streets, but its inmates used a separate water supply.",
+      "The St. James Workhouse is close to affected streets, but its inmates used a separate water supply.",
     confidence: "reported",
     sourceType: "interview",
-    sourceLabel: "Workhouse steward interview",
+    sourceLabel: "St. James Workhouse steward interview",
     supports: ["Water source matters", "Negative evidence"],
     complicates: ["Distance from bad air"],
   },
   {
     id: "brewery-exception",
-    title: "No brewery workers died during the outbreak",
+    title: "No Lion Brewery workers died during the outbreak",
     summary:
-      "The Broad Street brewery was close to the outbreak, but no workers died; they had beer or brewery water available and were not regular users of the street pump.",
+      "The Lion Brewery was close to the outbreak, but no workers died; they had beer or its own water available and were not regular users of the street pump.",
     confidence: "reported",
     sourceType: "interview",
-    sourceLabel: "Brewery worker interview",
+    sourceLabel: "Edward and John Huggins interview",
     supports: ["Exposure history", "Negative evidence"],
     complicates: ["Street-level miasma"],
   },
@@ -253,14 +253,14 @@ export const dialogueNodes: DialogueNode[] = [
       },
       {
         id: "workhouse-miasma-question",
-        prompt: "What does the workhouse exception tell us about street air?",
+        prompt: "What does the St. James Workhouse exception tell us about street air?",
         response:
           "We would expect the nearby institution to suffer heavily as well. Its relative escape pushes the inquiry back toward water source and exposure.",
         requiresEvidenceIds: ["workhouse-exception"],
       },
       {
         id: "brewery-exposure-question",
-        prompt: "Why does the brewery exception matter?",
+        prompt: "Why does the Lion Brewery exception matter?",
         response:
           "It reminds us why place alone is not enough. We must ask what people actually consumed, not merely where they stood.",
         requiresEvidenceIds: ["brewery-exception"],
@@ -329,16 +329,16 @@ export const dialogueNodes: DialogueNode[] = [
   {
     id: "workhouse-interview",
     locationId: "workhouse",
-    speaker: "Workhouse steward",
+    speaker: "St. James Workhouse steward",
     role: "Institutional witness",
     intro:
-      "The workhouse is close to affected streets, but its experience does not match the surrounding alarm.",
+      "The St. James Workhouse is close to affected streets, but its experience does not match the surrounding alarm.",
     questions: [
       {
         id: "workhouse-water-question",
         prompt: "Where did the inmates get water?",
         response:
-          "The workhouse had its own supply. Its nearness to Broad Street makes the small number of deaths important negative evidence.",
+          "The St. James Workhouse had its own supply. Its nearness to Broad Street makes the small number of deaths important negative evidence.",
         unlocksEvidenceId: "workhouse-exception",
       },
     ],
@@ -346,16 +346,16 @@ export const dialogueNodes: DialogueNode[] = [
   {
     id: "brewery-interview",
     locationId: "brewery",
-    speaker: "Brewery worker",
-    role: "Workplace witness",
+    speaker: "Edward and John Huggins",
+    role: "Lion Brewery owners",
     intro:
-      "The brewery stands near the affected area, yet no workers are reported dead. Snow wants to know what made this workplace different.",
+      "Edward and John Huggins receive Snow's questions at the Lion Brewery. The brewery stands near the affected area, yet no workers are reported dead. Snow wants to know what made this workplace different.",
     questions: [
       {
         id: "brewery-drink-question",
-        prompt: "What did workers drink during the day?",
+        prompt: "What did your workers drink during the day?",
         response:
-          "No brewery workers died during the outbreak. Workers had beer or brewery water available and were not regular users of the Broad Street pump.",
+          "Edward and John Huggins report that no Lion Brewery workers died during the outbreak. Workers had beer or the brewery's own water available and were not regular users of the Broad Street pump.",
         unlocksEvidenceId: "brewery-exception",
       },
     ],
@@ -394,16 +394,16 @@ export const locations: InvestigationLocation[] = [
   },
   {
     id: "workhouse",
-    title: "Poland Street Workhouse",
-    shortTitle: "Workhouse",
+    title: "St. James Workhouse",
+    shortTitle: "St. James",
     description: "A nearby institution that complicates any simple bad-air explanation.",
     mapPoint: { x: 50, y: 28 },
     unlocksWith: "pump-cluster",
   },
   {
     id: "brewery",
-    title: "Broad Street Brewery",
-    shortTitle: "Brewery",
+    title: "Lion Brewery",
+    shortTitle: "Lion Brewery",
     description: "A workplace exception that makes exposure history matter.",
     mapPoint: { x: 78, y: 40 },
     unlocksWith: "pump-cluster",
@@ -458,8 +458,8 @@ export const hotspots: Hotspot[] = [
   {
     id: "poland-workhouse",
     locationId: "workhouse",
-    label: "Poland Street workhouse",
-    shortLabel: "Workhouse",
+    label: "St. James Workhouse",
+    shortLabel: "St. James",
     description: "A nearby institution appears to have escaped the worst of the outbreak.",
     evidenceId: "workhouse-exception",
     position: [3.6, 1.55, -1.7],
@@ -467,9 +467,9 @@ export const hotspots: Hotspot[] = [
   {
     id: "broad-street-brewery",
     locationId: "brewery",
-    label: "Broad Street brewery",
-    shortLabel: "Brewery",
-    description: "No workers died here despite the brewery's proximity to the outbreak.",
+    label: "Lion Brewery",
+    shortLabel: "Lion Brewery",
+    description: "No workers died here despite the Lion Brewery's proximity to the outbreak.",
     evidenceId: "brewery-exception",
     position: [3.4, 1.7, 1.8],
   },
