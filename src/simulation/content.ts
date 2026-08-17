@@ -15,26 +15,8 @@ export const chapterScenes: ChapterScene[] = [
     title: "Snow's Desk",
     subtitle: "September 1854",
     body: [
-      "John Snow already suspects contaminated water can carry cholera, but the Broad Street outbreak must be investigated from field evidence, not certainty.",
-      "Our work is to collect addresses, listen for exposure histories, notice exceptions, and help turn scattered records into a map the parish can act on.",
-    ],
-  },
-  {
-    id: "field",
-    title: "Broad Street Field Inquiry",
-    subtitle: "First evidence round",
-    body: [
-      "Inspect the street scene. Each marker opens a source: an interview, document, or observation that may add one evidence card to your notebook.",
-      "Look for a cluster, a household exposure history, a water sample that does not settle the question, a timeline, and places that should have been devastated if bad air alone explained the pattern.",
-    ],
-  },
-  {
-    id: "synthesis",
-    title: "Snow's Desk",
-    subtitle: "From testimony to theory",
-    body: [
-      "Enough evidence is in the notebook to build an argument. Return to Snow's desk and compare the evidence against competing explanations.",
-      "The question is not whether every uncertainty has vanished. The question is which explanation best predicts the pattern and what temporary action is justified.",
+      "John Snow already suspects contaminated water can carry cholera, but the Broad Street outbreak must be investigated from field evidence.",
+      "Our work is to collect addresses, listen for exposure histories, notice exceptions, and help turn scattered records into evidence the parish Board of Guardians can act on.",
     ],
   },
   {
@@ -43,7 +25,7 @@ export const chapterScenes: ChapterScene[] = [
     subtitle: "September 7, 1854",
     body: [
       "Snow presents the case for removing the Broad Street pump handle. The evidence is circumstantial, but it is specific, mapped, and action-oriented.",
-      "The decision should be framed as temporary public health action while investigation continues.",
+      "The board is actively skeptical, but decides to follow Snow's advice and close the Broad Street pump by removing the handle. The decision was framed as temporary public health action while investigation continues.",
     ],
   },
   {
@@ -181,7 +163,7 @@ export const evidenceCards: EvidenceCard[] = [
     id: "workhouse-exception",
     title: "St. James Workhouse has few deaths",
     summary:
-      "The St. James Workhouse held over 500 inmates near the affected streets, but had very few deaths and used a separate water supply.",
+      "The St. James Workhouse held over 500 inmates near the affected streets, but had very few deaths. They used a separate water supply.",
     confidence: "reported",
     sourceType: "interview",
     sourceLabel: "St. James Workhouse steward interview",
@@ -192,7 +174,7 @@ export const evidenceCards: EvidenceCard[] = [
     id: "brewery-exception",
     title: "No Lion Brewery workers died during the outbreak",
     summary:
-      "The Lion Brewery was close to the outbreak, but no workers died; they had beer or its own water available and were not regular users of the street pump.",
+      "The Lion Brewery was close to the outbreak, but no workers died. Workers were provided beer, as well as access to a private well at the brewery, and were not regular users of the street pump.",
     confidence: "reported",
     sourceType: "interview",
     sourceLabel: "Edward and John Huggins interview",
@@ -214,13 +196,13 @@ export const dialogueNodes: DialogueNode[] = [
     speaker: "John Snow",
     role: "Physician and investigator",
     intro:
-      "Snow stands over his notes, careful rather than triumphant. He wants every claim we make tied to an address, a date, or a witness.",
+      "Snow stands over his notes, careful and methodical. He wants every claim we make tied to an address, a date, or a witness.",
     questions: [
       {
         id: "snow-method-question",
         prompt: "Where should we begin the inquiry?",
         response:
-          "We begin with the records, not guesses. We should go to the General Register Office and consult the daily returns ledger for cholera deaths: dates, addresses, and fatal attacks. Then we can use those records to guide household interviews, check water histories, inspect the pump sample, and test exceptions.",
+          "We begin with the records. We should go to the General Register Office and consult the daily returns ledger for cholera deaths: dates, addresses, and fatal attacks. Then we can use those records to guide household interviews, check water histories, inspect the pump sample, and test exceptions.",
       },
       {
         id: "ledger-address-question",
@@ -241,7 +223,7 @@ export const dialogueNodes: DialogueNode[] = [
         id: "pump-limits-question",
         prompt: "Does the cluster alone settle the cause?",
         response:
-          "No. A cluster is a lead, not proof. We still need timing, exposure histories, exceptions, and a way to explain why the water did not plainly reveal its danger.",
+          "No. A cluster is a lead, not proof. We still need timing, exposure histories, and an explanation for exceptions to the pattern.",
         requiresEvidenceIds: ["pump-cluster", "pump-water-inspection"],
       },
       {
@@ -313,7 +295,7 @@ export const dialogueNodes: DialogueNode[] = [
         id: "household-water-question",
         prompt: "What water did the household use before the illness?",
         response:
-          "The family fetched from the Broad Street pump because it was near and well regarded. Record the water source and the time symptoms began.",
+          "The family fetched from the Broad Street pump because it was near and well regarded. We'll record the water source and the time symptoms began.",
         unlocksEvidenceId: "household-exposure",
       },
       {
@@ -389,7 +371,7 @@ export const locations: InvestigationLocation[] = [
     id: "registrar",
     title: "Registrar's Ledger",
     shortTitle: "Ledger",
-    description: "Daily returns and addresses that turn rumor into a line list.",
+    description: "Daily mortality returns and addresses.",
     mapPoint: { x: 92, y: 92 },
   },
   {
