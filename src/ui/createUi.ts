@@ -270,7 +270,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     if (action === "reset") {
       overlayMode = "none";
       snowReviewOpen = false;
-      message = "Speak with Snow at the desk to receive the field assignment.";
+      message = "Speak with Snow at his desk to receive the field assignment.";
       ui.onReset?.();
     }
     if (action === "present") {
