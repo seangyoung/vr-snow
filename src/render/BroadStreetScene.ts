@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { VRButton } from "three/addons/webxr/VRButton.js";
-import { boardThreshold, fieldStudyGoal } from "../simulation/content";
+import { boardThreshold, fieldStudyGoal, noDialogueActionsText } from "../simulation/content";
 import type { GameState } from "../simulation/gameState";
 import type { Hotspot, HypothesisId, InvestigationLocation, LocationId, SynthesisConfidence } from "../simulation/types";
 
@@ -1075,6 +1075,14 @@ export class BroadStreetScene {
           questionId: question.id,
         });
       });
+
+      if (availableQuestions.length === 0) {
+        this.addVrText(noDialogueActionsText, 0, -0.5, vrPanelContentWidth, 0.14, {
+          color: "#b9c9c4",
+          fontSize: 26,
+          weight: "700",
+        });
+      }
 
       if (questionPageCount > 1) {
         this.addVrText(`${questionPageIndex + 1}/${questionPageCount}`, 0, -0.75, 0.42, 0.1, {

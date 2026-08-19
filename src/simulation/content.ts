@@ -9,6 +9,8 @@ import type {
   StudyGoal,
 } from "./types";
 
+export const noDialogueActionsText = "No further actions here. Check the map or Field Notebook for the next lead.";
+
 export const chapterScenes: ChapterScene[] = [
   {
     id: "briefing",

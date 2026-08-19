@@ -1,5 +1,5 @@
 import { createIcons, icons } from "lucide";
-import { boardThreshold, fieldStudyGoal, locationEvidenceIds } from "../simulation/content";
+import { boardThreshold, fieldStudyGoal, locationEvidenceIds, noDialogueActionsText } from "../simulation/content";
 import type { GameState } from "../simulation/gameState";
 import type {
   ChapterScene,
@@ -393,9 +393,10 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 
 function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): string {
   const activeAnswer = gameState.getActiveDialogueAnswer();
-  const questionRows = gameState
+  const availableQuestions = gameState
     .getAvailableDialogueQuestions(dialogue)
-    .filter((question) => question.id !== activeAnswer?.question.id)
+    .filter((question) => question.id !== activeAnswer?.question.id);
+  const questionRows = availableQuestions
     .map((question) => renderDialogueQuestion(question))
     .join("");
 
@@ -410,7 +411,7 @@ function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): stri
       </div>
       ${activeAnswer ? renderDialogueActiveAnswer(activeAnswer) : `<p class="dialogue-intro">${escapeHtml(dialogue.intro)}</p>`}
       <div class="question-list">
-        ${questionRows}
+        ${questionRows || renderDialogueEmptyState()}
       </div>
     </aside>
   `;
@@ -434,6 +435,10 @@ function renderDialogueActiveAnswer(activeAnswer: ActiveDialogueAnswer): string 
       <p>${escapeHtml(activeAnswer.question.response)}</p>
     </article>
   `;
+}
+
+function renderDialogueEmptyState(): string {
+  return `<p class="dialogue-empty-state">${escapeHtml(noDialogueActionsText)}</p>`;
 }
 
 function renderTravelFade(message: string): string {

@@ -333,6 +333,17 @@ button {
   padding: 0 14px 14px;
 }
 
+.dialogue-empty-state {
+  margin: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(238, 216, 164, 0.12);
+  border-radius: var(--radius);
+  color: rgba(249, 241, 219, 0.72);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
 .question-card {
   border: 1px solid rgba(238, 216, 164, 0.14);
   border-radius: var(--radius);
