@@ -746,6 +746,7 @@ export class BroadStreetScene {
   private handleVrSessionStart(): void {
     this.disableMotionLook("idle");
     this.vrPanelMode = "home";
+    this.gameState.clearActiveDialogueAnswer();
     this.vrStatus = this.getDefaultVrStatus();
     this.snapTurnLocked = false;
     this.applyCameraOrientation();
@@ -820,6 +821,7 @@ export class BroadStreetScene {
       this.gameState.getStage() === "synthesis" &&
       this.gameState.getCurrentLocation().id === "snow-desk"
     ) {
+      this.gameState.clearActiveDialogueAnswer();
       this.vrPanelMode = "synthesis";
       this.vrStatus = "Snow turns to the map table. Test the evidence against the competing theories.";
       this.markVrPanelDirty();
@@ -835,6 +837,7 @@ export class BroadStreetScene {
   private handleVrButton(action: VrButtonAction): void {
     switch (action.type) {
       case "mode":
+        this.gameState.clearActiveDialogueAnswer();
         this.vrPanelMode = this.vrPanelMode === action.mode ? "home" : action.mode;
         if (action.mode === "map") {
           this.vrMapNeedsAttention = false;
@@ -877,7 +880,7 @@ export class BroadStreetScene {
         if (result.evidence || action.questionId === "snow-method-question") {
           this.vrMapNeedsAttention = true;
         }
-        this.vrStatus = this.formatVrQuestionResponse(result);
+        this.vrStatus = result.message;
         break;
       }
       case "close-dialogue":
@@ -931,10 +934,6 @@ export class BroadStreetScene {
     this.markVrPanelDirty();
   }
 
-  private formatVrQuestionResponse(result: { response?: string; message: string }): string {
-    return result.response ?? result.message;
-  }
-
   private showVrPanel(placeInFront = true): void {
     this.vrPanelVisible = true;
     this.vrPanel.visible = true;
@@ -947,6 +946,8 @@ export class BroadStreetScene {
   }
 
   private hideVrPanel(startIdleHintTimer = true): void {
+    this.gameState.clearActiveDialogueAnswer();
+    this.vrStatus = this.getDefaultVrStatus();
     this.vrPanelVisible = false;
     this.vrPanel.visible = false;
     this.vrIdleHint.visible = false;
@@ -1039,18 +1040,28 @@ export class BroadStreetScene {
   private buildVrHomePanel(): void {
     const activeDialogue = this.gameState.getActiveDialogue();
     if (activeDialogue) {
+      const activeAnswer = this.gameState.getActiveDialogueAnswer();
       this.addVrText(`${activeDialogue.speaker}: ${activeDialogue.role}`, 0, 0.34, vrPanelContentWidth, 0.14, {
         color: "#f1d79c",
         fontSize: 34,
         weight: "700",
       });
-      const dialogueBody = this.vrStatus === this.getDefaultVrStatus() ? activeDialogue.intro : this.vrStatus;
-      this.addPaginatedVrText(`dialogue:${activeDialogue.id}`, dialogueBody, 0, 0.02, vrPanelContentWidth, 0.48, {
+      const dialogueBody = activeAnswer
+        ? `${activeAnswer.question.prompt}\n\n${activeAnswer.question.response}`
+        : this.vrStatus === this.getDefaultVrStatus()
+          ? activeDialogue.intro
+          : this.vrStatus;
+      const dialoguePageKey = activeAnswer
+        ? `dialogue:${activeDialogue.id}:answer:${activeAnswer.question.id}`
+        : `dialogue:${activeDialogue.id}:intro`;
+      this.addPaginatedVrText(dialoguePageKey, dialogueBody, 0, 0.02, vrPanelContentWidth, 0.48, {
         color: "#e7ece8",
         fontSize: 28,
       }, -0.25);
 
-      const availableQuestions = this.gameState.getAvailableDialogueQuestions(activeDialogue);
+      const availableQuestions = this.gameState
+        .getAvailableDialogueQuestions(activeDialogue)
+        .filter((question) => question.id !== activeAnswer?.question.id);
       const questionPageKey = `dialogue-questions:${activeDialogue.id}`;
       const questionsPerPage = availableQuestions.length > 3 ? 2 : 3;
       const questionPageIndex = this.getVrQuestionPage(questionPageKey, availableQuestions.length, questionsPerPage);
@@ -1088,7 +1099,7 @@ export class BroadStreetScene {
         }
       }
 
-      if (activeDialogue.id === "snow-briefing" && this.gameState.hasFieldAssignment() && availableQuestions.length === 1) {
+      if (activeDialogue.id === "snow-briefing" && this.gameState.hasFieldAssignment()) {
         this.addVrText("Use the MAP in the top left corner to travel to other locations.", 0, -0.76, vrPanelContentWidth, 0.12, {
           color: "#b9c9c4",
           fontSize: 24,

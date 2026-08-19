@@ -17,6 +17,7 @@ import type {
 
 type OverlayMode = "none" | "notebook" | "map";
 type MotionLookStatus = "unavailable" | "idle" | "requesting" | "enabled" | "denied";
+type ActiveDialogueAnswer = NonNullable<ReturnType<GameState["getActiveDialogueAnswer"]>>;
 
 type MotionLookControls = {
   isAvailable: () => boolean;
@@ -179,6 +180,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     if (action === "map-primary") {
       if (gameState.preparedForBoard && stage === "synthesis") {
         if (gameState.getCurrentLocation().id === "snow-desk") {
+          gameState.clearActiveDialogueAnswer();
           snowReviewOpen = true;
           overlayMode = "none";
           message = "Present findings from Snow's review panel.";
@@ -192,6 +194,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 
       if (gameState.hasEnoughEvidenceForSynthesis() && !gameState.preparedForBoard) {
         if (gameState.getCurrentLocation().id === "snow-desk") {
+          gameState.clearActiveDialogueAnswer();
           snowReviewOpen = true;
           overlayMode = "none";
           message = "Review the theories with Snow, choose a confidence level, then prepare the Board argument.";
@@ -245,6 +248,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     }
 
     if (action === "close-snow-review") {
+      gameState.clearActiveDialogueAnswer();
       snowReviewOpen = false;
       message = "Snow waits at the desk. Click him when we are ready to continue the review.";
     }
@@ -256,6 +260,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       gameState.beginFieldwork();
     }
     if (action === "notebook" && toolsAvailable) {
+      gameState.clearActiveDialogueAnswer();
       snowReviewOpen = false;
       overlayMode = overlayMode === "notebook" ? "none" : "notebook";
     }
@@ -265,6 +270,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       overlayMode = overlayMode === "map" ? "none" : "map";
     }
     if (action === "close") {
+      gameState.clearActiveDialogueAnswer();
       overlayMode = "none";
     }
     if (action === "reset") {
@@ -359,6 +365,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 
     isTransitioning = true;
     snowReviewOpen = false;
+    gameState.clearActiveDialogueAnswer();
     message = `Traveling to ${location.title}...`;
     render();
     window.setTimeout(() => {
@@ -385,8 +392,10 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 }
 
 function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): string {
+  const activeAnswer = gameState.getActiveDialogueAnswer();
   const questionRows = gameState
     .getAvailableDialogueQuestions(dialogue)
+    .filter((question) => question.id !== activeAnswer?.question.id)
     .map((question) => renderDialogueQuestion(question, gameState))
     .join("");
 
@@ -399,7 +408,7 @@ function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): stri
         </div>
         <button class="icon-button" data-action="close-dialogue" aria-label="Close interview"><i data-lucide="x"></i></button>
       </div>
-      <p class="dialogue-intro">${escapeHtml(dialogue.intro)}</p>
+      ${activeAnswer ? renderDialogueActiveAnswer(activeAnswer) : `<p class="dialogue-intro">${escapeHtml(dialogue.intro)}</p>`}
       <div class="question-list">
         ${questionRows}
       </div>
@@ -409,27 +418,21 @@ function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): stri
 
 function renderDialogueQuestion(question: DialogueQuestion, gameState: GameState): string {
   const asked = gameState.hasAskedQuestion(question.id);
-  const evidence = gameState.getQuestionEvidence(question);
-  const collected = evidence ? gameState.hasEvidence(evidence.id) : false;
   return `
     <article class="question-card ${asked ? "is-asked" : ""}">
       <button class="question-button" data-action="ask" data-question-id="${escapeHtml(question.id)}">
         <span>${escapeHtml(question.prompt)}</span>
-        <i data-lucide="${asked ? "rotate-ccw" : "message-circle-question"}"></i>
+        <i data-lucide="${asked ? "check-circle-2" : "message-circle-question"}"></i>
       </button>
-      ${
-        asked
-          ? `<p>${escapeHtml(question.response)}</p>
-             ${
-               evidence
-                 ? `<div class="question-evidence ${collected ? "is-collected" : ""}">
-                    <i data-lucide="${collected ? "check-circle-2" : "circle"}"></i>
-                    <span>${escapeHtml(collected ? `Recorded: ${evidence.title}` : evidence.title)}</span>
-                  </div>`
-                 : ""
-             }`
-          : ""
-      }
+    </article>
+  `;
+}
+
+function renderDialogueActiveAnswer(activeAnswer: ActiveDialogueAnswer): string {
+  return `
+    <article class="dialogue-active-answer">
+      <strong>${escapeHtml(activeAnswer.question.prompt)}</strong>
+      <p>${escapeHtml(activeAnswer.question.response)}</p>
     </article>
   `;
 }

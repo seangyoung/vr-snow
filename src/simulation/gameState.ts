@@ -30,6 +30,7 @@ export class GameState {
   private collectedEvidence = new Set<string>();
   private askedQuestions = new Set<string>();
   private changeHandlers = new Set<ChangeHandler>();
+  private activeDialogueQuestionId?: string;
   stage: ChapterStage = "field";
   currentLocationId: LocationId = "snow-desk";
   activeDialogueId?: string;
@@ -54,6 +55,7 @@ export class GameState {
 
     this.inspectedHotspots.add(hotspot.id);
     const dialogue = this.getDialogueForLocation(hotspot.locationId);
+    this.activeDialogueQuestionId = undefined;
     if (dialogue) {
       this.activeDialogueId = dialogue.id;
     }
@@ -77,6 +79,7 @@ export class GameState {
 
     const alreadyAsked = this.askedQuestions.has(question.id);
     this.askedQuestions.add(question.id);
+    this.activeDialogueQuestionId = question.id;
 
     let evidence: EvidenceCard | undefined;
     let reachedSynthesis = false;
@@ -96,18 +99,18 @@ export class GameState {
     return {
       evidence,
       response: question.response,
-        message:
-          evidence && !alreadyAsked
+      message:
+        evidence && !alreadyAsked
           ? reachedSynthesis
             ? `${evidence.title} added to the Field Notebook. Return to Snow's Desk to prepare the theory.`
             : evidence.id === "pump-cluster"
-                ? `${evidence.title} added to the Field Notebook. Open the map to inspect the plotted deaths around the pump.`
+              ? `${evidence.title} added to the Field Notebook. Open the map to inspect the plotted deaths around the pump.`
               : `${evidence.title} added to the Field Notebook.`
           : question.id === "snow-method-question" && !alreadyAsked
             ? "Study goal added to the Field Notebook. The inquiry map is now available."
-          : alreadyAsked
-            ? "That answer is already recorded."
-            : `${dialogue.speaker} answered the question.`,
+            : alreadyAsked
+              ? "That answer is already recorded."
+              : `${dialogue.speaker} answered the question.`,
     };
   }
 
@@ -228,6 +231,7 @@ export class GameState {
     this.stage = "field";
     this.currentLocationId = "broad-street";
     this.activeDialogueId = undefined;
+    this.activeDialogueQuestionId = undefined;
     this.emitChange();
   }
 
@@ -243,6 +247,8 @@ export class GameState {
 
     this.stage = "board";
     this.currentLocationId = "board-room";
+    this.activeDialogueId = undefined;
+    this.activeDialogueQuestionId = undefined;
     this.boardPresented = true;
     this.emitChange();
     return {
@@ -257,6 +263,8 @@ export class GameState {
   finishBoard(): void {
     this.stage = "complete";
     this.currentLocationId = "board-room";
+    this.activeDialogueId = undefined;
+    this.activeDialogueQuestionId = undefined;
     this.emitChange();
   }
 
@@ -272,6 +280,7 @@ export class GameState {
 
     this.currentLocationId = locationId;
     this.activeDialogueId = undefined;
+    this.activeDialogueQuestionId = undefined;
     this.emitChange();
     return {
       traveled: true,
@@ -284,6 +293,16 @@ export class GameState {
 
   closeDialogue(): void {
     this.activeDialogueId = undefined;
+    this.activeDialogueQuestionId = undefined;
+    this.emitChange();
+  }
+
+  clearActiveDialogueAnswer(): void {
+    if (!this.activeDialogueQuestionId) {
+      return;
+    }
+
+    this.activeDialogueQuestionId = undefined;
     this.emitChange();
   }
 
@@ -433,6 +452,26 @@ export class GameState {
 
   getActiveDialogue(): DialogueNode | undefined {
     return this.activeDialogueId ? dialogueNodes.find((dialogue) => dialogue.id === this.activeDialogueId) : undefined;
+  }
+
+  getActiveDialogueAnswer():
+    | { dialogue: DialogueNode; question: DialogueQuestion; evidence?: EvidenceCard }
+    | undefined {
+    const dialogue = this.getActiveDialogue();
+    if (!dialogue || !this.activeDialogueQuestionId) {
+      return undefined;
+    }
+
+    const question = dialogue.questions.find((candidate) => candidate.id === this.activeDialogueQuestionId);
+    if (!question) {
+      return undefined;
+    }
+
+    return {
+      dialogue,
+      question,
+      evidence: this.getQuestionEvidence(question),
+    };
   }
 
   getAvailableDialogueQuestions(dialogue: DialogueNode): DialogueQuestion[] {
@@ -639,6 +678,7 @@ export class GameState {
     this.stage = "field";
     this.currentLocationId = "snow-desk";
     this.activeDialogueId = undefined;
+    this.activeDialogueQuestionId = undefined;
     this.selectedHypothesisId = undefined;
     this.synthesisConfidence = undefined;
     this.preparedForBoard = false;
