@@ -1070,8 +1070,7 @@ export class BroadStreetScene {
       const visibleQuestions = availableQuestions.slice(questionStartIndex, questionStartIndex + questionsPerPage);
 
       visibleQuestions.forEach((question, index) => {
-        const recorded = this.gameState.hasAskedQuestion(question.id) ? "Recorded: " : "";
-        this.addVrPanelButton(`${recorded}${question.prompt}`, 0, -0.43 - index * 0.16, 2.34, 0.14, {
+        this.addVrPanelButton(question.prompt, 0, -0.43 - index * 0.16, 2.34, 0.14, {
           type: "ask",
           questionId: question.id,
         });

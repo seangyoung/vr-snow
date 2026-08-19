@@ -475,7 +475,9 @@ export class GameState {
   }
 
   getAvailableDialogueQuestions(dialogue: DialogueNode): DialogueQuestion[] {
-    return dialogue.questions.filter((question) => this.isDialogueQuestionAvailable(question));
+    return dialogue.questions.filter(
+      (question) => this.isDialogueQuestionAvailable(question) && !this.askedQuestions.has(question.id),
+    );
   }
 
   hasAskedQuestion(questionId: string): boolean {

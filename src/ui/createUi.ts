@@ -396,7 +396,7 @@ function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): stri
   const questionRows = gameState
     .getAvailableDialogueQuestions(dialogue)
     .filter((question) => question.id !== activeAnswer?.question.id)
-    .map((question) => renderDialogueQuestion(question, gameState))
+    .map((question) => renderDialogueQuestion(question))
     .join("");
 
   return `
@@ -416,13 +416,12 @@ function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): stri
   `;
 }
 
-function renderDialogueQuestion(question: DialogueQuestion, gameState: GameState): string {
-  const asked = gameState.hasAskedQuestion(question.id);
+function renderDialogueQuestion(question: DialogueQuestion): string {
   return `
-    <article class="question-card ${asked ? "is-asked" : ""}">
+    <article class="question-card">
       <button class="question-button" data-action="ask" data-question-id="${escapeHtml(question.id)}">
         <span>${escapeHtml(question.prompt)}</span>
-        <i data-lucide="${asked ? "check-circle-2" : "message-circle-question"}"></i>
+        <i data-lucide="message-circle-question"></i>
       </button>
     </article>
   `;
