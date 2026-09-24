@@ -15,6 +15,23 @@ npm run dev
 
 Open the local Vite URL, usually `http://127.0.0.1:5173/`.
 
+## Published Versions
+
+The GitHub Pages deployment builds two branches into one site:
+
+- Stable experience from `main`: <https://seangyoung.github.io/vr-snow/>
+- Walkable prototype from `walkable-prototype`: <https://seangyoung.github.io/vr-snow/walkable/>
+
+Pushes to `main` publish both versions immediately. Pushes to `walkable-prototype` first run its build check; a successful check then triggers the `main` deployment workflow to rebuild and publish both versions. Shared fixes should normally be committed to `main`, then brought into the prototype with:
+
+```bash
+git switch walkable-prototype
+git merge main
+git push
+```
+
+Walkable-only work remains on `walkable-prototype` until it is deliberately merged into `main`.
+
 ## Concept
 
 Players are an apprentice to John Snow during the 1854 Broad Street outbreak. In immersive 360 scenes, they interview residents, collect case records, compare hypotheses, build a map, and present evidence to the parish authorities. The goal is to teach field epidemiology, historical uncertainty, public health decision-making, and the power of visualizing data.

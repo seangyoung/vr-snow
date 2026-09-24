@@ -3,6 +3,10 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  workflow_run:
+    workflows: [Validate walkable prototype]
+    types: [completed]
+    branches: [walkable-prototype]
   workflow_dispatch:
 
 permissions:
@@ -16,22 +20,55 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout stable source
         uses: actions/checkout@v6
+        with:
+          ref: main
+          path: stable-source
+
+      - name: Checkout walkable source
+        uses: actions/checkout@v6
+        with:
+          ref: walkable-prototype
+          path: walkable-source
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            stable-source/package-lock.json
+            walkable-source/package-lock.json
 
-      - name: Install dependencies
+      - name: Install stable dependencies
+        working-directory: stable-source
         run: npm ci
 
-      - name: Build
+      - name: Build stable site
+        working-directory: stable-source
+        env:
+          VITE_BASE_PATH: /vr-snow/
         run: npm run build
+
+      - name: Install walkable dependencies
+        working-directory: walkable-source
+        run: npm ci
+
+      - name: Build walkable preview
+        working-directory: walkable-source
+        env:
+          VITE_BASE_PATH: /vr-snow/walkable/
+        run: npm run build
+
+      - name: Assemble Pages site
+        run: |
+          mkdir -p pages-site/walkable
+          cp -R stable-source/dist/. pages-site/
+          cp -R walkable-source/dist/. pages-site/walkable/
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -39,7 +76,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: ./dist
+          path: ./pages-site
 
   deploy:
     needs: build
