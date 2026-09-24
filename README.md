@@ -32,6 +32,12 @@ git push
 
 Walkable-only work remains on `walkable-prototype` until it is deliberately merged into `main`.
 
+## Walkable branch: pump experiment
+
+On `walkable-prototype`, Broad Street is a small schematic 3D street with a selectable pump. Other locations retain the panorama experience. See [the headset test card](docs/walkable-pump-test.md) for controls, scope, and acceptance checks.
+
+Run `npm run test:walkable` for movement, obstruction, input mapping, and evidence regression checks. The walkable validation workflow runs these checks before deployment eligibility.
+
 ## Concept
 
 Players are an apprentice to John Snow during the 1854 Broad Street outbreak. In immersive 360 scenes, they interview residents, collect case records, compare hypotheses, build a map, and present evidence to the parish authorities. The goal is to teach field epidemiology, historical uncertainty, public health decision-making, and the power of visualizing data.

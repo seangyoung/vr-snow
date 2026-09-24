@@ -27,3 +27,6 @@ jobs:
         env:
           VITE_BASE_PATH: /vr-snow/walkable/
         run: npm run build
+
+      - name: Check walkable movement and evidence
+        run: npm run test:walkable

@@ -318,6 +318,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           <span class="objective-kicker">Broad Street Inquiry</span>
           <strong>${escapeHtml(gameState.getObjective())}</strong>
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
+          ${currentLocation.id === "broad-street" ? '<span class="location-line">WASD to move · ↑/↓ forward/back · ←/→ turn<br>Drag to look · Click ground to teleport or pump to inspect<br>Street layout is schematic.</span>' : ""}
         </section>
 
         <nav class="tool-rail" aria-label="Investigation tools">
