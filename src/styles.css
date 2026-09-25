@@ -1176,11 +1176,26 @@ button {
 }
 
 .map-node.has-label-left {
-  --node-anchor: calc(-100% + 15px);
-  grid-template-columns: auto 14px;
+  --node-anchor: calc(-100% - 14px);
+  grid-template-columns: auto;
 }
-.map-node.has-label-left .node-dot { grid-column: 2; grid-row: 1; }
-.map-node.has-label-left .node-label { grid-column: 1; grid-row: 1; }
+/* Keep the household pin on the frontage while its label clears the pump. */
+.map-node.has-label-left .node-dot {
+  position: absolute;
+  right: -18.5px;
+  top: calc(50% - 4.5px);
+}
+.map-node.has-label-left::after {
+  content: "";
+  position: absolute;
+  right: -14px;
+  top: 50%;
+  width: 14px;
+  border-top: 1px solid rgba(30, 35, 30, 0.65);
+}
+.map-node.has-label-left:not(:disabled):hover {
+  transform: translate(var(--node-anchor), -50%);
+}
 
 .node-popover {
   position: absolute;

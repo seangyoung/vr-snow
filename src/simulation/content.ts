@@ -366,7 +366,7 @@ export const locations: InvestigationLocation[] = [
     title: "Broad Street Household",
     shortTitle: "Household",
     description: "A representative Broad Street household interview explores timing, care, and water-use testimony; this doorway is illustrative.",
-    mapPoint: { x: 55, y: 39 },
+    mapPoint: { x: 53, y: 44 },
     unlocksWith: "pump-cluster",
   },
   {
