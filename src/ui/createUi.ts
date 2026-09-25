@@ -321,6 +321,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           <strong>${escapeHtml(gameState.getObjective())}</strong>
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
           ${currentLocation.id === "snow-desk" ? '<span class="location-line">WASD / arrows to move · Drag to look<br>Select the desk to speak with Snow<br>Select clear floor to teleport · Door leads to Broad Street</span>' : ""}
+          ${currentLocation.id === "registrar" ? '<span class="location-line">WASD / arrows to move · Drag to look<br>Select the open ledger for the daily returns<br>Select clear floor to teleport · Door returns to Snow</span>' : ""}
           ${currentLocation.id === "broad-street" ? '<span class="location-line">WASD to move · ↑/↓ forward/back · ←/→ turn<br>Drag to look · Click ground to teleport · Select signs or enter travel rings<br>Broad Street · London, 1854</span>' : ""}
         </section>
 

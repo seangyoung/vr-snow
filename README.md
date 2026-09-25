@@ -32,9 +32,9 @@ git push
 
 Walkable-only work remains on `walkable-prototype` until it is deliberately merged into `main`.
 
-## Walkable branch: street and office
+## Walkable branch: street and interiors
 
-On `walkable-prototype`, Broad Street is a textured, source-informed reconstruction of the pump junction, with an editable Blender environment and a selectable pump. Snow’s office is a compact furnished 3D room with desk interaction and a doorway to Broad Street; see [office scope and headset checks](docs/walkable-office.md). Other locations retain the panorama experience. See [the reconstruction sources and asset workflow](docs/broad-street-reconstruction.md) and [the headset test card](docs/walkable-pump-test.md) for controls, scope, and acceptance checks.
+On `walkable-prototype`, Broad Street is a textured, source-informed reconstruction of the pump junction, with an editable Blender environment and a selectable pump. Snow’s office is a compact furnished 3D room with desk interaction and a doorway to Broad Street; see [office scope and headset checks](docs/walkable-office.md). The [registrar’s records room](docs/walkable-registrar.md) also supports walking, ledger interaction and doorway return to Snow. Other locations retain the panorama experience. See [the reconstruction sources and asset workflow](docs/broad-street-reconstruction.md) and [the headset test card](docs/walkable-pump-test.md) for controls, scope, and acceptance checks.
 
 Run `npm run test:walkable` for movement, obstruction, input mapping, and evidence regression checks. The walkable validation workflow runs these checks before deployment eligibility.
 

@@ -17,7 +17,7 @@ This is an interpretive room based on the existing panorama's timber, books, wri
 
 ## Source and rebuild
 
-`src/walkable/office-layout.json` is the shared layout read by the Blender generator and runtime furniture proxies. `WalkableArea.ts` provides reusable rectangular bounds and swept collision. `SnowOffice.ts` supplies the room, selection, lighting, model loading and a usable furnished fallback. `BroadStreetScene` chooses the active street/office environment for input, scene entry, controller targeting and focus.
+`src/walkable/office-layout.json` is the shared layout read by the Blender generator and runtime furniture proxies. `WalkableArea.ts` provides reusable rectangular bounds and swept collision. `SnowOffice.ts` configures the office; the shared `FurnishedRoom.ts` supplies room selection, lighting, model loading and a usable furnished fallback for both the office and registrar. `BroadStreetScene` chooses the active street/office environment for input, scene entry, controller targeting and focus.
 
 ```sh
 blender --background --factory-startup --python scripts/assets/build_snow_office.py
