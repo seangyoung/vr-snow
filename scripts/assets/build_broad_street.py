@@ -97,7 +97,7 @@ def lettering(text,x,y,z,size,rot=0):
     cu=bpy.data.curves.new('Period lettering','FONT');cu.body=text;cu.size=size;cu.align_x='CENTER';cu.extrude=0
     ob=bpy.data.objects.new(text,cu);bpy.context.collection.objects.link(ob)
     wx,wy,wz=transform((x,y,z));ob.location=(wx,-wz,wy)
-    ob.rotation_euler=(math.pi/2,0,-angle+rot)
+    ob.rotation_euler=(math.pi/2,0,angle+math.pi+rot)
     ob.data.materials.append(M['Lettering'][0])
     bpy.context.view_layer.objects.active=ob;ob.select_set(True);bpy.ops.object.convert(target='MESH');ob.select_set(False)
 
@@ -250,11 +250,11 @@ for x in [1.62,6.78]:
     for i in range(52):box(x,-.065,1.5+i+.5,.23,.17,.98,'Limestone',.74)
 # Street-name plates are plausible markers, not copied modern signs.
 origin=(-3.2,0,3);angle=0
-box(1.8,3.65,-.055,1.63,.36,.08,'Limestone')
+box(1.8,5.5,-.055,1.63,.36,.08,'Limestone')
 # Use dark lettering for these via material reassignment below.
-lettering('BROAD STREET',1.8,3.56,-.102,.16)
+lettering('BROAD STREET',1.8,5.41,-.102,.16)
 origin=(0,0,7);angle=math.pi/2
-box(0,3.65,-.055,2.1,.36,.08,'Limestone');lettering('CAMBRIDGE STREET',0,3.56,-.102,.16)
+box(0,5.5,-.055,2.1,.36,.08,'Limestone');lettering('CAMBRIDGE STREET',0,5.41,-.102,.16)
 origin=(0,0,0);angle=0
 # Drain grilles provide scale near the pump without introducing extra interaction targets.
 for x,z in [(-5,1.12),(-1,1.12),(8,-7.25)]:
