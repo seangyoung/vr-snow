@@ -194,11 +194,6 @@ export class BroadStreetScene {
   private readonly desktopMovement = new DesktopMovement();
   private lastFrameTime?: number;
   private panoramaSky?: THREE.Mesh;
-  private readonly walkableTools = [
-    createSpriteLabel("Turn left", "#d9e8ef"),
-    createSpriteLabel("Tools", "#f4d891"),
-    createSpriteLabel("Turn right", "#d9e8ef"),
-  ];
   private pointerTravel = 0;
   private pendingXrSpawn = false;
   private readonly destinationLabels = [0, 1].map(() => ({
@@ -310,14 +305,6 @@ export class BroadStreetScene {
     this.playerRig.add(this.camera);
     this.scene.add(this.playerRig);
     this.scene.add(this.courtyard.group);
-    this.walkableTools.forEach((sprite) => {
-      sprite.scale.set(0.6, 0.2, 1);
-      // These are viewer controls: keep them readable even beside the pump.
-      sprite.material.depthTest = false;
-      sprite.renderOrder = 96;
-      sprite.visible = false;
-      this.scene.add(sprite);
-    });
     this.destinationLabels.forEach(({ valid, blocked }) => {
       for (const label of [valid, blocked]) {
         label.visible = false;
@@ -833,7 +820,6 @@ export class BroadStreetScene {
     this.destinationLabels.forEach(({ valid, blocked }) => { valid.visible = blocked.visible = false; });
     this.hideVrPanel(false);
     this.snapTurnLocked = false;
-    this.walkableTools.forEach((sprite) => { sprite.visible = false; });
     this.camera.position.set(0, cameraHeight, 0);
     this.applyCurrentLocation();
   }
@@ -881,7 +867,6 @@ export class BroadStreetScene {
       this.rebuildVrPanel();
     }
 
-    this.updateWalkableTools();
     this.updateVrPointers();
     this.updateVrButtonFocus();
     this.updateVrPaginationButtons();
@@ -903,13 +888,6 @@ export class BroadStreetScene {
     if (this.courtyard.group.visible) {
       if (this.vrPanelVisible) return;
       this.setRaycasterFromController(controller);
-      const tool = this.controllerRaycaster.intersectObjects(this.walkableTools, false)[0];
-      if (tool) {
-        const index = this.walkableTools.indexOf(tool.object as THREE.Sprite);
-        if (index === 1) this.showVrPanel();
-        else this.turnWalkableView(index === 0 ? snapTurnAngle : -snapTurnAngle);
-        return;
-      }
       const hit = this.courtyard.pick(this.controllerRaycaster);
       if (hit && this.courtyard.isPump(hit.object)) {
         const pump = this.gameState.getHotspot("broad-street-pump");
@@ -1089,7 +1067,7 @@ export class BroadStreetScene {
     }
 
     if (this.courtyard.group.visible) {
-      return "Schematic street. Close this panel; select clear ground to teleport or the pump to inspect. Tools reopens this panel. Stick or Turn buttons rotate.";
+      return "Schematic street. Close this panel; select clear ground to teleport or the pump to inspect. Squeeze toggles the panel. Thumbstick turns.";
     }
     return "Aim with the controller beam. Trigger selects. Squeeze toggles the panel. Thumbstick turns.";
   }
@@ -1867,21 +1845,6 @@ export class BroadStreetScene {
     if (this.vrPanelVisible) this.placeVrPanelInFront();
   }
 
-  private updateWalkableTools(): void {
-    const visible = this.courtyard.group.visible && !this.vrPanelVisible;
-    const position = this.camera.getWorldPosition(this.vrPanelWorldPosition);
-    const forward = this.camera.getWorldDirection(this.vrPanelWorldDirection);
-    forward.y = 0;
-    forward.normalize();
-    const right = this.vrPanelLookTarget.set(-forward.z, 0, forward.x);
-    this.walkableTools.forEach((sprite, index) => {
-      sprite.visible = visible;
-      sprite.position.copy(position).addScaledVector(forward, 1.5).addScaledVector(right, (index - 1) * 0.64);
-      sprite.position.y -= 0.65;
-      sprite.updateMatrixWorld(true);
-    });
-  }
-
   private updateVrPointers(): void {
     this.vrControllers.forEach((controller, index) => {
       const pointer = this.vrControllerPointers[index];
@@ -1942,8 +1905,7 @@ export class BroadStreetScene {
 
     if (this.courtyard.group.visible) {
       if (this.vrPanelVisible) return undefined;
-      const tool = this.controllerRaycaster.intersectObjects(this.walkableTools, false)[0];
-      return tool ?? this.courtyard.pick(this.controllerRaycaster);
+      return this.courtyard.pick(this.controllerRaycaster);
     }
     const visibleHotspots = [...this.hotspotVisuals.values()].map((visual) => visual.mesh).filter((mesh) => mesh.visible);
     return this.controllerRaycaster.intersectObjects(visibleHotspots, false)[0];
@@ -1970,8 +1932,8 @@ export class BroadStreetScene {
     controller.getWorldQuaternion(this.controllerWorldQuaternion);
     this.controllerWorldDirection.set(0, 0, -1).applyQuaternion(this.controllerWorldQuaternion).normalize();
     this.controllerRaycaster.set(this.controllerWorldPosition, this.controllerWorldDirection);
-    // set() supplies only the ray. Sprite controls also require the viewing
-    // camera; without it, their first VR hover throws and aborts the frame.
+    // set() supplies only the ray. Keep its camera available for any
+    // view-dependent targets, such as sprites.
     this.controllerRaycaster.camera = this.camera;
     this.controllerRaycaster.near = 0;
     this.controllerRaycaster.far = 12;

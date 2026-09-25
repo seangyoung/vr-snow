@@ -23,7 +23,7 @@ const { PumpCourtyard, isValidDestination, canWalkBetween } = await load("walkab
 const { GameState } = await load("simulation/gameState");
 const { BroadStreetScene } = await load("render/BroadStreetScene");
 
-test("VR street entry can hover and select sprite controls, then teleport", () => {
+test("VR street entry supports pump selection, squeeze panel access, and teleport", () => {
   // Exercise the actual scene controller methods without a GPU or XR session.
   const scene = Object.create(BroadStreetScene.prototype);
   const camera = new THREE.PerspectiveCamera();
@@ -33,17 +33,11 @@ test("VR street entry can hover and select sprite controls, then teleport", () =
   const controller = new THREE.Group();
   controller.position.copy(camera.position);
   playerRig.add(controller);
-  const walkableTools = [-0.64, 0, 0.64].map((x) => {
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial());
-    sprite.position.set(x, 1.62, -1.5);
-    sprite.scale.set(0.6, 0.2, 1);
-    sprite.updateMatrixWorld(true);
-    return sprite;
-  });
   const courtyard = new PumpCourtyard();
   courtyard.group.visible = true;
   Object.assign(scene, {
-    camera, playerRig, courtyard, walkableTools,
+    camera, playerRig, courtyard,
+    gameState: new GameState(), renderer: { xr: { isPresenting: true } },
     controllerRaycaster: new THREE.Raycaster(),
     controllerWorldPosition: new THREE.Vector3(),
     controllerWorldQuaternion: new THREE.Quaternion(),
@@ -53,24 +47,33 @@ test("VR street entry can hover and select sprite controls, then teleport", () =
   camera.updateWorldMatrix(true, false);
   let opened = 0;
   scene.showVrPanel = () => { opened++; scene.vrPanelVisible = true; };
+  scene.hideVrPanel = () => { scene.vrPanelVisible = false; };
+  let inspected;
+  scene.activateVrHotspot = (hotspot) => { inspected = hotspot.id; scene.showVrPanel(); };
+  controller.position.x = 1.45;
   for (let frame = 0; frame < 10; frame++) {
-    assert.equal(scene.pickVrPointerHit(controller).object, walkableTools[1]);
+    assert.ok(courtyard.isPump(scene.pickVrPointerHit(controller).object));
   }
   scene.selectFromVrController(controller);
+  assert.equal(inspected, "broad-street-pump");
   assert.equal(opened, 1);
+  scene.toggleVrPanel();
+  assert.equal(scene.vrPanelVisible, false);
+  scene.toggleVrPanel();
+  assert.equal(scene.vrPanelVisible, true);
+  assert.equal(opened, 2);
   // The panel blocks teleportation until it is closed.
   controller.position.x = -2;
   controller.rotation.x = -Math.PI / 4;
   scene.selectFromVrController(controller);
   assert.equal(playerRig.position.length(), 0);
-  scene.vrPanelVisible = false;
+  scene.toggleVrPanel();
   const ground = scene.pickVrPointerHit(controller);
   assert.ok(courtyard.canTeleport(ground));
   scene.selectFromVrController(controller);
   const viewer = camera.getWorldPosition(new THREE.Vector3());
   assert.ok(Math.abs(viewer.x - ground.point.x) < 1e-10);
   assert.ok(Math.abs(viewer.z - ground.point.z) < 1e-10);
-  for (const sprite of walkableTools) sprite.material.dispose();
 });
 
 test("teleport preserves head height and orientation with a room-scale offset", () => {
