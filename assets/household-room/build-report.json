@@ -1,0 +1,74 @@
+{
+  "triangles": 5324,
+  "materialBatches": 13,
+  "layout": {
+    "width": 5.4,
+    "depth": 6,
+    "height": 3.15,
+    "spawn": [
+      0.95,
+      0,
+      1.6
+    ],
+    "deskTarget": [
+      0.25,
+      1.15,
+      -0.55
+    ],
+    "door": [
+      1.25,
+      0,
+      3
+    ],
+    "furniture": [
+      {
+        "id": "interview-chair",
+        "x": 0.25,
+        "z": -0.55,
+        "width": 0.65,
+        "depth": 0.65,
+        "height": 1.02
+      },
+      {
+        "id": "table",
+        "x": 1.65,
+        "z": -0.9,
+        "width": 1.2,
+        "depth": 0.9,
+        "height": 0.78
+      },
+      {
+        "id": "bed",
+        "x": -1.9,
+        "z": -1.4,
+        "width": 1.25,
+        "depth": 2.25,
+        "height": 1.1
+      },
+      {
+        "id": "hearth",
+        "x": 0.3,
+        "z": -2.7,
+        "width": 1.55,
+        "depth": 0.6,
+        "height": 1.8
+      },
+      {
+        "id": "chest",
+        "x": -2.2,
+        "z": 1.7,
+        "width": 0.65,
+        "depth": 1.1,
+        "height": 0.6
+      },
+      {
+        "id": "washstand",
+        "x": 2.35,
+        "z": 1,
+        "width": 0.55,
+        "depth": 0.8,
+        "height": 0.85
+      }
+    ]
+  }
+}

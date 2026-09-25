@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { PumpCourtyard, pumpPosition } from "../walkable/PumpCourtyard";
 import { SnowOffice, officeDeskTarget } from "../walkable/SnowOffice";
+import { HouseholdRoom, householdInterviewTarget } from "../walkable/HouseholdRoom";
 import { RegistrarRoom, registrarLedgerTarget } from "../walkable/RegistrarRoom";
 import type { WalkableEnvironment } from "../walkable/WalkableArea";
 import { WorldTravelTargets } from "../walkable/WorldTravelTargets";
@@ -199,10 +200,12 @@ export class BroadStreetScene {
   private readonly courtyard = new PumpCourtyard();
   private readonly office = new SnowOffice();
   private readonly registrar = new RegistrarRoom();
+  private readonly household = new HouseholdRoom();
   private get walkable(): WalkableEnvironment | undefined {
     if (this.courtyard.group.visible) return this.courtyard;
     if (this.office?.group.visible) return this.office;
     if (this.registrar?.group.visible) return this.registrar;
+    if (this.household?.group.visible) return this.household;
     return undefined;
   }
   private readonly panoramaLighting = new THREE.Group();
@@ -323,7 +326,8 @@ export class BroadStreetScene {
     this.camera.position.set(0, cameraHeight, 0);
     this.playerRig.add(this.camera);
     this.scene.add(this.playerRig);
-    this.scene.add(this.courtyard.group, this.office.group, this.registrar.group, this.worldTravel.group);
+    this.scene.add(this.courtyard.group, this.office.group, this.registrar.group, this.household.group, this.worldTravel.group);
+    void this.household.loadVisuals(import.meta.env.BASE_URL || "/");
     void this.registrar.loadVisuals(import.meta.env.BASE_URL || "/");
     void this.office.loadVisuals(import.meta.env.BASE_URL || "/");
     void this.courtyard.loadVisuals(import.meta.env.BASE_URL || "/");
@@ -393,9 +397,10 @@ export class BroadStreetScene {
     this.courtyard.group.visible = location.id === "broad-street";
     this.office.group.visible = location.id === "snow-desk";
     this.registrar.group.visible = location.id === "registrar";
+    this.household.group.visible = location.id === "household";
     this.panoramaLighting.visible = !this.walkable;
     this.scene.background = new THREE.Color(this.courtyard.group.visible ? "#abb0ac" : "#111619");
-    this.scene.fog = (this.office.group.visible || this.registrar.group.visible) ? null : new THREE.FogExp2(this.courtyard.group.visible ? "#abb0ac" : "#111619", this.courtyard.group.visible ? 0.014 : 0.043);
+    this.scene.fog = (this.office.group.visible || this.registrar.group.visible || this.household.group.visible) ? null : new THREE.FogExp2(this.courtyard.group.visible ? "#abb0ac" : "#111619", this.courtyard.group.visible ? 0.014 : 0.043);
     if (this.panoramaSky) this.panoramaSky.visible = !this.walkable;
     this.playerRig.position.set(0, 0, 0);
     this.applyPanorama(location.id);
@@ -421,7 +426,7 @@ export class BroadStreetScene {
     this.hotspotVisuals.forEach(({ mesh, label }) => {
       const active = activeHotspotIds.has(mesh.userData.hotspot.id);
       const inspected = this.gameState.hasInspected(mesh.userData.hotspot.id);
-      mesh.visible = active && !["broad-street-pump", "john-snow", "registrar-ledger"].includes(mesh.userData.hotspot.id);
+      mesh.visible = active && !["broad-street-pump", "john-snow", "registrar-ledger", "broad-street-household"].includes(mesh.userData.hotspot.id);
       label.visible = active;
       mesh.material.color.set(inspected ? "#89d6ba" : "#f3d37a");
       mesh.material.emissive.set(inspected ? "#1b7e62" : "#8b621a");
@@ -642,6 +647,7 @@ export class BroadStreetScene {
       if (hotspot.id === "broad-street-pump") label.position.y = 2.45;
       if (hotspot.id === "john-snow") label.position.copy(officeDeskTarget).add(new THREE.Vector3(0, .35, 0));
       if (hotspot.id === "registrar-ledger") label.position.copy(registrarLedgerTarget).add(new THREE.Vector3(0,.35,0));
+      if (hotspot.id === "broad-street-household") label.position.copy(householdInterviewTarget).add(new THREE.Vector3(0,.35,0));
       this.scene.add(label);
       this.hotspotVisuals.set(hotspot.id, { mesh, label });
     });
@@ -690,7 +696,7 @@ export class BroadStreetScene {
 
   private applyPanorama(locationId: LocationId): void {
     this.activePanoramaLocationId = locationId;
-    if (["broad-street", "snow-desk", "registrar"].includes(locationId)) return;
+    if (["broad-street", "snow-desk", "registrar", "household"].includes(locationId)) return;
     this.setSkyTexture(this.fallbackPanoramaTexture);
 
     const cachedTexture = this.panoramaTextureCache.get(locationId);
@@ -3200,7 +3206,7 @@ function disposeObjectTree(object: THREE.Object3D): void {
 const locationLookTargets: Record<LocationId, [number, number, number]> = {
   "snow-desk": [officeDeskTarget.x, officeDeskTarget.y, officeDeskTarget.z],
   "broad-street": [pumpPosition.x, 1.5, pumpPosition.z],
-  household: [-2.25, 1.18, -0.95],
+  household: [householdInterviewTarget.x, householdInterviewTarget.y, householdInterviewTarget.z],
   registrar: [registrarLedgerTarget.x, registrarLedgerTarget.y, registrarLedgerTarget.z],
   workhouse: [3.6, 1.2, -1.7],
   brewery: [3.4, 1.25, 1.8],

@@ -8,14 +8,14 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/FurnishedRoom", "walkable/RegistrarRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/FurnishedRoom", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
   await mkdir(resolve(output, name, ".."), { recursive: true });
   await writeFile(resolve(output, `${name}.js`), compiled);
 }
-for (const name of ["office-layout", "registrar-layout"]) await copyFile(`src/walkable/${name}.json`, resolve(output, `walkable/${name}.json`));
+for (const name of ["office-layout", "registrar-layout", "household-layout"]) await copyFile(`src/walkable/${name}.json`, resolve(output, `walkable/${name}.json`));
 await writeFile(resolve(output, "package.json"), '{"type":"module"}');
 const load = (name) => import(pathToFileURL(resolve(output, `${name}.js`)).href);
 const { teleportViewer, turnViewer, standardTurnAxis } = await load("walkable/locomotion");
@@ -375,6 +375,7 @@ test('scene automatic travel uses tracked viewer position, blocks panels and ded
   assert.equal(fades,1);assert.ok(scene.worldTravelPending);
 });
 
+const { HouseholdRoom, householdArea, householdSpawn, householdInterviewTarget } = await load("walkable/HouseholdRoom");
 const { RegistrarRoom, registrarArea, registrarSpawn, registrarLedgerTarget } = await load("walkable/RegistrarRoom");
 const { SnowOffice, officeArea, officeSpawn, officeDeskTarget } = await load('walkable/SnowOffice');
 const officeLayout=JSON.parse(await readFile('src/walkable/office-layout.json','utf8'));
@@ -444,16 +445,16 @@ test('actual office controller path selects desk, respects panels, teleports and
 test('office/street/panorama lifecycle restores scene geometry, lighting and arrival',()=>{
   const game=fieldGame(true),scene=Object.create(BroadStreetScene.prototype);
   const rig=new THREE.Group(),camera=new THREE.PerspectiveCamera();camera.position.y=1.62;rig.add(camera);
-  const courtyard=new PumpCourtyard(),office=new SnowOffice(),registrar=new RegistrarRoom();
-  Object.assign(scene,{gameState:game,playerRig:rig,camera,courtyard,office,registrar,desktopMovement:new DesktopMovement(),
+  const courtyard=new PumpCourtyard(),office=new SnowOffice(),registrar=new RegistrarRoom(),household=new HouseholdRoom();
+  Object.assign(scene,{gameState:game,playerRig:rig,camera,courtyard,office,registrar,household,desktopMovement:new DesktopMovement(),
     travelZones:new TravelZoneTracker(),scene:new THREE.Scene(),panoramaLighting:new THREE.Group(),panoramaSky:new THREE.Group(),
     renderer:{xr:{isPresenting:false}},primeMotionLookReference:()=>{},applyPanorama:()=>{},refreshLocationObjects:()=>{},
     refreshHotspots:()=>{},markVrPanelDirty:()=>{}});
-  for(const id of ['snow-desk','broad-street','registrar','brewery','snow-desk']) {
+  for(const id of ['snow-desk','broad-street','registrar','household','brewery','household','broad-street','snow-desk']) {
     game.travelToLocation(id);scene.applyCurrentLocation();
-    assert.equal(office.group.visible,id==='snow-desk');assert.equal(courtyard.group.visible,id==='broad-street');assert.equal(registrar.group.visible,id==='registrar');
+    assert.equal(office.group.visible,id==='snow-desk');assert.equal(courtyard.group.visible,id==='broad-street');assert.equal(registrar.group.visible,id==='registrar');assert.equal(household.group.visible,id==='household');
     assert.equal(scene.panoramaSky.visible,id==='brewery');assert.equal(scene.panoramaLighting.visible,id==='brewery');
-    const spawn=id==='snow-desk'?officeSpawn:id==='broad-street'?streetSpawn:id==='registrar'?registrarSpawn:new THREE.Vector3();
+    const spawn=id==='snow-desk'?officeSpawn:id==='broad-street'?streetSpawn:id==='registrar'?registrarSpawn:id==='household'?householdSpawn:new THREE.Vector3();
     const viewer=camera.getWorldPosition(new THREE.Vector3());assert.ok(Math.hypot(viewer.x-spawn.x,viewer.z-spawn.z)<1e-10);
     assert.equal(scene.worldTravelPending,false);
   }
@@ -525,6 +526,70 @@ test('registrar asset uses the runtime layout, embedded textures and a modest ge
   const report=JSON.parse(await readFile('assets/registrar-room/build-report.json','utf8'));
   assert.deepEqual(report.layout,registrarLayout);assert.ok(report.triangles<30000);assert.ok(report.materialBatches<=16);
   const glb=await readFile('public/models/registrar-room.glb');assert.equal(glb.readUInt32LE(0),0x46546c67);
+  const json=JSON.parse(glb.subarray(20,20+glb.readUInt32LE(12)).toString());
+  assert.ok(json.meshes.length>0);assert.ok(json.images.every(image=>image.bufferView!==undefined));
+});
+
+const householdLayout=JSON.parse(await readFile('src/walkable/household-layout.json','utf8'));
+test('household aisle, interview approach and exit remain clear around domestic furniture',()=>{
+  const zone=returnTravelRoutes.find(r=>r.id==='household-return').zone;
+  assert.ok(householdArea.canWalkBetween(householdSpawn,new THREE.Vector3(.25,0,.2)));
+  assert.ok(householdArea.canWalkBetween(householdSpawn,new THREE.Vector3(zone.x,0,zone.z)));
+  assert.ok(Math.hypot(householdSpawn.x-zone.x,householdSpawn.z-zone.z)>zone.radius+.4);
+  for(const f of householdLayout.furniture) assert.equal(householdArea.isValidDestination(new THREE.Vector3(f.x,0,f.z)),false,f.id);
+  assert.equal(householdArea.canWalkBetween(new THREE.Vector3(-.75,0,-1.4),new THREE.Vector3(-2.35,0,-1.4)),false,'bed blocks passage');
+  const keys=new DesktopMovement();keys.press('w');let p=new THREE.Vector3(.25,1.62,.5);
+  for(let i=0;i<80;i++) p=keys.update(p,0,.05,householdArea.canWalkBetween).position;
+  assert.ok(p.z>=.025 && p.z<.15,'stop before the interview chair');
+});
+
+test('household seated and standing rays reach chair, label, clear floor and return door',()=>{
+  const room=new HouseholdRoom();room.group.visible=true;const game=fieldGame(true);game.travelToLocation('household');
+  const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
+  const ray=new THREE.Raycaster();
+  for(const eyeHeight of [1.15,1.62]) {
+    const from=householdSpawn.clone().setY(eyeHeight);
+    for(const y of [.8,1.5]) {
+      ray.set(from,householdInterviewTarget.clone().setY(y).sub(from).normalize());
+      const hit=room.pick(ray);assert.equal(room.hotspotFor(hit.object),'broad-street-household');assert.equal(room.canTeleport(hit),false);
+    }
+    ray.set(from,new THREE.Vector3(0,-1,0));assert.ok(room.canTeleport(room.pick(ray)));
+  }
+  ray.set(new THREE.Vector3(1.25,1.3,1.6),new THREE.Vector3(0,0,1));
+  const hit=targets.pick(ray,'household',room.pick(ray));assert.equal(targets.routeFor(hit.object).to,'broad-street');
+  ray.set(householdSpawn.clone().setY(1.62),new THREE.Vector3(1,0,0));assert.equal(room.canTeleport(room.pick(ray)),false);
+});
+
+test('household controller interview retains both evidence cards and returns through the marked exit',()=>{
+  const game=fieldGame(true);game.travelToLocation('household');
+  const room=new HouseholdRoom();room.group.visible=true;
+  const camera=new THREE.PerspectiveCamera();camera.position.set(0,1.62,0);
+  const rig=new THREE.Group();rig.add(camera);teleportViewer(rig,camera,householdSpawn);
+  const controller=new THREE.Group();controller.position.copy(householdSpawn).setY(1.62);
+  controller.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),householdInterviewTarget.clone().setY(.8).sub(controller.position).normalize());
+  const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
+  const scene=Object.create(BroadStreetScene.prototype);
+  Object.assign(scene,{camera,playerRig:rig,courtyard:new PumpCourtyard(),office:new SnowOffice(),registrar:new RegistrarRoom(),household:room,worldTravel:targets,gameState:game,
+    renderer:{xr:{isPresenting:true}},desktopMovement:new DesktopMovement(),controllerRaycaster:new THREE.Raycaster(),
+    controllerWorldPosition:new THREE.Vector3(),controllerWorldQuaternion:new THREE.Quaternion(),controllerWorldDirection:new THREE.Vector3(),
+    cameraWorldPosition:new THREE.Vector3(),travelZones:new TravelZoneTracker(),vrPanelVisible:false,vrPanelButtons:[],
+    hotspotVisuals:new Map(),worldTravelPending:false,hideVrPanel:()=>{},activateVrHotspot:h=>game.inspectHotspot(h.id)});
+  scene.selectFromVrController(controller);assert.ok(game.hasInspected('broad-street-household'));
+  game.askQuestion('household-water-question');assert.ok(game.hasEvidence('household-exposure'));
+  game.askQuestion('household-pattern-question');assert.ok(game.hasEvidence('household-water-pattern'));
+  const zone=returnTravelRoutes.find(r=>r.id==='household-return').zone;
+  scene.vrPanelVisible=true;teleportViewer(rig,camera,new THREE.Vector3(zone.x,0,zone.z));scene.updateWorldTravelZones();
+  scene.vrPanelVisible=false;scene.updateWorldTravelZones();assert.equal(game.getCurrentLocation().id,'household','closing interview does not trigger travel');
+  teleportViewer(rig,camera,householdSpawn);scene.updateWorldTravelZones();
+  teleportViewer(rig,camera,new THREE.Vector3(zone.x,0,zone.z));scene.updateWorldTravelZones();
+  assert.equal(game.getCurrentLocation().id,'broad-street');assert.ok(game.hasEvidence('household-exposure'));assert.ok(game.hasEvidence('household-water-pattern'));
+  assert.ok(game.travelToLocation('household').traveled,'map return remains available');
+});
+
+test('household asset shares navigation layout and stays within the room geometry budget',async()=>{
+  const report=JSON.parse(await readFile('assets/household-room/build-report.json','utf8'));
+  assert.deepEqual(report.layout,householdLayout);assert.ok(report.triangles<30000);assert.ok(report.materialBatches<=16);
+  const glb=await readFile('public/models/household-room.glb');assert.equal(glb.readUInt32LE(0),0x46546c67);
   const json=JSON.parse(glb.subarray(20,20+glb.readUInt32LE(12)).toString());
   assert.ok(json.meshes.length>0);assert.ok(json.images.every(image=>image.bufferView!==undefined));
 });
