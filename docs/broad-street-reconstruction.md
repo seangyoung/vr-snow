@@ -20,7 +20,7 @@ The modern pub building dates later than the story, so the corner is an inferred
 
 Coordinates use metres, with east approximately +X and south +Z in a street-aligned frame, not geographic bearings. Broad Street's frontage separation is 12 m; Cambridge's is 8.4 m. Most terrace bays are 6 m wide. Pavements are approximately 1.5–1.6 m wide, building parapets 9–11 m high, and the pump 2.27 m high. These are explicit modeling estimates derived from proportions, not measurements extracted from Street View.
 
-The pump is at (-3.8, 0, 1.3), beside the southern curb. Arrival is (1.6, 0, -2), facing the pump across the junction. Movement is limited to a roughly 28 m wide section of Broad Street and the near Cambridge mouth. The roads and buildings continue beyond it for perspective. No new boundary signs, barriers or action targets were added.
+The pump is at (-3.8, 0, 1.3), beside the southern curb. Arrival is (1.6, 0, -2), facing the pump across the junction. Movement is limited to a roughly 28 m wide section of Broad Street and the near Cambridge mouth. The roads and buildings continue beyond it for perspective. The travel targets described below mark routes out of this slice.
 
 The visual road is 13 cm below the pavement. Teleport and walking retain a common height datum, so camera height does not bob at the curb. Physical step simulation and precise pavement elevations remain future work.
 
@@ -51,3 +51,20 @@ Automated checks cover movement, facade corner cutting, pump clearance, controll
 Quest frame rate, stereo scale, loading and comfort require a fresh on-device check for this more detailed asset. The previous simple street's headset result does not validate this reconstruction. Materials are deliberately economical; measured facade surveys, more specific shopfront evidence and professionally authored surface detail could improve fidelity further.
 
 For this revision, all 15 automated checks and the production build passed. The desktop production preview loaded the authored model without console warnings/errors; pump selection, evidence collection, ground teleportation, travel to Snow's desk and return were exercised. The final exported doors, corner windows and street sight lines were inspected in the browser. These checks do not establish an XR frame-rate result.
+
+
+## In-world scene connections
+
+Broad Street is the navigation hub. Enter an unlocked marked ring to travel automatically, or select its sign, ring or highlighted household door with the cursor/controller ray. Map travel remains available with the same evidence prerequisites. Locked targets are gray. Opening a panel blocks automatic travel; closing it or unlocking a destination while already inside a ring does not trigger a jump. Leave and re-enter the ring instead.
+
+| Destination | Route from the pump intersection | Basis and limit |
+| --- | --- | --- |
+| Lion Brewery | East along Broad Street | Existing inquiry map and UCLA's Stream 2 tour. The marker is an exit, not the brewery building. |
+| St. James Workhouse | East along Broad Street, then north via Poland Street | [UCLA Stream 2, workhouse section](https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_d.html) identifies the small entrance on Poland Street. The route follows the entrance rather than a straight line to the map marker. |
+| Snow's desk | South via Cambridge Street, then onward | An off-map connection consistent with the existing map's southern marker; no measured route or travel time is claimed. |
+| Registrar | South via Cambridge Street, then onward | An off-map records-office connection, not a claim that the office stood at the end of Cambridge Street. |
+| Household | Marked northern frontage, west of the pump | A representative interview location, not an identified family's documented address. Its map marker has moved to Broad Street. The highlighted door is part of the modeled no. 19 frontage. |
+
+East/south are approximate street-relative directions, consistent with the model axes. Door placement and exit distances remain illustrative. The household, brewery and workhouse panoramas have stationary selectable return targets to Broad Street. The registrar returns to Snow for records review; Snow has an exit to Broad Street. These panorama scenes remain stationary viewpoints, so their return targets require selection. The Board remains behind the existing Snow-review flow.
+
+Routes and approach zones are defined in `src/walkable/TravelRoutes.ts`; `WorldTravelTargets.ts` creates small runtime meshes and labels. No Blender asset rebuild is required to reposition them. Panorama return markers are world-fixed wayfinding labels, not calibrated physical door geometry or compass bearings.

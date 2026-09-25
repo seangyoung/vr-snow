@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { PumpCourtyard, pumpPosition, streetSpawn } from "../walkable/PumpCourtyard";
+import { WorldTravelTargets } from "../walkable/WorldTravelTargets";
+import { streetTravelRoutes, TravelZoneTracker, type WorldTravelRoute } from "../walkable/TravelRoutes";
 import { DesktopMovement } from "../walkable/DesktopMovement";
 import { standardTurnAxis, teleportViewer, turnViewer } from "../walkable/locomotion";
 import { VRButton } from "three/addons/webxr/VRButton.js";
@@ -185,6 +187,7 @@ const motionLookZAxis = new THREE.Vector3(0, 0, 1);
 export class BroadStreetScene {
   onFocusChange?: (hotspot?: Hotspot) => void;
   onHotspotActivate?: (hotspot: Hotspot) => void;
+  onWorldTravel?: (locationId: LocationId) => void;
   onMotionLookChange?: () => void;
 
   private readonly scene = new THREE.Scene();
@@ -192,6 +195,10 @@ export class BroadStreetScene {
   private readonly playerRig = new THREE.Group();
   private readonly courtyard = new PumpCourtyard();
   private readonly panoramaLighting = new THREE.Group();
+  private readonly worldTravel = new WorldTravelTargets();
+  private readonly travelZones = new TravelZoneTracker();
+  private focusedTravel?: WorldTravelRoute;
+  private worldTravelPending = false;
   private readonly desktopMovement = new DesktopMovement();
   private lastFrameTime?: number;
   private panoramaSky?: THREE.Mesh;
@@ -305,7 +312,7 @@ export class BroadStreetScene {
     this.camera.position.set(0, cameraHeight, 0);
     this.playerRig.add(this.camera);
     this.scene.add(this.playerRig);
-    this.scene.add(this.courtyard.group);
+    this.scene.add(this.courtyard.group, this.worldTravel.group);
     void this.courtyard.loadVisuals(import.meta.env.BASE_URL || "/");
     this.destinationLabels.forEach(({ valid, blocked }) => {
       for (const label of [valid, blocked]) {
@@ -344,6 +351,7 @@ export class BroadStreetScene {
       const elapsed = this.lastFrameTime === undefined ? 0 : timeSeconds - this.lastFrameTime;
       this.lastFrameTime = timeSeconds;
       this.updateDesktopMovement(elapsed);
+      this.updateWorldTravelZones();
       this.updateHotspots(timeSeconds);
       this.updateVrControls(timeSeconds);
       this.updateFocusFromCenter();
@@ -364,6 +372,9 @@ export class BroadStreetScene {
 
   applyCurrentLocation(): void {
     this.desktopMovement.clear();
+    this.worldTravelPending = false;
+    this.focusedTravel = undefined;
+    this.travelZones.reset();
     const location = this.gameState.getCurrentLocation();
     const target = locationLookTargets[location.id] ?? [0, 0, -4];
     this.courtyard.group.visible = location.id === "broad-street";
@@ -389,6 +400,7 @@ export class BroadStreetScene {
   }
 
   refreshHotspots(): void {
+    this.worldTravel?.refresh(this.gameState);
     const activeHotspotIds = new Set(this.gameState.getHotspots().map((hotspot) => hotspot.id));
     this.hotspotVisuals.forEach(({ mesh, label }) => {
       const active = activeHotspotIds.has(mesh.userData.hotspot.id);
@@ -753,6 +765,11 @@ export class BroadStreetScene {
       }
       if (this.pointerTravel > 6 || document.body.dataset.overlayOpen === "true") return;
       const hotspot = this.pickHotspot(event.clientX, event.clientY);
+      const travel = this.worldTravel?.routeFor(this.pickWorldTravelHit(this.raycaster)?.object as THREE.Object3D);
+      if (travel) {
+        this.activateWorldTravel(travel);
+        return;
+      }
       if (hotspot) {
         this.onHotspotActivate?.(hotspot);
       } else if (this.courtyard.group.visible) {
@@ -773,6 +790,12 @@ export class BroadStreetScene {
       if (this.renderer.xr.isPresenting || document.body.dataset.overlayOpen === "true"
         || (event.target instanceof HTMLElement && event.target.closest("button, input, textarea, select, [contenteditable]"))) return;
       if (event.key === "Enter" || event.key === " ") {
+        if (event.repeat) return;
+        if (this.focusedTravel) {
+          event.preventDefault();
+          this.activateWorldTravel(this.focusedTravel);
+          return;
+        }
         if (this.focusedHotspot) {
           this.onHotspotActivate?.(this.focusedHotspot);
         }
@@ -891,6 +914,11 @@ export class BroadStreetScene {
       return;
     }
 
+    if (this.vrPanelVisible) return;
+    this.setRaycasterFromController(controller);
+    const travel = this.worldTravel?.routeFor(this.pickWorldTravelHit(this.controllerRaycaster)?.object as THREE.Object3D);
+    if (travel) { this.activateWorldTravel(travel); return; }
+
     if (this.courtyard.group.visible) {
       if (this.vrPanelVisible) return;
       this.setRaycasterFromController(controller);
@@ -913,6 +941,40 @@ export class BroadStreetScene {
     if (this.focusedHotspot) {
       this.activateVrHotspot(this.focusedHotspot);
     }
+  }
+
+  private pickWorldTravelHit(raycaster: THREE.Raycaster): THREE.Intersection | undefined {
+    const obstruction = this.courtyard.group.visible ? this.courtyard.pick(raycaster)
+      : raycaster.intersectObjects([...this.hotspotVisuals.values()].map(v=>v.mesh).filter(m=>m.visible),false)[0];
+    return this.worldTravel?.pick(raycaster, this.gameState.getCurrentLocation().id, obstruction) ?? obstruction;
+  }
+
+  private activateWorldTravel(route: WorldTravelRoute): void {
+    if (this.worldTravelPending || route.from !== this.gameState.getCurrentLocation().id
+      || !this.gameState.canTravelToLocation(route.to)) return;
+    this.worldTravelPending = true;
+    this.desktopMovement.clear();
+    if (this.renderer.xr.isPresenting) {
+      const result = this.gameState.travelToLocation(route.to);
+      this.worldTravelPending = false;
+      this.vrStatus = result.message;
+      this.vrPanelMode = "home";
+      if (result.traveled) this.hideVrPanel();
+    } else if (this.onWorldTravel) {
+      this.onWorldTravel(route.to);
+    } else {
+      this.worldTravelPending = false;
+    }
+  }
+
+  private updateWorldTravelZones(): void {
+    if (!this.courtyard.group.visible) return;
+    const position = this.camera.getWorldPosition(this.cameraWorldPosition);
+    const blocked = this.worldTravelPending || (this.renderer.xr.isPresenting ? this.vrPanelVisible
+      : !this.canUseDesktopMovement());
+    const route = this.travelZones.update(position.x, position.z, streetTravelRoutes,
+      candidate => !blocked && this.gameState.canTravelToLocation(candidate.to));
+    if (route) this.activateWorldTravel(route);
   }
 
   private activateVrHotspot(hotspot: Hotspot): void {
@@ -1875,7 +1937,8 @@ export class BroadStreetScene {
         label.position.copy(hit.point);
         label.position.y += 0.2;
       }
-      const color = floorHit && hit ? (this.courtyard.canTeleport(hit) ? "#8fdfb4" : "#ef8f80")
+      const travel = hit && this.worldTravel?.routeFor(hit.object);
+      const color = travel ? (this.gameState.canTravelToLocation(travel.to) ? "#b9e6a5" : "#a39a87") : floorHit && hit ? (this.courtyard.canTeleport(hit) ? "#8fdfb4" : "#ef8f80")
         : isButton ? "#8fd3ff" : hit ? "#f4d891" : "#d7e7ff";
       pointer.beam.material.color.set(color);
       pointer.reticle.material.color.set(color);
@@ -1911,10 +1974,11 @@ export class BroadStreetScene {
 
     if (this.courtyard.group.visible) {
       if (this.vrPanelVisible) return undefined;
-      return this.courtyard.pick(this.controllerRaycaster);
+      return this.pickWorldTravelHit(this.controllerRaycaster);
     }
     const visibleHotspots = [...this.hotspotVisuals.values()].map((visual) => visual.mesh).filter((mesh) => mesh.visible);
-    return this.controllerRaycaster.intersectObjects(visibleHotspots, false)[0];
+    const hit = this.controllerRaycaster.intersectObjects(visibleHotspots, false)[0];
+    return this.worldTravel?.pick(this.controllerRaycaster, this.gameState.getCurrentLocation().id, hit) ?? hit;
   }
 
   private pickVrPanel(controller: THREE.Group): THREE.Intersection<THREE.Object3D> | undefined {
@@ -1974,6 +2038,13 @@ export class BroadStreetScene {
   private updateFocusFromCenter(): void {
     this.camera.getWorldPosition(this.cameraWorldPosition);
     this.camera.getWorldDirection(this.cameraDirection);
+    this.raycaster.set(this.cameraWorldPosition, this.cameraDirection);
+    this.focusedTravel = this.worldTravel?.routeFor(this.pickWorldTravelHit(this.raycaster)?.object as THREE.Object3D);
+    if (this.focusedTravel) {
+      this.focusedHotspot = undefined;
+      this.onFocusChange?.(undefined);
+      return;
+    }
 
     if (this.courtyard.group.visible) {
       this.raycaster.set(this.cameraWorldPosition, this.cameraDirection);
@@ -2603,7 +2674,8 @@ function drawVrMapLocation(
   const paddingX = fontSize * 0.45;
   const labelWidth = ctx.measureText(location.label).width + paddingX * 2;
   const labelHeight = fontSize * 1.35;
-  const preferredX = point.x + radius * 1.35;
+  const preferredX = location.id === "household"
+    ? point.x - radius * 1.35 - labelWidth : point.x + radius * 1.35;
   const labelX = clampValue(preferredX, rect.x + 8, rect.x + rect.width - labelWidth - 8);
   const labelY = clampValue(point.y - labelHeight / 2, rect.y + 8, rect.y + rect.height - labelHeight - 8);
   drawRoundRect(ctx, labelX, labelY, labelWidth, labelHeight, labelHeight * 0.48);

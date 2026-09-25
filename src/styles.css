@@ -1171,9 +1171,16 @@ button {
   font-size: 0.68rem;
   font-weight: 850;
   line-height: 1;
-  transform: translate(-50%, -50%);
+  transform: translate(var(--node-anchor, -50%), -50%);
   pointer-events: auto;
 }
+
+.map-node.has-label-left {
+  --node-anchor: calc(-100% + 15px);
+  grid-template-columns: auto 14px;
+}
+.map-node.has-label-left .node-dot { grid-column: 2; grid-row: 1; }
+.map-node.has-label-left .node-label { grid-column: 1; grid-row: 1; }
 
 .node-popover {
   position: absolute;
@@ -1301,7 +1308,7 @@ button {
 .map-node:not(:disabled):hover {
   border-color: rgba(15, 66, 60, 0.72);
   background: #fff0b9;
-  transform: translate(-50%, -50%) scale(1.04);
+  transform: translate(var(--node-anchor, -50%), -50%) scale(1.04);
 }
 
 .map-node:disabled {

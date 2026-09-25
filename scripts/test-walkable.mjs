@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["render/BroadStreetScene", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["render/BroadStreetScene", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
@@ -271,4 +271,105 @@ test("generated building envelopes do not occupy any permitted walking position"
     assert.equal(point.x > r.minX && point.x < r.maxX && point.z > r.minZ && point.z < r.maxZ, false,
       `Building overlaps the street at ${point.x}, ${point.z}`);
   }
+});
+
+const { streetTravelRoutes, returnTravelRoutes, TravelZoneTracker } = await load('walkable/TravelRoutes');
+const { WorldTravelTargets } = await load('walkable/WorldTravelTargets');
+function fieldGame(unlocked=false) {
+  const game=new GameState();game.inspectHotspot('john-snow');game.askQuestion('snow-method-question');
+  if(unlocked) {
+    game.travelToLocation('registrar');game.inspectHotspot('registrar-ledger');game.askQuestion('ledger-timeline-question');
+    game.travelToLocation('snow-desk');game.inspectHotspot('john-snow');game.askQuestion('pump-cluster-question');
+  }
+  game.travelToLocation('broad-street');return game;
+}
+
+test('automatic travel fires once on entry, including after ground teleport, and does not fire on unlock',()=>{
+  const tracker=new TravelZoneTracker();const route=streetTravelRoutes.find(r=>r.to==='brewery');const z=route.zone;
+  assert.equal(tracker.update(0,0,streetTravelRoutes,()=>true),undefined);
+  assert.equal(tracker.update(z.x,z.z,streetTravelRoutes,()=>false),undefined);
+  assert.equal(tracker.update(z.x,z.z,streetTravelRoutes,()=>true),undefined,'unlock while inside must not trigger');
+  tracker.update(0,0,streetTravelRoutes,()=>true);
+  assert.equal(tracker.update(z.x,z.z,streetTravelRoutes,()=>true).to,'brewery');
+  assert.equal(tracker.update(z.x,z.z,streetTravelRoutes,()=>true),undefined);
+  tracker.reset();
+  assert.equal(tracker.update(z.x,z.z,streetTravelRoutes,()=>false),undefined,'blocked panel consumes entry');
+  assert.equal(tracker.update(z.x,z.z,streetTravelRoutes,()=>true),undefined,'closing a panel cannot trigger travel');
+});
+
+test('all street approach rings are reachable and outside spawn and each other',()=>{
+  for(const a of streetTravelRoutes) {
+    assert.ok(isValidDestination(new THREE.Vector3(a.zone.x,0,a.zone.z)));
+    assert.ok(Math.hypot(streetSpawn.x-a.zone.x,streetSpawn.z-a.zone.z)>a.zone.radius+1);
+    for(const b of streetTravelRoutes) if(a!==b) assert.ok(Math.hypot(a.zone.x-b.zone.x,a.zone.z-b.zone.z)>a.zone.radius+b.zone.radius);
+  }
+  assert.ok(streetTravelRoutes.find(r=>r.to==='brewery').zone.x>pumpPosition.x);
+  assert.ok(streetTravelRoutes.find(r=>r.to==='workhouse').direction.includes('Poland'));
+  assert.ok(streetTravelRoutes.find(r=>r.to==='snow-desk').zone.z>pumpPosition.z);
+  assert.ok(streetTravelRoutes.find(r=>r.to==='household').zone.z<pumpPosition.z);
+});
+
+test('world travel shares map prerequisites and cannot bypass Board preparation',()=>{
+  const game=fieldGame();
+  for(const id of ['household','brewery','workhouse']) assert.equal(game.travelToLocation(id).traveled,false);
+  const unlocked=fieldGame(true);
+  for(const route of streetTravelRoutes) assert.ok(unlocked.canTravelToLocation(route.to));
+  assert.equal(unlocked.canTravelToLocation('board-room'),false);
+  assert.ok(returnTravelRoutes.every(r=>r.to==='broad-street'||r.to==='snow-desk'));
+  assert.equal(unlocked.getLocation('household').title,'Broad Street Household');
+  assert.ok(unlocked.getLocation('household').mapPoint.y<unlocked.getLocation('broad-street').mapPoint.y);
+});
+
+test('target picking respects building occlusion, active scene, and marked household door',()=>{
+  const game=fieldGame(true);const street=new PumpCourtyard();street.group.visible=true;
+  const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
+  const ray=new THREE.Raycaster(new THREE.Vector3(-11,1.3,-6),new THREE.Vector3(0,0,-1));
+  let hit=targets.pick(ray,'broad-street',street.pick(ray));
+  assert.equal(targets.routeFor(hit.object).to,'household');
+  ray.set(new THREE.Vector3(10,1.65,-1.5),new THREE.Vector3(1,0,0));
+  hit=targets.pick(ray,'broad-street',street.pick(ray));assert.equal(targets.routeFor(hit.object).to,'brewery');
+  const wall={distance:1,object:new THREE.Object3D()};
+  assert.equal(targets.pick(ray,'broad-street',wall),wall);
+  assert.equal(targets.pick(ray,'snow-desk'),undefined);
+});
+
+test('actual controller travel honors locked targets and panel blocking, then travels once unlocked',()=>{
+  const game=fieldGame();const street=new PumpCourtyard();street.group.visible=true;
+  const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
+  const camera=new THREE.PerspectiveCamera();const rig=new THREE.Group();rig.add(camera);
+  const controller=new THREE.Group();controller.position.set(10,1.65,-1.5);
+  controller.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),new THREE.Vector3(1,0,0));
+  const scene=Object.create(BroadStreetScene.prototype);
+  Object.assign(scene,{camera,playerRig:rig,courtyard:street,worldTravel:targets,gameState:game,
+    renderer:{xr:{isPresenting:true}},desktopMovement:new DesktopMovement(),controllerRaycaster:new THREE.Raycaster(),
+    controllerWorldPosition:new THREE.Vector3(),controllerWorldQuaternion:new THREE.Quaternion(),controllerWorldDirection:new THREE.Vector3(),
+    vrPanelVisible:false,vrPanelButtons:[],hotspotVisuals:new Map(),worldTravelPending:false,
+    hideVrPanel:()=>{scene.vrPanelVisible=false;}});
+  scene.selectFromVrController(controller);assert.equal(game.getCurrentLocation().id,'broad-street');
+  const unlocked=fieldGame(true);scene.gameState=unlocked;targets.refresh(unlocked);
+  scene.vrPanelVisible=true;scene.selectFromVrController(controller);assert.equal(unlocked.getCurrentLocation().id,'broad-street');
+  scene.vrPanelVisible=false;scene.selectFromVrController(controller);assert.equal(unlocked.getCurrentLocation().id,'brewery');
+  assert.ok(unlocked.hasEvidence('pump-cluster'));
+  scene.activateWorldTravel(streetTravelRoutes[0]);assert.equal(unlocked.getCurrentLocation().id,'brewery');
+});
+
+test('scene automatic travel uses tracked viewer position, blocks panels and deduplicates desktop fades',()=>{
+  const game=fieldGame(true), scene=Object.create(BroadStreetScene.prototype);
+  const camera=new THREE.PerspectiveCamera(), rig=new THREE.Group();rig.add(camera);
+  const street=new PumpCourtyard();street.group.visible=true;
+  Object.assign(scene,{gameState:game,camera,playerRig:rig,courtyard:street,cameraWorldPosition:new THREE.Vector3(),
+    renderer:{xr:{isPresenting:true}},travelZones:new TravelZoneTracker(),worldTravelPending:false,
+    vrPanelVisible:true,desktopMovement:new DesktopMovement(),hideVrPanel:()=>{}});
+  const route=streetTravelRoutes.find(r=>r.to==='brewery'), zone=route.zone;
+  // A physical head offset plus rig translation lands in the same world-space zone.
+  rig.position.set(zone.x-.4,0,zone.z);camera.position.set(.4,1.62,0);
+  scene.updateWorldTravelZones();assert.equal(game.getCurrentLocation().id,'broad-street');
+  scene.vrPanelVisible=false;scene.updateWorldTravelZones();assert.equal(game.getCurrentLocation().id,'broad-street');
+  rig.position.x-=2;scene.updateWorldTravelZones();rig.position.x+=2;
+  scene.updateWorldTravelZones();assert.equal(game.getCurrentLocation().id,'brewery');
+  game.travelToLocation('broad-street');scene.travelZones.reset();scene.renderer.xr.isPresenting=false;
+  scene.canUseDesktopMovement=()=>true;
+  let fades=0;scene.onWorldTravel=(id)=>{assert.equal(id,'brewery');fades++;};
+  scene.updateWorldTravelZones();scene.updateWorldTravelZones();scene.activateWorldTravel(route);
+  assert.equal(fades,1);assert.ok(scene.worldTravelPending);
 });

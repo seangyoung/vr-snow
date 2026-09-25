@@ -38,6 +38,7 @@ scene.onHotspotActivate = (hotspot) => {
   ui.render();
   scene.refreshHotspots();
 };
+scene.onWorldTravel = (locationId) => ui.beginTravel(locationId);
 scene.onMotionLookChange = () => ui.render();
 
 gameState.onChange(() => {

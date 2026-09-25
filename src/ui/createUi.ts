@@ -106,6 +106,7 @@ const mapAnnotations: Array<{
 export interface PrototypeUi {
   onReset?: () => void;
   openSnowReview: () => void;
+  beginTravel: (locationId: LocationId) => void;
   render: () => void;
   setMotionLookControls: (controls: MotionLookControls) => void;
   setPrompt: (hotspot?: Hotspot) => void;
@@ -120,6 +121,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   let motionLookControls: MotionLookControls | undefined;
 
   const ui: PrototypeUi = {
+    beginTravel,
     openSnowReview() {
       if (canOpenSnowReview()) {
         gameState.closeDialogue();
@@ -318,7 +320,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           <span class="objective-kicker">Broad Street Inquiry</span>
           <strong>${escapeHtml(gameState.getObjective())}</strong>
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
-          ${currentLocation.id === "broad-street" ? '<span class="location-line">WASD to move · ↑/↓ forward/back · ←/→ turn<br>Drag to look · Click ground to teleport or pump to inspect<br>Broad Street · London, 1854</span>' : ""}
+          ${currentLocation.id === "broad-street" ? '<span class="location-line">WASD to move · ↑/↓ forward/back · ←/→ turn<br>Drag to look · Click ground to teleport · Select signs or enter travel rings<br>Broad Street · London, 1854</span>' : ""}
         </section>
 
         <nav class="tool-rail" aria-label="Investigation tools">
@@ -351,6 +353,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   }
 
   function beginTravel(locationId: LocationId | undefined): void {
+    if (isTransitioning) return;
     const location = locationId ? gameState.getLocation(locationId) : undefined;
     if (!location || !locationId) {
       message = "That location is not on the inquiry map.";
@@ -1048,6 +1051,7 @@ function renderLocationNode(
   const popover = renderLocationEvidencePopover(location.id, gameState);
   const classes = [
     "map-node",
+    location.id === "household" ? "has-label-left" : "",
     active ? "is-current" : "",
     unlocked ? "is-unlocked" : "is-locked",
     offMap ? "is-off-map" : "",

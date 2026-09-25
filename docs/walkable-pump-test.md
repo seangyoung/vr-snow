@@ -49,4 +49,18 @@ The public walkable URL changes only after this branch is committed, pushed, val
 
 ## Reconstruction check (September 2026)
 
-Repeat the headset checklist with the new environment. Confirm the pump is immediately visible on arrival, the continuous terrace stands opposite the Cambridge mouth, rooflines have no missing faces, and the ground remains comfortable when crossing a curb. Inspect loading on a fresh headset tab, then travel to the desk and back. Record performance separately from the earlier schematic street. There are no new controls or interaction targets.
+Repeat the headset checklist with the new environment. Confirm the pump is immediately visible on arrival, the continuous terrace stands opposite the Cambridge mouth, rooflines have no missing faces, and the ground remains comfortable when crossing a curb. Inspect loading on a fresh headset tab, then travel to the desk and back. Record performance separately from the earlier schematic street. The reconstruction itself retains the existing pump interaction; the scene connections below add travel targets.
+
+
+## In-world travel check
+
+1. Before reviewing the registrar addresses with Snow, confirm the brewery, workhouse and household signs are locked. Selecting them or entering their rings must not travel.
+2. Use the southbound registrar sign, collect the ledger evidence, and use its return target to reach Snow. Review the plotted addresses. Return to Broad Street and confirm the three field destinations unlock.
+3. Enter each marked street ring by walking on desktop or by ground teleport/physical movement in VR. Confirm one scene change, preserved evidence, and return to the normal street spawn. Select a sign with each controller as an alternative.
+4. Select the highlighted household door itself. Confirm it opens the same household scene as the map. Use its return target, then test the map again.
+5. Open a panel while in a ring, then close it. Confirm there is no surprise jump. Leave and re-enter to travel. Repeat scene entry and check for accidental repeat transitions.
+6. Inspect stationary return labels in the household, brewery, workhouse and registrar scenes. They should remain fixed as you turn your head, and should not block interview targets.
+
+Automated coverage includes actual controller selection, tracked viewer zone entry with a room-scale offset, panel blocking, unlock-while-inside behavior, duplicate desktop-transition prevention, occlusion, reachable approach centers and evidence retention. Browser checks exercise sign/door selection, return travel and the existing map. Automatic travel comfort and sign readability still require the headset check.
+
+For the travel-target revision, all 21 automated checks and the production build passed. The browser check confirmed locked signs, registrar travel and return, household door entry, map travel, visible ground rings, and non-overlapping household/brewery labels. No browser warning/error messages were recorded. Quest testing remains outstanding.

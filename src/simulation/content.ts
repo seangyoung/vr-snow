@@ -363,10 +363,10 @@ export const locations: InvestigationLocation[] = [
   },
   {
     id: "household",
-    title: "Golden Square Household",
+    title: "Broad Street Household",
     shortTitle: "Household",
-    description: "A household interview turns a death mark into timing, care, and water-use testimony.",
-    mapPoint: { x: 45, y: 67 },
+    description: "A representative Broad Street household interview explores timing, care, and water-use testimony; this doorway is illustrative.",
+    mapPoint: { x: 55, y: 39 },
     unlocksWith: "pump-cluster",
   },
   {
