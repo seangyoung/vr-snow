@@ -27,7 +27,7 @@ export const returnTravelRoutes: WorldTravelRoute[] = [
   // Fixed exits in panorama scenes; the modeled interiors also have walk-in doorway zones.
   { id:"household-return", from:"household", to:"broad-street", title:"Return to Broad Street", direction:"Leave the household", position:[1.25,2.8,2.8],labelWidth:1.45,yaw:Math.PI, zone:{x:1.25,z:2.4,radius:.32}, door:true },
   { id:"brewery-return", from:"brewery", to:"broad-street", title:"Return to Broad Street", direction:"Leave the brewery", position:[1.3,1.35,3.2],yaw:Math.PI },
-  { id:"workhouse-return", from:"workhouse", to:"broad-street", title:"Return to Broad Street", direction:"Leave via Poland Street", position:[1.8,1.35,-3],yaw:0 },
+  { id:"workhouse-return", from:"workhouse", to:"broad-street", title:"Return to Broad Street", direction:"Leave via Poland Street", position:[0,2.8,9.8],labelWidth:1.45,yaw:Math.PI, zone:{x:0,z:9.2,radius:.45}, door:true },
   { id:"registrar-return", from:"registrar", to:"snow-desk", title:"Return to Snow's Desk", direction:"Take the copied records to Snow", position:[2.1,2.87,4.0],labelWidth:1.45,yaw:Math.PI, zone:{x:2.1,z:3.5,radius:.35}, door:true },
   { id:"snow-street", from:"snow-desk", to:"broad-street", title:"Go to Broad Street", direction:"Leave the office for the pump", position:[1.65,2.8,3.0],labelWidth:1.45,yaw:Math.PI, zone:{x:1.65,z:2.58,radius:.33}, door:true },
 ];

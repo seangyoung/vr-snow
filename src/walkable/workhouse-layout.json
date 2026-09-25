@@ -1,0 +1,15 @@
+{
+  "width": 18, "depth": 20, "height": 8.8,
+  "spawn": [1.8, 0, 5.9],
+  "deskTarget": [-2.2, 1.1, -1.2],
+  "door": [0, 0, 10],
+  "furniture": [
+    {"id":"steward-table", "x":-2.2, "z":-1.2, "width":2, "depth":1.1, "height":0.83},
+    {"id":"steward-chair", "x":-2.2, "z":-2.6, "width":0.65, "depth":0.65, "height":1.1},
+    {"id":"water-supply", "x":3, "z":-1.8, "width":2.8, "depth":2.8, "height":2.8},
+    {"id":"west-bench", "x":-8.3, "z":2.4, "width":0.65, "depth":3, "height":1.05},
+    {"id":"east-bench", "x":8.3, "z":3.5, "width":0.65, "depth":3, "height":1.05},
+    {"id":"garden-bed", "x":7.8, "z":-5.3, "width":1.4, "depth":5.6, "height":0.6},
+    {"id":"storage-chest", "x":-7.8, "z":-6.6, "width":1.6, "depth":1.1, "height":1.1}
+  ]
+}
