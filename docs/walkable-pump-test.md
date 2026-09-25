@@ -39,7 +39,8 @@ The public walkable URL changes only after this branch is committed, pushed, val
 
 ## Verification completed
 
-- All eleven automated checks passed, including offset-preserving teleport and eight consecutive snap turns without viewer translation.
+- All twelve automated checks passed, including offset-preserving teleport and eight consecutive snap turns without viewer translation.
+- A controller-path regression test reproduces the reported street-entry freeze before the camera-reference fix, and passes afterward. It exercises sprite hover, Tools selection, panel blocking, and ground teleportation using the actual scene methods. Confirmation on Quest is still required.
 - Keyboard checks cover direction, diagonal speed, turning, swept pump collision, wall sliding, released keys, focus-state clearing, and frame timing. Browser checks confirmed forward movement, arrow turning, and no movement from arrow input while the map was open.
 - Production build passed with `/vr-snow/walkable/` as its asset base.
 - Desktop production preview: Snow assignment, map travel, ground teleport, drag-to-look, geometry selection, evidence collection, notebook entry, and return to Snow's panorama passed. No browser console errors were reported during that check.

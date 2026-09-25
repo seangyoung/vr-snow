@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["render/BroadStreetScene", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
@@ -21,6 +21,57 @@ const { teleportViewer, turnViewer, standardTurnAxis } = await load("walkable/lo
 const { DesktopMovement } = await load("walkable/DesktopMovement");
 const { PumpCourtyard, isValidDestination, canWalkBetween } = await load("walkable/PumpCourtyard");
 const { GameState } = await load("simulation/gameState");
+const { BroadStreetScene } = await load("render/BroadStreetScene");
+
+test("VR street entry can hover and select sprite controls, then teleport", () => {
+  // Exercise the actual scene controller methods without a GPU or XR session.
+  const scene = Object.create(BroadStreetScene.prototype);
+  const camera = new THREE.PerspectiveCamera();
+  camera.position.set(0, 1.62, 0);
+  const playerRig = new THREE.Group();
+  playerRig.add(camera);
+  const controller = new THREE.Group();
+  controller.position.copy(camera.position);
+  playerRig.add(controller);
+  const walkableTools = [-0.64, 0, 0.64].map((x) => {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial());
+    sprite.position.set(x, 1.62, -1.5);
+    sprite.scale.set(0.6, 0.2, 1);
+    sprite.updateMatrixWorld(true);
+    return sprite;
+  });
+  const courtyard = new PumpCourtyard();
+  courtyard.group.visible = true;
+  Object.assign(scene, {
+    camera, playerRig, courtyard, walkableTools,
+    controllerRaycaster: new THREE.Raycaster(),
+    controllerWorldPosition: new THREE.Vector3(),
+    controllerWorldQuaternion: new THREE.Quaternion(),
+    controllerWorldDirection: new THREE.Vector3(),
+    vrPanelVisible: false, vrPanelButtons: [],
+  });
+  camera.updateWorldMatrix(true, false);
+  let opened = 0;
+  scene.showVrPanel = () => { opened++; scene.vrPanelVisible = true; };
+  for (let frame = 0; frame < 10; frame++) {
+    assert.equal(scene.pickVrPointerHit(controller).object, walkableTools[1]);
+  }
+  scene.selectFromVrController(controller);
+  assert.equal(opened, 1);
+  // The panel blocks teleportation until it is closed.
+  controller.position.x = -2;
+  controller.rotation.x = -Math.PI / 4;
+  scene.selectFromVrController(controller);
+  assert.equal(playerRig.position.length(), 0);
+  scene.vrPanelVisible = false;
+  const ground = scene.pickVrPointerHit(controller);
+  assert.ok(courtyard.canTeleport(ground));
+  scene.selectFromVrController(controller);
+  const viewer = camera.getWorldPosition(new THREE.Vector3());
+  assert.ok(Math.abs(viewer.x - ground.point.x) < 1e-10);
+  assert.ok(Math.abs(viewer.z - ground.point.z) < 1e-10);
+  for (const sprite of walkableTools) sprite.material.dispose();
+});
 
 test("teleport preserves head height and orientation with a room-scale offset", () => {
   const rig = new THREE.Group();

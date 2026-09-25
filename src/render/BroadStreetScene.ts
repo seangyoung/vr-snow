@@ -1970,6 +1970,9 @@ export class BroadStreetScene {
     controller.getWorldQuaternion(this.controllerWorldQuaternion);
     this.controllerWorldDirection.set(0, 0, -1).applyQuaternion(this.controllerWorldQuaternion).normalize();
     this.controllerRaycaster.set(this.controllerWorldPosition, this.controllerWorldDirection);
+    // set() supplies only the ray. Sprite controls also require the viewing
+    // camera; without it, their first VR hover throws and aborts the frame.
+    this.controllerRaycaster.camera = this.camera;
     this.controllerRaycaster.near = 0;
     this.controllerRaycaster.far = 12;
   }
