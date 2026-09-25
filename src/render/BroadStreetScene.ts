@@ -1,7 +1,9 @@
 import * as THREE from "three";
-import { PumpCourtyard, pumpPosition, streetSpawn } from "../walkable/PumpCourtyard";
+import { PumpCourtyard, pumpPosition } from "../walkable/PumpCourtyard";
+import { SnowOffice, officeDeskTarget } from "../walkable/SnowOffice";
+import type { WalkableEnvironment } from "../walkable/WalkableArea";
 import { WorldTravelTargets } from "../walkable/WorldTravelTargets";
-import { streetTravelRoutes, TravelZoneTracker, type WorldTravelRoute } from "../walkable/TravelRoutes";
+import { worldTravelRoutes, TravelZoneTracker, type WorldTravelRoute } from "../walkable/TravelRoutes";
 import { DesktopMovement } from "../walkable/DesktopMovement";
 import { standardTurnAxis, teleportViewer, turnViewer } from "../walkable/locomotion";
 import { VRButton } from "three/addons/webxr/VRButton.js";
@@ -194,6 +196,12 @@ export class BroadStreetScene {
   private readonly camera = new THREE.PerspectiveCamera(65, 1, 0.05, 100);
   private readonly playerRig = new THREE.Group();
   private readonly courtyard = new PumpCourtyard();
+  private readonly office = new SnowOffice();
+  private get walkable(): WalkableEnvironment | undefined {
+    if (this.courtyard.group.visible) return this.courtyard;
+    if (this.office?.group.visible) return this.office;
+    return undefined;
+  }
   private readonly panoramaLighting = new THREE.Group();
   private readonly worldTravel = new WorldTravelTargets();
   private readonly travelZones = new TravelZoneTracker();
@@ -312,7 +320,8 @@ export class BroadStreetScene {
     this.camera.position.set(0, cameraHeight, 0);
     this.playerRig.add(this.camera);
     this.scene.add(this.playerRig);
-    this.scene.add(this.courtyard.group, this.worldTravel.group);
+    this.scene.add(this.courtyard.group, this.office.group, this.worldTravel.group);
+    void this.office.loadVisuals(import.meta.env.BASE_URL || "/");
     void this.courtyard.loadVisuals(import.meta.env.BASE_URL || "/");
     this.destinationLabels.forEach(({ valid, blocked }) => {
       for (const label of [valid, blocked]) {
@@ -344,7 +353,7 @@ export class BroadStreetScene {
     this.renderer.setAnimationLoop((time: number) => {
       if (this.pendingXrSpawn && this.renderer.xr.isPresenting) {
         this.pendingXrSpawn = false;
-        if (this.courtyard.group.visible) teleportViewer(this.playerRig, this.camera, this.courtyard.spawn);
+        if (this.walkable) teleportViewer(this.playerRig, this.camera, this.walkable.spawn);
         if (this.vrPanelVisible) this.placeVrPanelInFront();
       }
       const timeSeconds = time * 0.001;
@@ -378,17 +387,19 @@ export class BroadStreetScene {
     const location = this.gameState.getCurrentLocation();
     const target = locationLookTargets[location.id] ?? [0, 0, -4];
     this.courtyard.group.visible = location.id === "broad-street";
-    this.panoramaLighting.visible = !this.courtyard.group.visible;
+    this.office.group.visible = location.id === "snow-desk";
+    this.panoramaLighting.visible = !this.walkable;
     this.scene.background = new THREE.Color(this.courtyard.group.visible ? "#abb0ac" : "#111619");
-    this.scene.fog = new THREE.FogExp2(this.courtyard.group.visible ? "#abb0ac" : "#111619", this.courtyard.group.visible ? 0.014 : 0.043);
-    if (this.panoramaSky) this.panoramaSky.visible = !this.courtyard.group.visible;
+    this.scene.fog = this.office.group.visible ? null : new THREE.FogExp2(this.courtyard.group.visible ? "#abb0ac" : "#111619", this.courtyard.group.visible ? 0.014 : 0.043);
+    if (this.panoramaSky) this.panoramaSky.visible = !this.walkable;
     this.playerRig.position.set(0, 0, 0);
     this.applyPanorama(location.id);
-    this.yaw = Math.atan2(-target[0], -target[2]);
+    const spawn = this.walkable?.spawn;
+    this.yaw = Math.atan2((spawn?.x ?? 0)-target[0], (spawn?.z ?? 0)-target[2]);
     this.pitch = THREE.MathUtils.clamp((target[1] - cameraHeight) * 0.12, -0.18, 0.18);
     this.primeMotionLookReference();
     this.applyCameraOrientation();
-    if (this.courtyard.group.visible) teleportViewer(this.playerRig, this.camera, this.courtyard.spawn);
+    if (this.walkable) teleportViewer(this.playerRig, this.camera, this.walkable.spawn);
     this.focusedHotspot = undefined;
     this.onFocusChange?.(undefined);
     this.refreshLocationObjects();
@@ -405,7 +416,7 @@ export class BroadStreetScene {
     this.hotspotVisuals.forEach(({ mesh, label }) => {
       const active = activeHotspotIds.has(mesh.userData.hotspot.id);
       const inspected = this.gameState.hasInspected(mesh.userData.hotspot.id);
-      mesh.visible = active && mesh.userData.hotspot.id !== "broad-street-pump";
+      mesh.visible = active && !["broad-street-pump", "john-snow"].includes(mesh.userData.hotspot.id);
       label.visible = active;
       mesh.material.color.set(inspected ? "#89d6ba" : "#f3d37a");
       mesh.material.emissive.set(inspected ? "#1b7e62" : "#8b621a");
@@ -624,6 +635,7 @@ export class BroadStreetScene {
       const label = createSpriteLabel(hotspot.shortLabel, "#f4d891");
       label.position.set(hotspot.position[0], hotspot.position[1] + 0.33, hotspot.position[2]);
       if (hotspot.id === "broad-street-pump") label.position.y = 2.45;
+      if (hotspot.id === "john-snow") label.position.copy(officeDeskTarget).add(new THREE.Vector3(0, .35, 0));
       this.scene.add(label);
       this.hotspotVisuals.set(hotspot.id, { mesh, label });
     });
@@ -672,7 +684,7 @@ export class BroadStreetScene {
 
   private applyPanorama(locationId: LocationId): void {
     this.activePanoramaLocationId = locationId;
-    if (locationId === "broad-street") return;
+    if (locationId === "broad-street" || locationId === "snow-desk") return;
     this.setSkyTexture(this.fallbackPanoramaTexture);
 
     const cachedTexture = this.panoramaTextureCache.get(locationId);
@@ -772,9 +784,9 @@ export class BroadStreetScene {
       }
       if (hotspot) {
         this.onHotspotActivate?.(hotspot);
-      } else if (this.courtyard.group.visible) {
-        const hit = this.courtyard.pick(this.raycaster);
-        if (hit && this.courtyard.canTeleport(hit)) teleportViewer(this.playerRig, this.camera, hit.point);
+      } else if (this.walkable) {
+        const hit = this.walkable.pick(this.raycaster);
+        if (hit && this.walkable.canTeleport(hit)) teleportViewer(this.playerRig, this.camera, hit.point);
       }
     });
     this.canvas.addEventListener("pointercancel", () => { this.dragging = false; this.pointerTravel = Infinity; });
@@ -866,7 +878,7 @@ export class BroadStreetScene {
   }
 
   private canUseDesktopMovement(): boolean {
-    return this.courtyard.group.visible && !this.renderer.xr.isPresenting
+    return Boolean(this.walkable) && !this.renderer.xr.isPresenting
       && !document.hidden && document.body.dataset.overlayOpen !== "true"
       && !(document.activeElement instanceof HTMLElement
         && document.activeElement.closest("button, input, textarea, select, a, [contenteditable]"));
@@ -878,7 +890,7 @@ export class BroadStreetScene {
       return;
     }
     const position = this.camera.getWorldPosition(this.cameraWorldPosition);
-    const next = this.desktopMovement.update(position, this.yaw, elapsed);
+    const next = this.desktopMovement.update(position, this.yaw, elapsed, this.walkable?.canWalkBetween);
     const turn = next.yaw - this.yaw;
     this.yaw = next.yaw;
     if (this.motionLookEnabled) this.motionYawOffset += turn;
@@ -919,14 +931,13 @@ export class BroadStreetScene {
     const travel = this.worldTravel?.routeFor(this.pickWorldTravelHit(this.controllerRaycaster)?.object as THREE.Object3D);
     if (travel) { this.activateWorldTravel(travel); return; }
 
-    if (this.courtyard.group.visible) {
-      if (this.vrPanelVisible) return;
-      this.setRaycasterFromController(controller);
-      const hit = this.courtyard.pick(this.controllerRaycaster);
-      if (hit && this.courtyard.isPump(hit.object)) {
-        const pump = this.gameState.getHotspot("broad-street-pump");
-        if (pump) this.activateVrHotspot(pump);
-      } else if (hit && this.courtyard.canTeleport(hit)) {
+    if (this.walkable) {
+      const hit = this.walkable.pick(this.controllerRaycaster);
+      const id = hit && this.walkable.hotspotFor(hit.object);
+      if (id) {
+        const hotspot = this.gameState.getHotspot(id);
+        if (hotspot) this.activateVrHotspot(hotspot);
+      } else if (hit && this.walkable.canTeleport(hit)) {
         teleportViewer(this.playerRig, this.camera, hit.point);
       }
       return;
@@ -944,7 +955,7 @@ export class BroadStreetScene {
   }
 
   private pickWorldTravelHit(raycaster: THREE.Raycaster): THREE.Intersection | undefined {
-    const obstruction = this.courtyard.group.visible ? this.courtyard.pick(raycaster)
+    const obstruction = this.walkable ? this.walkable.pick(raycaster)
       : raycaster.intersectObjects([...this.hotspotVisuals.values()].map(v=>v.mesh).filter(m=>m.visible),false)[0];
     return this.worldTravel?.pick(raycaster, this.gameState.getCurrentLocation().id, obstruction) ?? obstruction;
   }
@@ -968,11 +979,11 @@ export class BroadStreetScene {
   }
 
   private updateWorldTravelZones(): void {
-    if (!this.courtyard.group.visible) return;
+    if (!this.walkable) return;
     const position = this.camera.getWorldPosition(this.cameraWorldPosition);
     const blocked = this.worldTravelPending || (this.renderer.xr.isPresenting ? this.vrPanelVisible
       : !this.canUseDesktopMovement());
-    const route = this.travelZones.update(position.x, position.z, streetTravelRoutes,
+    const route = this.travelZones.update(position.x, position.z, worldTravelRoutes.filter(r => r.from === this.gameState.getCurrentLocation().id),
       candidate => !blocked && this.gameState.canTravelToLocation(candidate.to));
     if (route) this.activateWorldTravel(route);
   }
@@ -1134,8 +1145,8 @@ export class BroadStreetScene {
       return "Choose a theory, state our confidence, and decide what we should tell the Board.";
     }
 
-    if (this.courtyard.group.visible) {
-      return "Schematic street. Close this panel; select clear ground to teleport or the pump to inspect. Squeeze toggles the panel. Thumbstick turns.";
+    if (this.walkable) {
+      return "Close this panel; select clear ground to teleport, the desk or pump to investigate, or a marked exit to travel. Squeeze toggles the panel. Thumbstick turns.";
     }
     return "Aim with the controller beam. Trigger selects. Squeeze toggles the panel. Thumbstick turns.";
   }
@@ -1734,11 +1745,13 @@ export class BroadStreetScene {
   private recenterToCurrentLocation(): void {
     const location = this.gameState.getCurrentLocation();
     const target = locationLookTargets[location.id] ?? [0, 0, -4];
-    if (this.courtyard.group.visible && this.renderer.xr.isPresenting) {
-      this.turnWalkableView(Math.atan2(-target[0], -target[2]) - this.yaw);
+    const viewer = this.walkable ? this.camera.getWorldPosition(this.cameraWorldPosition) : new THREE.Vector3();
+    const yaw = Math.atan2(viewer.x-target[0], viewer.z-target[2]);
+    if (this.walkable && this.renderer.xr.isPresenting) {
+      this.turnWalkableView(yaw - this.yaw);
       return;
     }
-    this.yaw = Math.atan2(-target[0], -target[2]);
+    this.yaw = yaw;
     this.pitch = THREE.MathUtils.clamp((target[1] - cameraHeight) * 0.12, -0.18, 0.18);
     this.primeMotionLookReference();
     this.applyCameraOrientation();
@@ -1895,7 +1908,7 @@ export class BroadStreetScene {
       return;
     }
 
-    if (this.courtyard.group.visible) this.turnWalkableView(-Math.sign(turnAxis) * snapTurnAngle);
+    if (this.walkable) this.turnWalkableView(-Math.sign(turnAxis) * snapTurnAngle);
     else {
       this.yaw -= Math.sign(turnAxis) * snapTurnAngle;
       this.applyCameraOrientation();
@@ -1928,17 +1941,17 @@ export class BroadStreetScene {
       pointer.reticle.position.z = -distance;
 
       const isButton = hit ? this.vrPanelButtons.includes(hit.object as VrButtonMesh) : false;
-      const floorHit = hit?.object === this.courtyard.floor;
+      const floorHit = Boolean(hit && hit.object === this.walkable?.floor);
       const labels = this.destinationLabels[index];
       labels.valid.visible = labels.blocked.visible = false;
       if (floorHit && hit && this.vrInputSources.has(controller)) {
-        const label = this.courtyard.canTeleport(hit) ? labels.valid : labels.blocked;
+        const label = this.walkable!.canTeleport(hit) ? labels.valid : labels.blocked;
         label.visible = true;
         label.position.copy(hit.point);
         label.position.y += 0.2;
       }
       const travel = hit && this.worldTravel?.routeFor(hit.object);
-      const color = travel ? (this.gameState.canTravelToLocation(travel.to) ? "#b9e6a5" : "#a39a87") : floorHit && hit ? (this.courtyard.canTeleport(hit) ? "#8fdfb4" : "#ef8f80")
+      const color = travel ? (this.gameState.canTravelToLocation(travel.to) ? "#b9e6a5" : "#a39a87") : floorHit && hit ? (this.walkable!.canTeleport(hit) ? "#8fdfb4" : "#ef8f80")
         : isButton ? "#8fd3ff" : hit ? "#f4d891" : "#d7e7ff";
       pointer.beam.material.color.set(color);
       pointer.reticle.material.color.set(color);
@@ -1972,7 +1985,7 @@ export class BroadStreetScene {
       return panelHit;
     }
 
-    if (this.courtyard.group.visible) {
+    if (this.walkable) {
       if (this.vrPanelVisible) return undefined;
       return this.pickWorldTravelHit(this.controllerRaycaster);
     }
@@ -2046,11 +2059,10 @@ export class BroadStreetScene {
       return;
     }
 
-    if (this.courtyard.group.visible) {
-      this.raycaster.set(this.cameraWorldPosition, this.cameraDirection);
-      const hit = this.courtyard.pick(this.raycaster);
-      this.focusedHotspot = hit && this.courtyard.isPump(hit.object)
-        ? this.gameState.getHotspot("broad-street-pump") : undefined;
+    if (this.walkable) {
+      const hit = this.walkable.pick(this.raycaster);
+      const id = hit && this.walkable.hotspotFor(hit.object);
+      this.focusedHotspot = id ? this.gameState.getHotspot(id) : undefined;
       this.onFocusChange?.(this.focusedHotspot);
       return;
     }
@@ -2080,9 +2092,10 @@ export class BroadStreetScene {
     this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     this.pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    if (this.courtyard.group.visible) {
-      const hit = this.courtyard.pick(this.raycaster);
-      return hit && this.courtyard.isPump(hit.object) ? this.gameState.getHotspot("broad-street-pump") : undefined;
+    if (this.walkable) {
+      const hit = this.walkable.pick(this.raycaster);
+      const id = hit && this.walkable.hotspotFor(hit.object);
+      return id ? this.gameState.getHotspot(id) : undefined;
     }
     const hit = this.raycaster.intersectObjects(
       [...this.hotspotVisuals.values()].map((visual) => visual.mesh).filter((mesh) => mesh.visible),
@@ -2094,9 +2107,9 @@ export class BroadStreetScene {
   private refreshLocationObjects(): void {
     const currentLocationId = this.gameState.getCurrentLocation().id;
     const currentLocationHasPanorama = this.locationsWithLoadedPanorama.has(currentLocationId);
-    this.sharedExterior.visible = !currentLocationHasPanorama;
+    this.sharedExterior.visible = !this.walkable && !currentLocationHasPanorama;
     this.locationObjects.forEach((objects, locationId) => {
-      const visible = locationId === currentLocationId;
+      const visible = !this.walkable && locationId === currentLocationId;
       objects.forEach((object) => {
         object.visible = visible;
         setEnvironmentShellVisibility(object, !(visible && currentLocationHasPanorama));
@@ -3179,8 +3192,8 @@ function disposeObjectTree(object: THREE.Object3D): void {
 }
 
 const locationLookTargets: Record<LocationId, [number, number, number]> = {
-  "snow-desk": [-2.8, 1.35, 2.4],
-  "broad-street": [pumpPosition.x - streetSpawn.x, 1.5, pumpPosition.z - streetSpawn.z],
+  "snow-desk": [officeDeskTarget.x, officeDeskTarget.y, officeDeskTarget.z],
+  "broad-street": [pumpPosition.x, 1.5, pumpPosition.z],
   household: [-2.25, 1.18, -0.95],
   registrar: [3.2, 1.1, 2.2],
   workhouse: [3.6, 1.2, -1.7],

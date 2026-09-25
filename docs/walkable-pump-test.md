@@ -1,6 +1,6 @@
 # Pump approach experiment
 
-This branch replaces only Broad Street's panorama with a source-informed reconstruction of the Broad/Cambridge Street junction. Movement remains around the intersection while modeled streets extend into the distance. See [the reconstruction notes](broad-street-reconstruction.md) for references, inferred dimensions and asset rebuilding. The pump dialogue and evidence card retain their existing wording and unlock behavior.
+Broad Street's panorama is replaced with a source-informed reconstruction of the Broad/Cambridge Street junction. Movement remains around the intersection while modeled streets extend into the distance. See [the reconstruction notes](broad-street-reconstruction.md) for references, inferred dimensions and asset rebuilding. The pump dialogue and evidence card retain their existing wording and unlock behavior.
 
 ## Controls
 
@@ -64,3 +64,5 @@ Repeat the headset checklist with the new environment. Confirm the pump is immed
 Automated coverage includes actual controller selection, tracked viewer zone entry with a room-scale offset, panel blocking, unlock-while-inside behavior, duplicate desktop-transition prevention, occlusion, reachable approach centers and evidence retention. Browser checks exercise sign/door selection, return travel and the existing map. Automatic travel comfort and sign readability still require the headset check.
 
 For the travel-target revision, all 21 automated checks and the production build passed. The browser check confirmed locked signs, registrar travel and return, household door entry, map travel, visible ground rings, and non-overlapping household/brewery labels. No browser warning/error messages were recorded. Quest testing remains outstanding.
+
+Snow’s office now also supports walking and teleportation. See [the office test card](walkable-office.md) for the furnished room, doorway and shared movement changes.

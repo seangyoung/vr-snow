@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { inRectangle, crossesRectangle } from "./WalkableArea";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 /** Local street coordinates: +X east, +Z south. Dimensions are reconstruction estimates. */
@@ -12,32 +13,10 @@ const obstacles = [
   { minX: 8.0, maxX: 60, minZ: 2.6, maxZ: 60 },
 ];
 
-type Rectangle = typeof bounds;
-function inRectangle(p: THREE.Vector3, r: Rectangle): boolean {
-  return p.x >= r.minX && p.x <= r.maxX && p.z >= r.minZ && p.z <= r.maxZ;
-}
-
 export function isValidDestination(point: THREE.Vector3): boolean {
   return Number.isFinite(point.x) && Number.isFinite(point.z)
     && inRectangle(point, bounds) && !obstacles.some((r) => inRectangle(point, r))
     && Math.hypot(point.x - pumpPosition.x, point.z - pumpPosition.z) >= pumpClearance;
-}
-
-/** Slab intersection prevents cutting across a building corner even on a long frame. */
-function crossesRectangle(from: THREE.Vector3, to: THREE.Vector3, r: Rectangle): boolean {
-  let enter = 0, exit = 1;
-  for (const [axis, min, max] of [["x", r.minX, r.maxX], ["z", r.minZ, r.maxZ]] as const) {
-    const delta = to[axis] - from[axis];
-    if (Math.abs(delta) < 1e-10) {
-      if (from[axis] < min || from[axis] > max) return false;
-    } else {
-      const a = (min - from[axis]) / delta, b = (max - from[axis]) / delta;
-      enter = Math.max(enter, Math.min(a, b));
-      exit = Math.min(exit, Math.max(a, b));
-      if (enter > exit) return false;
-    }
-  }
-  return true;
 }
 
 export function canWalkBetween(from: THREE.Vector3, to: THREE.Vector3): boolean {
@@ -179,6 +158,11 @@ export class PumpCourtyard {
   isPump(object: THREE.Object3D): boolean {
     for (let node: THREE.Object3D | null = object; node; node = node.parent) if (node === this.pump) return true;
     return false;
+  }
+
+  readonly canWalkBetween = canWalkBetween;
+  hotspotFor(object: THREE.Object3D): string | undefined {
+    return this.isPump(object) ? "broad-street-pump" : undefined;
   }
 
   canTeleport(hit: THREE.Intersection): boolean {

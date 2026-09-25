@@ -23,7 +23,7 @@ export class DesktopMovement {
     return key.length === 1 ? `Key${key.toUpperCase()}` : key;
   }
 
-  update(position: THREE.Vector3, yaw: number, elapsedSeconds: number): { position: THREE.Vector3; yaw: number } {
+  update(position: THREE.Vector3, yaw: number, elapsedSeconds: number, canWalk: typeof canWalkBetween = canWalkBetween): { position: THREE.Vector3; yaw: number } {
     // Discard time spent in a suspended tab rather than jumping on resume.
     const dt = Number.isFinite(elapsedSeconds) ? THREE.MathUtils.clamp(elapsedSeconds, 0, 0.05) : 0;
     const down = (...keys: string[]) => Number(keys.some((key) => this.held.has(key)));
@@ -34,16 +34,16 @@ export class DesktopMovement {
     const dx = (-Math.sin(yaw) * forward + Math.cos(yaw) * right) * scale;
     const dz = (-Math.cos(yaw) * forward - Math.sin(yaw) * right) * scale;
     const next = position.clone().add(new THREE.Vector3(dx, 0, dz));
-    if (canWalkBetween(position, next)) return { position: next, yaw };
+    if (canWalk(position, next)) return { position: next, yaw };
 
     // Slide along obstacles when one component of diagonal movement is blocked.
     next.copy(position);
     const candidate = position.clone();
     candidate.x += dx;
-    if (canWalkBetween(next, candidate)) next.copy(candidate);
+    if (canWalk(next, candidate)) next.copy(candidate);
     candidate.copy(next);
     candidate.z += dz;
-    if (canWalkBetween(next, candidate)) next.copy(candidate);
+    if (canWalk(next, candidate)) next.copy(candidate);
     return { position: next, yaw };
   }
 }

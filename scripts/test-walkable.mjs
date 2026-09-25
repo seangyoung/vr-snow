@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, copyFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import assert from "node:assert/strict";
@@ -8,13 +8,14 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["render/BroadStreetScene", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
   await mkdir(resolve(output, name, ".."), { recursive: true });
   await writeFile(resolve(output, `${name}.js`), compiled);
 }
+await copyFile("src/walkable/office-layout.json", resolve(output, "walkable/office-layout.json"));
 await writeFile(resolve(output, "package.json"), '{"type":"module"}');
 const load = (name) => import(pathToFileURL(resolve(output, `${name}.js`)).href);
 const { teleportViewer, turnViewer, standardTurnAxis } = await load("walkable/locomotion");
@@ -372,4 +373,95 @@ test('scene automatic travel uses tracked viewer position, blocks panels and ded
   let fades=0;scene.onWorldTravel=(id)=>{assert.equal(id,'brewery');fades++;};
   scene.updateWorldTravelZones();scene.updateWorldTravelZones();scene.activateWorldTravel(route);
   assert.equal(fades,1);assert.ok(scene.worldTravelPending);
+});
+
+const { SnowOffice, officeArea, officeSpawn, officeDeskTarget } = await load('walkable/SnowOffice');
+const officeLayout=JSON.parse(await readFile('src/walkable/office-layout.json','utf8'));
+
+test('office spawn, desk approach and exit are reachable without crossing furniture',()=>{
+  const door=returnTravelRoutes.find(r=>r.id==='snow-street').zone;
+  const route=[officeSpawn,new THREE.Vector3(1.65,0,.3),new THREE.Vector3(-.65,0,.3)];
+  for(let i=1;i<route.length;i++) assert.ok(officeArea.canWalkBetween(route[i-1],route[i]));
+  assert.ok(officeArea.canWalkBetween(officeSpawn,new THREE.Vector3(door.x,0,door.z)));
+  assert.ok(Math.hypot(officeSpawn.x-door.x,officeSpawn.z-door.z)>door.radius+.4);
+  for(const f of officeLayout.furniture) assert.equal(officeArea.isValidDestination(new THREE.Vector3(f.x,0,f.z)),false,f.id);
+  for(const p of [[3,0],[0,3.2],[NaN,0],[0,-3.2]]) assert.equal(officeArea.isValidDestination(new THREE.Vector3(p[0],0,p[1])),false);
+  assert.equal(officeArea.canWalkBetween(new THREE.Vector3(-2.15,0,-1.2),new THREE.Vector3(.85,0,-1.2)),false,'cannot cross the desk between clear endpoints');
+});
+
+test('desktop walking uses office clearance rather than street bounds',()=>{
+  const keys=new DesktopMovement();keys.press('w');
+  let position=new THREE.Vector3(-.65,1.62,.5);
+  for(let i=0;i<100;i++) position=keys.update(position,0,.05,officeArea.canWalkBetween).position;
+  assert.ok(position.z>=-.425 && position.z<-.3,'stop before the desk front');
+  assert.equal(position.y,1.62);
+  keys.clear();keys.press('d');
+  for(let i=0;i<100;i++) position=keys.update(position,0,.05,officeArea.canWalkBetween).position;
+  assert.ok(position.x<=2.65 && position.x>2.5,'stop at the room wall');
+});
+
+test('office ray proxies select the desk and block floor behind furniture and walls',()=>{
+  const office=new SnowOffice();office.group.visible=true;
+  const ray=new THREE.Raycaster(new THREE.Vector3(-.65,1.62,1),officeDeskTarget.clone().setY(.78).sub(new THREE.Vector3(-.65,1.62,1)).normalize());
+  let hit=office.pick(ray);assert.equal(office.hotspotFor(hit.object),'john-snow');assert.equal(office.canTeleport(hit),false);
+  ray.set(new THREE.Vector3(-.65,1.62,1),officeDeskTarget.clone().add(new THREE.Vector3(0,.35,0)).sub(new THREE.Vector3(-.65,1.62,1)).normalize());
+  assert.equal(office.hotspotFor(office.pick(ray).object),'john-snow','floating label is selectable too');
+  ray.set(new THREE.Vector3(1.65,1.62,1),new THREE.Vector3(0,-1,-.2).normalize());
+  hit=office.pick(ray);assert.ok(office.canTeleport(hit));
+  ray.set(new THREE.Vector3(1.65,1.62,1),new THREE.Vector3(1,-.2,0).normalize());
+  hit=office.pick(ray);assert.equal(office.canTeleport(hit),false);
+  office.group.visible=false;assert.equal(office.pick(ray),undefined);
+});
+
+test('actual office controller path selects desk, respects panels, teleports and exits once assigned',()=>{
+  const game=new GameState(), office=new SnowOffice(), courtyard=new PumpCourtyard();office.group.visible=true;
+  const camera=new THREE.PerspectiveCamera();camera.position.set(0,1.62,0);
+  const rig=new THREE.Group();rig.add(camera);
+  const controller=new THREE.Group();controller.position.set(-.65,1.62,1);
+  controller.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),officeDeskTarget.clone().setY(.78).sub(controller.position).normalize());
+  const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
+  const scene=Object.create(BroadStreetScene.prototype);
+  Object.assign(scene,{camera,playerRig:rig,courtyard,office,worldTravel:targets,gameState:game,
+    renderer:{xr:{isPresenting:true}},desktopMovement:new DesktopMovement(),controllerRaycaster:new THREE.Raycaster(),
+    controllerWorldPosition:new THREE.Vector3(),controllerWorldQuaternion:new THREE.Quaternion(),controllerWorldDirection:new THREE.Vector3(),
+    cameraWorldPosition:new THREE.Vector3(),travelZones:new TravelZoneTracker(),vrPanelVisible:false,vrPanelButtons:[],
+    hotspotVisuals:new Map(),worldTravelPending:false,hideVrPanel:()=>{},activateVrHotspot:(h)=>game.inspectHotspot(h.id)});
+  assert.equal(scene.walkable,office);
+  scene.selectFromVrController(controller);assert.ok(game.hasInspected('john-snow'));
+  controller.position.set(1.65,1.62,1);controller.rotation.set(-Math.PI/4,0,0);
+  scene.vrPanelVisible=true;scene.selectFromVrController(controller);assert.equal(rig.position.length(),0);
+  scene.vrPanelVisible=false;scene.selectFromVrController(controller);assert.ok(rig.position.length()>0);
+  const zone=returnTravelRoutes.find(r=>r.id==='snow-street').zone;
+  teleportViewer(rig,camera,new THREE.Vector3(zone.x,0,zone.z));
+  scene.updateWorldTravelZones();assert.equal(game.getCurrentLocation().id,'snow-desk','exit locked before assignment');
+  game.askQuestion('snow-method-question');scene.updateWorldTravelZones();assert.equal(game.getCurrentLocation().id,'snow-desk','unlock while inside does not travel');
+  teleportViewer(rig,camera,officeSpawn);scene.updateWorldTravelZones();
+  teleportViewer(rig,camera,new THREE.Vector3(zone.x,0,zone.z));scene.updateWorldTravelZones();
+  assert.equal(game.getCurrentLocation().id,'broad-street');
+});
+
+test('office/street/panorama lifecycle restores scene geometry, lighting and arrival',()=>{
+  const game=fieldGame(true),scene=Object.create(BroadStreetScene.prototype);
+  const rig=new THREE.Group(),camera=new THREE.PerspectiveCamera();camera.position.y=1.62;rig.add(camera);
+  const courtyard=new PumpCourtyard(),office=new SnowOffice();
+  Object.assign(scene,{gameState:game,playerRig:rig,camera,courtyard,office,desktopMovement:new DesktopMovement(),
+    travelZones:new TravelZoneTracker(),scene:new THREE.Scene(),panoramaLighting:new THREE.Group(),panoramaSky:new THREE.Group(),
+    renderer:{xr:{isPresenting:false}},primeMotionLookReference:()=>{},applyPanorama:()=>{},refreshLocationObjects:()=>{},
+    refreshHotspots:()=>{},markVrPanelDirty:()=>{}});
+  for(const id of ['snow-desk','broad-street','brewery','snow-desk']) {
+    game.travelToLocation(id);scene.applyCurrentLocation();
+    assert.equal(office.group.visible,id==='snow-desk');assert.equal(courtyard.group.visible,id==='broad-street');
+    assert.equal(scene.panoramaSky.visible,id==='brewery');assert.equal(scene.panoramaLighting.visible,id==='brewery');
+    const spawn=id==='snow-desk'?officeSpawn:id==='broad-street'?streetSpawn:new THREE.Vector3();
+    const viewer=camera.getWorldPosition(new THREE.Vector3());assert.ok(Math.hypot(viewer.x-spawn.x,viewer.z-spawn.z)<1e-10);
+    assert.equal(scene.worldTravelPending,false);
+  }
+});
+
+test('authored office fits a small mesh budget and matches the runtime furniture layout',async()=>{
+  const report=JSON.parse(await readFile('assets/snow-office/build-report.json','utf8'));
+  assert.deepEqual(report.layout,officeLayout);assert.ok(report.triangles<30000);assert.ok(report.materialBatches<=16);
+  const glb=await readFile('public/models/snow-office.glb');assert.equal(glb.readUInt32LE(0),0x46546c67);
+  const json=JSON.parse(glb.subarray(20,20+glb.readUInt32LE(12)).toString());
+  assert.ok(json.meshes.length>0);assert.ok(json.images.every(image=>image.bufferView!==undefined),'textures embedded');
 });

@@ -10,6 +10,7 @@ export interface WorldTravelRoute {
   yaw: number;
   zone?: { x: number; z: number; radius: number };
   door?: boolean;
+  labelWidth?: number;
 }
 
 /** These are route entrances, not straight-line bearings or measured destination positions. */
@@ -23,12 +24,12 @@ export const streetTravelRoutes: WorldTravelRoute[] = [
 ];
 
 export const returnTravelRoutes: WorldTravelRoute[] = [
-  // Fixed world-space exits in the panorama scenes; no claim of calibrated panorama compass bearings.
+  // Fixed exits in panorama scenes; the modeled office also has a walk-in doorway zone.
   { id:"household-return", from:"household", to:"broad-street", title:"Return to Broad Street", direction:"Leave the household", position:[3.4,1.35,-.35],yaw:-Math.PI/2 },
   { id:"brewery-return", from:"brewery", to:"broad-street", title:"Return to Broad Street", direction:"Leave the brewery", position:[1.3,1.35,3.2],yaw:Math.PI },
   { id:"workhouse-return", from:"workhouse", to:"broad-street", title:"Return to Broad Street", direction:"Leave via Poland Street", position:[1.8,1.35,-3],yaw:0 },
   { id:"registrar-return", from:"registrar", to:"snow-desk", title:"Return to Snow's Desk", direction:"Take the copied records to Snow", position:[1.1,1.35,3.2],yaw:Math.PI },
-  { id:"snow-street", from:"snow-desk", to:"broad-street", title:"Go to Broad Street", direction:"Leave the office for the pump", position:[-.8,1.35,3.5],yaw:Math.PI },
+  { id:"snow-street", from:"snow-desk", to:"broad-street", title:"Go to Broad Street", direction:"Leave the office for the pump", position:[1.65,2.8,3.0],labelWidth:1.45,yaw:Math.PI, zone:{x:1.65,z:2.58,radius:.33}, door:true },
 ];
 export const worldTravelRoutes = [...streetTravelRoutes, ...returnTravelRoutes];
 
