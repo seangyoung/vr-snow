@@ -3,3 +3,6 @@ dist/
 .DS_Store
 .agents/
 tmp/
+
+# Blender autosave backups; the primary .blend is tracked.
+*.blend1

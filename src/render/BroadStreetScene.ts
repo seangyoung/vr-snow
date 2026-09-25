@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { PumpCourtyard } from "../walkable/PumpCourtyard";
+import { PumpCourtyard, pumpPosition, streetSpawn } from "../walkable/PumpCourtyard";
 import { DesktopMovement } from "../walkable/DesktopMovement";
 import { standardTurnAxis, teleportViewer, turnViewer } from "../walkable/locomotion";
 import { VRButton } from "three/addons/webxr/VRButton.js";
@@ -191,6 +191,7 @@ export class BroadStreetScene {
   private readonly camera = new THREE.PerspectiveCamera(65, 1, 0.05, 100);
   private readonly playerRig = new THREE.Group();
   private readonly courtyard = new PumpCourtyard();
+  private readonly panoramaLighting = new THREE.Group();
   private readonly desktopMovement = new DesktopMovement();
   private lastFrameTime?: number;
   private panoramaSky?: THREE.Mesh;
@@ -305,6 +306,7 @@ export class BroadStreetScene {
     this.playerRig.add(this.camera);
     this.scene.add(this.playerRig);
     this.scene.add(this.courtyard.group);
+    void this.courtyard.loadVisuals(import.meta.env.BASE_URL || "/");
     this.destinationLabels.forEach(({ valid, blocked }) => {
       for (const label of [valid, blocked]) {
         label.visible = false;
@@ -365,6 +367,9 @@ export class BroadStreetScene {
     const location = this.gameState.getCurrentLocation();
     const target = locationLookTargets[location.id] ?? [0, 0, -4];
     this.courtyard.group.visible = location.id === "broad-street";
+    this.panoramaLighting.visible = !this.courtyard.group.visible;
+    this.scene.background = new THREE.Color(this.courtyard.group.visible ? "#abb0ac" : "#111619");
+    this.scene.fog = new THREE.FogExp2(this.courtyard.group.visible ? "#abb0ac" : "#111619", this.courtyard.group.visible ? 0.014 : 0.043);
     if (this.panoramaSky) this.panoramaSky.visible = !this.courtyard.group.visible;
     this.playerRig.position.set(0, 0, 0);
     this.applyPanorama(location.id);
@@ -581,10 +586,11 @@ export class BroadStreetScene {
     this.scene.add(sky);
     this.panoramaSky = sky;
 
-    this.scene.add(new THREE.HemisphereLight("#d7eef4", "#332c23", 1.45));
+    this.scene.add(this.panoramaLighting);
+    this.panoramaLighting.add(new THREE.HemisphereLight("#d7eef4", "#332c23", 1.45));
     const lantern = new THREE.PointLight("#f4b468", 55, 14, 1.6);
     lantern.position.set(-2.2, 3.6, -3.2);
-    this.scene.add(lantern);
+    this.panoramaLighting.add(lantern);
 
     const fill = new THREE.DirectionalLight("#aac5d6", 1.5);
     fill.position.set(4, 7, 5);
@@ -595,7 +601,7 @@ export class BroadStreetScene {
     fill.shadow.camera.right = 8;
     fill.shadow.camera.top = 8;
     fill.shadow.camera.bottom = -8;
-    this.scene.add(fill);
+    this.panoramaLighting.add(fill);
   }
 
   private buildHotspots(): void {
@@ -3102,7 +3108,7 @@ function disposeObjectTree(object: THREE.Object3D): void {
 
 const locationLookTargets: Record<LocationId, [number, number, number]> = {
   "snow-desk": [-2.8, 1.35, 2.4],
-  "broad-street": [1.45, 1.1, -5.4],
+  "broad-street": [pumpPosition.x - streetSpawn.x, 1.5, pumpPosition.z - streetSpawn.z],
   household: [-2.25, 1.18, -0.95],
   registrar: [3.2, 1.1, 2.2],
   workhouse: [3.6, 1.2, -1.7],

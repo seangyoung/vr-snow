@@ -34,7 +34,7 @@ Walkable-only work remains on `walkable-prototype` until it is deliberately merg
 
 ## Walkable branch: pump experiment
 
-On `walkable-prototype`, Broad Street is a small schematic 3D street with a selectable pump. Other locations retain the panorama experience. See [the headset test card](docs/walkable-pump-test.md) for controls, scope, and acceptance checks.
+On `walkable-prototype`, Broad Street is a textured, source-informed reconstruction of the pump junction, with an editable Blender environment and a selectable pump. Other locations retain the panorama experience. See [the reconstruction sources and asset workflow](docs/broad-street-reconstruction.md) and [the headset test card](docs/walkable-pump-test.md) for controls, scope, and acceptance checks.
 
 Run `npm run test:walkable` for movement, obstruction, input mapping, and evidence regression checks. The walkable validation workflow runs these checks before deployment eligibility.
 

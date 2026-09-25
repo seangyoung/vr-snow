@@ -19,7 +19,7 @@ await writeFile(resolve(output, "package.json"), '{"type":"module"}');
 const load = (name) => import(pathToFileURL(resolve(output, `${name}.js`)).href);
 const { teleportViewer, turnViewer, standardTurnAxis } = await load("walkable/locomotion");
 const { DesktopMovement } = await load("walkable/DesktopMovement");
-const { PumpCourtyard, isValidDestination, canWalkBetween } = await load("walkable/PumpCourtyard");
+const { PumpCourtyard, isValidDestination, canWalkBetween, pumpPosition, streetSpawn } = await load("walkable/PumpCourtyard");
 const { GameState } = await load("simulation/gameState");
 const { BroadStreetScene } = await load("render/BroadStreetScene");
 
@@ -50,7 +50,7 @@ test("VR street entry supports pump selection, squeeze panel access, and telepor
   scene.hideVrPanel = () => { scene.vrPanelVisible = false; };
   let inspected;
   scene.activateVrHotspot = (hotspot) => { inspected = hotspot.id; scene.showVrPanel(); };
-  controller.position.x = 1.45;
+  controller.position.set(pumpPosition.x, 1.62, 6);
   for (let frame = 0; frame < 10; frame++) {
     assert.ok(courtyard.isPump(scene.pickVrPointerHit(controller).object));
   }
@@ -63,7 +63,7 @@ test("VR street entry supports pump selection, squeeze panel access, and telepor
   assert.equal(scene.vrPanelVisible, true);
   assert.equal(opened, 2);
   // The panel blocks teleportation until it is closed.
-  controller.position.x = -2;
+  controller.position.set(-2, 1.62, 0);
   controller.rotation.x = -Math.PI / 4;
   scene.selectFromVrController(controller);
   assert.equal(playerRig.position.length(), 0);
@@ -104,19 +104,19 @@ test("eight snap turns keep the room-scale viewer in place", () => {
 });
 
 test("destinations exclude boundaries, pump footprint and invalid coordinates", () => {
-  for (const [x, z] of [[0, 0], [-3, -5], [2.8, -5.4]]) assert.ok(isValidDestination(new THREE.Vector3(x, 0, z)));
-  for (const [x, z] of [[4, 0], [0, -8], [0, 2], [1.45, -5.4], [2, -5.4], [NaN, 0]]) assert.equal(isValidDestination(new THREE.Vector3(x, 0, z)), false);
+  for (const [x, z] of [[0, 0], [-3, -5], [4.2, 6], [7.5, 10]]) assert.ok(isValidDestination(new THREE.Vector3(x, 0, z)));
+  for (const [x, z] of [[16, 0], [0, -9], [-1, 4], [12, 4], [-3.8, 1.3], [-3.3, 1.3], [NaN, 0]]) assert.equal(isValidDestination(new THREE.Vector3(x, 0, z)), false);
 });
 
 test("ray selection hits solid pump and walls before ground behind them", () => {
   const street = new PumpCourtyard();
   street.group.visible = true;
-  const from = new THREE.Vector3(1.45, 1.62, 0);
-  const ray = new THREE.Raycaster(from, new THREE.Vector3(0, -0.5, -5.4).normalize());
+  const from = new THREE.Vector3(pumpPosition.x, 1.62, -3);
+  const ray = new THREE.Raycaster(from, new THREE.Vector3(0, -0.5, 4.3).normalize());
   const pumpHit = street.pick(ray);
   assert.ok(street.isPump(pumpHit.object));
   assert.equal(street.canTeleport(pumpHit), false);
-  ray.set(new THREE.Vector3(0, 1.62, 0), new THREE.Vector3(1, 0, 0));
+  ray.set(new THREE.Vector3(0, 1.62, 0), new THREE.Vector3(0, 0, -1));
   assert.equal(street.canTeleport(street.pick(ray)), false);
   ray.set(new THREE.Vector3(-2, 1.62, 0), new THREE.Vector3(0, -1, -1).normalize());
   assert.ok(street.canTeleport(street.pick(ray)));
@@ -187,20 +187,20 @@ test("arrow translation matches WASD, arrow turns rotate without translating", (
 });
 
 test("walking stops at the pump and walls; swept tests reject crossing the pump", () => {
-  assert.equal(canWalkBetween(new THREE.Vector3(-1, 0, -5.4), new THREE.Vector3(3, 0, -5.4)), false);
+  assert.equal(canWalkBetween(new THREE.Vector3(-6, 0, 1.3), new THREE.Vector3(-2, 0, 1.3)), false);
   const controls = new DesktopMovement();
-  controls.press("KeyW");
-  let position = new THREE.Vector3(1.45, 1.62, 0);
+  controls.press("KeyS");
+  let position = new THREE.Vector3(pumpPosition.x, 1.62, -3);
   for (let i = 0; i < 200; i++) {
     position = controls.update(position, 0, 0.05).position;
     assert.ok(isValidDestination(position));
   }
-  assert.ok(position.z > -4.36);
+  assert.ok(position.z < pumpPosition.z - 0.64);
   controls.clear();
   controls.press("KeyD");
   position.set(0, 1.62, 0);
   for (let i = 0; i < 200; i++) position = controls.update(position, 0, 0.05).position;
-  assert.ok(position.x <= 3.6 && position.x > 3.4);
+  assert.ok(position.x <= 15 && position.x > 14.8);
   controls.press("KeyW");
   const sliding = controls.update(position, 0, 0.05).position;
   assert.ok(isValidDestination(sliding) && sliding.z < position.z);
@@ -235,4 +235,40 @@ test("movement is frame-rate independent and a stalled frame cannot jump across 
   };
   assert.ok(simulate(30).distanceTo(simulate(120)) < 1e-10);
   assert.ok(controls.update(new THREE.Vector3(), 0, 60).position.length() <= 0.1);
+});
+
+
+test("junction footprint admits Cambridge but rejects facade corner cutting", () => {
+  assert.ok(isValidDestination(streetSpawn));
+  assert.ok(canWalkBetween(new THREE.Vector3(1,0,2), new THREE.Vector3(1,0,5)));
+  assert.equal(canWalkBetween(new THREE.Vector3(-2,0,2), new THREE.Vector3(1,0,5)), false);
+  assert.equal(canWalkBetween(new THREE.Vector3(14,0,2), new THREE.Vector3(7.5,0,5)), false);
+  assert.equal(isValidDestination(new THREE.Vector3(4,0,14)), false);
+});
+
+test("exported street stays within its geometry budget and embeds its textures", async () => {
+  const bytes = await readFile('public/models/broad-street.glb');
+  assert.equal(bytes.toString('utf8',0,4), 'glTF');
+  assert.ok(bytes.length < 20 * 1024 * 1024, 'Keep the preload below 20 MiB');
+  const gltf = JSON.parse(bytes.toString('utf8',20,20 + bytes.readUInt32LE(12)));
+  const primitives = gltf.meshes.flatMap(mesh => mesh.primitives);
+  const triangles = primitives.reduce((sum,p) => sum + gltf.accessors[p.indices].count/3,0);
+  assert.ok(primitives.length <= 20 && triangles < 180_000);
+  assert.ok(gltf.images.length >= 12);
+  assert.ok(gltf.images.every(image => image.bufferView !== undefined && !image.uri));
+  assert.ok(primitives.every(p => p.attributes.NORMAL !== undefined && p.attributes.TEXCOORD_0 !== undefined));
+  assert.ok(gltf.materials.some(m => m.name === 'Painted shopfront' && m.pbrMetallicRoughness.baseColorFactor[0] < .1));
+});
+
+test("generated building envelopes do not occupy any permitted walking position", async () => {
+  const report = JSON.parse(await readFile('assets/broad-street/build-report.json','utf8'));
+  const points = [streetSpawn, pumpPosition];
+  for(let x=-13; x<=15; x+=.5) for(let z=-7.5; z<=13; z+=.5) {
+    const point = new THREE.Vector3(x,0,z);
+    if(isValidDestination(point)) points.push(point);
+  }
+  for(const point of points) for(const r of report.footprints) {
+    assert.equal(point.x > r.minX && point.x < r.maxX && point.z > r.minZ && point.z < r.maxZ, false,
+      `Building overlaps the street at ${point.x}, ${point.z}`);
+  }
 });

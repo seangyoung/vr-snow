@@ -1,91 +1,173 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-const bounds = { minX: -4, maxX: 4, minZ: -8, maxZ: 2 };
-const clearance = 0.4;
-export const pumpPosition = new THREE.Vector3(1.45, 0, -5.4);
+/** Local street coordinates: +X east, +Z south. Dimensions are reconstruction estimates. */
+export const pumpPosition = new THREE.Vector3(-3.8, 0, 1.3);
+export const streetSpawn = new THREE.Vector3(1.6, 0, -2);
+const pumpClearance = 0.65;
+const bounds = { minX: -13, maxX: 15, minZ: -7.85, maxZ: 13 };
+// Expanded building/railing envelopes include a person's clearance from the facade.
+const obstacles = [
+  { minX: -60, maxX: 0.4, minZ: 2.6, maxZ: 60 },
+  { minX: 8.0, maxX: 60, minZ: 2.6, maxZ: 60 },
+];
+
+type Rectangle = typeof bounds;
+function inRectangle(p: THREE.Vector3, r: Rectangle): boolean {
+  return p.x >= r.minX && p.x <= r.maxX && p.z >= r.minZ && p.z <= r.maxZ;
+}
 
 export function isValidDestination(point: THREE.Vector3): boolean {
   return Number.isFinite(point.x) && Number.isFinite(point.z)
-    && point.x >= bounds.minX + clearance && point.x <= bounds.maxX - clearance
-    && point.z >= bounds.minZ + clearance && point.z <= bounds.maxZ - clearance
-    && Math.hypot(point.x - pumpPosition.x, point.z - pumpPosition.z) >= 1.05;
+    && inRectangle(point, bounds) && !obstacles.some((r) => inRectangle(point, r))
+    && Math.hypot(point.x - pumpPosition.x, point.z - pumpPosition.z) >= pumpClearance;
 }
 
-/** Check the whole walking segment so a frame cannot cross the pump. */
+/** Slab intersection prevents cutting across a building corner even on a long frame. */
+function crossesRectangle(from: THREE.Vector3, to: THREE.Vector3, r: Rectangle): boolean {
+  let enter = 0, exit = 1;
+  for (const [axis, min, max] of [["x", r.minX, r.maxX], ["z", r.minZ, r.maxZ]] as const) {
+    const delta = to[axis] - from[axis];
+    if (Math.abs(delta) < 1e-10) {
+      if (from[axis] < min || from[axis] > max) return false;
+    } else {
+      const a = (min - from[axis]) / delta, b = (max - from[axis]) / delta;
+      enter = Math.max(enter, Math.min(a, b));
+      exit = Math.min(exit, Math.max(a, b));
+      if (enter > exit) return false;
+    }
+  }
+  return true;
+}
+
 export function canWalkBetween(from: THREE.Vector3, to: THREE.Vector3): boolean {
   if (!isValidDestination(from) || !isValidDestination(to)) return false;
-  const dx = to.x - from.x;
-  const dz = to.z - from.z;
+  if (obstacles.some((r) => crossesRectangle(from, to, r))) return false;
+  const dx = to.x - from.x, dz = to.z - from.z;
   const lengthSquared = dx * dx + dz * dz;
   const t = lengthSquared === 0 ? 0 : THREE.MathUtils.clamp(
     ((pumpPosition.x - from.x) * dx + (pumpPosition.z - from.z) * dz) / lengthSquared, 0, 1,
   );
-  return Math.hypot(from.x + t * dx - pumpPosition.x, from.z + t * dz - pumpPosition.z) >= 1.05;
+  return Math.hypot(from.x + t * dx - pumpPosition.x, from.z + t * dz - pumpPosition.z) >= pumpClearance;
 }
 
-/** A schematic street fragment, not an archaeological reconstruction. */
+/** Historical reconstruction with lightweight selection proxies independent of art meshes. */
 export class PumpCourtyard {
   readonly group = new THREE.Group();
   readonly floor: THREE.Mesh;
   readonly pump = new THREE.Group();
-  readonly spawn = new THREE.Vector3(0, 0, 0);
+  readonly spawn = streetSpawn.clone();
   private readonly solids: THREE.Object3D[] = [];
+  private readonly fallback = new THREE.Group();
+  private visualsPromise?: Promise<void>;
 
   constructor() {
-    const stone = new THREE.MeshStandardMaterial({ color: "#777b79", roughness: 1 });
-    const brick = new THREE.MeshStandardMaterial({ color: "#64534a", roughness: 1 });
-    const iron = new THREE.MeshStandardMaterial({ color: "#244c4a", metalness: 0.55, roughness: 0.42 });
-    const trim = new THREE.MeshStandardMaterial({ color: "#a39b87", roughness: 0.9 });
-    const dark = new THREE.MeshStandardMaterial({ color: "#232c30", roughness: 0.7 });
-    const box = (size: number[], position: number[], material: THREE.Material, parent = this.group) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size as [number, number, number]), material);
-      mesh.position.set(...position as [number, number, number]);
-      parent.add(mesh);
-      return mesh;
-    };
-    this.floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 10), stone);
+    this.group.name = "Broad Street reconstruction";
+    const stone = new THREE.MeshStandardMaterial({ color: "#777b73", roughness: 1 });
+    // This ray-only plane is at the shared locomotion datum. The visual road is 13 cm lower.
+    const rayOnly = new THREE.MeshBasicMaterial({ visible: false });
+    this.floor = new THREE.Mesh(new THREE.PlaneGeometry(116, 110), rayOnly);
     this.floor.rotation.x = -Math.PI / 2;
-    this.floor.position.z = -3;
-    this.group.add(this.floor);
-    const grid = new THREE.GridHelper(10, 20, "#535957", "#656b68");
-    grid.scale.x = 0.8;
-    grid.position.set(0, 0.006, -3);
-    this.group.add(grid);
-
-    // Facades and end barriers bound the entire teleport area.
-    for (const x of [-4.3, 4.3]) {
-      this.solids.push(box([0.6, 5.5, 10.6], [x, 2.75, -3], brick));
-      box([0.12, 0.18, 10], [Math.sign(x) * 3.95, 0.09, -3], trim);
-      for (const z of [-6.5, -3, 0.5]) {
-        for (const y of [1.7, 3.8]) {
-          box([0.04, 1.2, 0.9], [Math.sign(x) * 3.98, y, z], dark);
-          box([0.15, 0.08, 1.1], [Math.sign(x) * 3.9, y - 0.6, z], trim);
-        }
-      }
+    this.floor.position.set(4, 0, 8);
+    this.group.add(this.floor, this.fallback);
+    const ground = new THREE.Mesh(this.floor.geometry, stone);
+    ground.rotation.copy(this.floor.rotation);
+    ground.position.set(4, -0.13, 8);
+    this.fallback.add(ground);
+    const brick = new THREE.MeshStandardMaterial({ color: "#756b57", roughness: 1 });
+    // These coarse envelopes also prevent aiming through buildings during asset loading.
+    for (const [x, z, w, d] of [[-26, 7, 52, 8], [33.2, 7, 49.6, 8], [-3, -13, 42, 8], [-42, -13, 24, 8], [-4, 32, 8, 42], [12.4, 32, 8, 42]]) {
+      const geometry = new THREE.BoxGeometry(w, 10, d);
+      const proxy = new THREE.Mesh(geometry, rayOnly);
+      proxy.position.set(x, 5, z);
+      this.solids.push(proxy);
+      this.group.add(proxy);
+      const visual = new THREE.Mesh(geometry, brick);
+      visual.position.copy(proxy.position);
+      this.fallback.add(visual);
     }
-    for (const z of [-8.2, 2.2]) {
-      this.solids.push(box([8, 0.8, 0.4], [0, 0.4, z], brick));
-    }
-
+    this.buildPump();
     this.pump.position.copy(pumpPosition);
     this.group.add(this.pump);
-    box([1.2, 0.14, 1.2], [0, 0.07, 0], trim, this.pump);
-    const cylinder = (top: number, bottom: number, height: number, y: number) => {
-      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(top, bottom, height, 12), iron);
-      mesh.position.y = y;
-      this.pump.add(mesh);
-    };
-    cylinder(0.21, 0.3, 0.35, 0.31);
-    cylinder(0.16, 0.2, 1.3, 1.08);
-    cylinder(0.26, 0.2, 0.15, 1.8);
-    cylinder(0.03, 0.26, 0.25, 2);
-    box([0.15, 0.15, 0.55], [0, 1.25, 0.32], iron, this.pump);
-    box([0.15, 0.22, 0.12], [0, 1.15, 0.55], iron, this.pump);
-    const handle = box([0.08, 0.85, 0.08], [0.38, 1.36, 0], iron, this.pump);
-    handle.rotation.z = -0.3;
-    box([0.38, 0.08, 0.08], [0.18, 1.68, 0], iron, this.pump);
     this.solids.push(this.pump);
+    // Soft daylight; no shadow-map passes or transparent window layers in the street.
+    this.group.add(new THREE.HemisphereLight("#e0e6e4", "#6c6656", 2.3));
+    const daylight = new THREE.DirectionalLight("#fff2d7", 1.65);
+    daylight.position.set(-15, 30, -12);
+    this.group.add(daylight);
     this.group.visible = false;
+  }
+
+  /** Preload once during the desk scene. A failed request retains a usable fallback. */
+  loadVisuals(basePath: string): Promise<void> {
+    return this.visualsPromise ??= this.loadAssets(basePath);
+  }
+
+  private async loadAssets(basePath: string): Promise<void> {
+    try {
+      const gltf = await new GLTFLoader().loadAsync(`${basePath}models/broad-street.glb`);
+      gltf.scene.name = "Authored street environment";
+      gltf.scene.traverse((object) => {
+        if (object instanceof THREE.Mesh) {
+          object.castShadow = false;
+          object.receiveShadow = false;
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          for (const material of materials) {
+            if (material instanceof THREE.MeshStandardMaterial) {
+              for (const texture of [material.map, material.normalMap]) if (texture) texture.anisotropy = 4;
+            }
+          }
+        }
+      });
+      this.group.add(gltf.scene);
+      this.fallback.visible = false;
+      this.group.userData.environmentStatus = "ready";
+    } catch (error) {
+      this.group.userData.environmentStatus = "fallback";
+      console.warn("Broad Street model could not load; using the basic street.", error);
+    }
+    try {
+      const texture = await new THREE.TextureLoader().loadAsync(`${basePath}textures/broad-street/overcast.jpg`);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const sky = new THREE.Mesh(new THREE.SphereGeometry(85, 32, 16), new THREE.MeshBasicMaterial({
+        map: texture, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false,
+      }));
+      sky.name = "Overcast sky";
+      this.group.add(sky);
+    } catch (error) {
+      console.warn("Broad Street sky could not load; using the overcast background.", error);
+    }
+  }
+
+  private buildPump(): void {
+    const iron = new THREE.MeshStandardMaterial({ color: "#39433b", metalness: 0.35, roughness: 0.5 });
+    const stone = new THREE.MeshStandardMaterial({ color: "#8b897a", roughness: 1 });
+    // Profile follows the replica's narrow stem, shouldered barrel, rings, dome and finial.
+    // The working handle is an inferred pre-removal detail, not present on the memorial.
+    const profile = [[.19,0],[.19,.07],[.135,.1],[.12,.18],[.105,.88],[.145,.9],[.145,.96],
+      [.11,1.0],[.145,1.04],[.165,1.1],[.165,1.63],[.185,1.66],[.185,1.72],[.16,1.73],
+      [.16,1.91],[.205,1.93],[.205,1.99],[.17,2.02],[.12,2.09],[.07,2.12],[.05,2.16],
+      [.07,2.18],[.065,2.23],[.03,2.26],[0,2.27]];
+    const body = new THREE.Mesh(new THREE.LatheGeometry(profile.map(([r,y]) => new THREE.Vector2(r,y)), 24), iron);
+    this.pump.add(body);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(.58,.07,.62), stone);
+    slab.position.y = -.005;
+    this.pump.add(slab);
+    const tube = (points: number[][], radius: number) => {
+      const path = new THREE.CatmullRomCurve3(points.map(([x,y,z]) => new THREE.Vector3(x,y,z)));
+      const mesh = new THREE.Mesh(new THREE.TubeGeometry(path, 16, radius, 8, false), iron);
+      this.pump.add(mesh);
+      return mesh;
+    };
+    // Spout faces the street (north); handle clears the pavement on the east side.
+    tube([[0,1.3,-.13],[0,1.31,-.27],[0,1.27,-.42],[0,1.16,-.45]],.052);
+    const opening = new THREE.Mesh(new THREE.CircleGeometry(.039,12),new THREE.MeshBasicMaterial({color:"#070b09",side:THREE.DoubleSide}));
+    opening.rotation.x = Math.PI/2; opening.position.set(0,1.155,-.45);this.pump.add(opening);
+    tube([[.13,1.72,0],[.28,1.73,0],[.43,1.5,0],[.5,1.13,0],[.47,.87,0]],.032);
+    tube([[.47,.87,0],[.47,.8,.13]],.043);
+    // A soft opaque contact patch avoids an expensive dynamic shadow map.
+    const contact = new THREE.Mesh(new THREE.CircleGeometry(.31,24),new THREE.MeshBasicMaterial({color:"#4e5147"}));
+    contact.rotation.x=-Math.PI/2;contact.position.y=.002;this.pump.add(contact);
   }
 
   pick(raycaster: THREE.Raycaster): THREE.Intersection | undefined {
@@ -95,9 +177,7 @@ export class PumpCourtyard {
   }
 
   isPump(object: THREE.Object3D): boolean {
-    for (let node: THREE.Object3D | null = object; node; node = node.parent) {
-      if (node === this.pump) return true;
-    }
+    for (let node: THREE.Object3D | null = object; node; node = node.parent) if (node === this.pump) return true;
     return false;
   }
 

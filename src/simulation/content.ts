@@ -419,7 +419,7 @@ export const hotspots: Hotspot[] = [
     shortLabel: "Pump",
     description: "Snow can inspect whether the pump water itself gives any visible sign of danger.",
     evidenceId: "pump-water-inspection",
-    position: [1.45, 1.45, -5.4],
+    position: [-3.8, 1.45, 1.3],
   },
   {
     id: "registrar-ledger",

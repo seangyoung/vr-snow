@@ -1,6 +1,6 @@
 # Pump approach experiment
 
-This branch replaces only Broad Street's panorama with a bounded 8 × 10 metre schematic street fragment. The geometry demonstrates scale, movement, and object selection; it does not claim to reconstruct the historical street. The pump dialogue and evidence card retain their existing wording and unlock behavior.
+This branch replaces only Broad Street's panorama with a source-informed reconstruction of the Broad/Cambridge Street junction. Movement remains around the intersection while modeled streets extend into the distance. See [the reconstruction notes](broad-street-reconstruction.md) for references, inferred dimensions and asset rebuilding. The pump dialogue and evidence card retain their existing wording and unlock behavior.
 
 ## Controls
 
@@ -18,7 +18,7 @@ The implementation uses WebXR `select`/`squeeze` events and the [standard gamepa
 
 1. Receive Snow's assignment, enter VR, travel to Broad Street, and close the panel. Confirm the pump has depth as you lean sideways.
 2. Select three ground positions, including one beside and one behind the pump. Confirm arrival is under your head, not offset by where you started in the physical room. The viewpoint should retain its height and heading.
-3. Aim near the base and outer walls. Confirm `Blocked` destinations do nothing; pointing at solid geometry never teleports through it.
+3. Aim near the base and building fronts and the ends of the walkable slice. Confirm `Blocked` destinations do nothing; pointing at solid geometry never teleports through it.
 4. Take a small physical step to one side, then turn in both directions using the stick. Confirm there are no persistent Tools or turn buttons following your head. Confirm there is no sideways jump. Repeat with the other controller.
 5. Select the pump, ask what the water sample showed, and verify **Pump water gives no decisive visible proof** appears in the notebook. Confirm the card is collected only once.
 6. Squeeze to open the panel, travel to Snow's Desk, and return. Confirm the street spawn is restored and the evidence retained. Check the map still works.
@@ -39,9 +39,14 @@ The public walkable URL changes only after this branch is committed, pushed, val
 
 ## Verification completed
 
-- All twelve automated checks passed, including offset-preserving teleport and eight consecutive snap turns without viewer translation.
+- The original twelve automated checks passed, including offset-preserving teleport and eight consecutive snap turns without viewer translation.
 - The user confirmed the street-entry freeze fix on Quest. The controller-path regression now exercises pump targeting and selection, squeeze panel access, panel blocking, and ground teleportation using the actual scene methods.
 - Keyboard checks cover direction, diagonal speed, turning, swept pump collision, wall sliding, released keys, focus-state clearing, and frame timing. Browser checks confirmed forward movement, arrow turning, and no movement from arrow input while the map was open.
 - Production build passed with `/vr-snow/walkable/` as its asset base.
 - Desktop production preview: Snow assignment, map travel, ground teleport, drag-to-look, geometry selection, evidence collection, notebook entry, and return to Snow's panorama passed. No browser console errors were reported during that check.
 - The floating controls were removed after Quest feedback. Their removal, VR panel placement after movement, one-controller operation, seated use, and other headsets still need hardware verification.
+
+
+## Reconstruction check (September 2026)
+
+Repeat the headset checklist with the new environment. Confirm the pump is immediately visible on arrival, the continuous terrace stands opposite the Cambridge mouth, rooflines have no missing faces, and the ground remains comfortable when crossing a curb. Inspect loading on a fresh headset tab, then travel to the desk and back. Record performance separately from the earlier schematic street. There are no new controls or interaction targets.
