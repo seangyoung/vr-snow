@@ -258,7 +258,11 @@ test("exported street stays within its geometry budget and embeds its textures",
   assert.ok(gltf.images.length >= 12);
   assert.ok(gltf.images.every(image => image.bufferView !== undefined && !image.uri));
   assert.ok(primitives.every(p => p.attributes.NORMAL !== undefined && p.attributes.TEXCOORD_0 !== undefined));
-  assert.ok(gltf.materials.some(m => m.name === 'Painted shopfront' && m.pbrMetallicRoughness.baseColorFactor[0] < .1));
+  // Shopfront color is now authored in its embedded paint texture rather than
+  // a constant baseColorFactor. Contact shading must also survive the export.
+  assert.ok(gltf.materials.some(m => m.name === 'Painted shopfront' && m.pbrMetallicRoughness?.baseColorTexture));
+  assert.ok(primitives.every(p => p.attributes.COLOR_0 !== undefined));
+  assert.ok(gltf.materials.every(m => (m.alphaMode ?? 'OPAQUE') === 'OPAQUE'));
 });
 
 test("generated building envelopes do not occupy any permitted walking position", async () => {

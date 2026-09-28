@@ -70,8 +70,8 @@ export class PumpCourtyard {
     this.group.add(this.pump);
     this.solids.push(this.pump);
     // Soft daylight; no shadow-map passes or transparent window layers in the street.
-    this.group.add(new THREE.HemisphereLight("#e0e6e4", "#6c6656", 2.3));
-    const daylight = new THREE.DirectionalLight("#fff2d7", 1.65);
+    this.group.add(new THREE.HemisphereLight("#dce3e5", "#8d8879", 3.2));
+    const daylight = new THREE.DirectionalLight("#e6e8e2", 1.65);
     daylight.position.set(-15, 30, -12);
     this.group.add(daylight);
     this.group.visible = false;

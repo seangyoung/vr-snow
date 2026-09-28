@@ -28,7 +28,8 @@ The visual road is 13 cm below the pavement. Teleport and walking retain a commo
 
 - `assets/broad-street/broad-street.blend`: packed, editable Blender source; geometry grouped by material for efficient export.
 - `scripts/assets/build_broad_street.py`: deterministic modular model generator; change dimensions and facade arrangements here and regenerate.
-- `scripts/assets/make_street_textures.py`: original procedural color/normal maps and sky, requiring Python, Pillow and NumPy. No third-party photo textures.
+- `scripts/assets/make_street_textures.py`: original shared prototype texture library and sky used by several locations.
+- `scripts/assets/make_street_finish.py`: street-specific procedural color, normal and roughness maps in `assets/broad-street/finish-textures`, requiring Python, Pillow and NumPy. This avoids changing other rooms when refining the street. No third-party photo textures.
 - `public/models/broad-street.glb`: browser asset, with embedded textures; no Blender dependency at runtime.
 - `assets/broad-street/build-report.json`: mesh counts and building footprints produced by the same generator.
 - `src/walkable/PumpCourtyard.ts`: pump geometry, lighting, one-time GLB loading, selection proxies and intersection movement footprint.
@@ -36,13 +37,13 @@ The visual road is 13 cm below the pavement. Teleport and walking retain a commo
 Rebuild from the repository root:
 
 ```sh
-python3 scripts/assets/make_street_textures.py
+python3 scripts/assets/make_street_finish.py
 blender --background --factory-startup --python scripts/assets/build_broad_street.py
 npm run test:walkable
 VITE_BASE_PATH=/vr-snow/walkable/ npm run build
 ```
 
-On this Mac, Blender is `/Applications/Blender.app/Contents/MacOS/Blender`. Generated textures are also packed into the `.blend`. Source generation uses seed 1854. The GLB has 16 material batches and approximately 165,000 triangles for the entire visible street network, including distant scenery. Selection raycasts use simple envelopes and the small pump mesh, not all the architectural detail. Glazing is opaque; the street uses no real-time shadow maps or postprocessing. Loading starts at Snow's desk and retains a simple usable street if the asset fails.
+On this Mac, Blender is `/Applications/Blender.app/Contents/MacOS/Blender`. Generated textures are also packed into the `.blend`. Geometry generation uses seed 1854; finish maps use seed 18540928. The GLB has 16 material batches and 175,603 triangles for the entire visible street network, including distant scenery. Selection raycasts use simple envelopes and the small pump mesh, not all the architectural detail. Glazing is opaque; the street uses no real-time shadow maps or postprocessing. Loading starts at Snow's desk and retains a simple usable street if the asset fails.
 
 ## Verification and remaining limits
 
@@ -50,7 +51,7 @@ Automated checks cover movement, facade corner cutting, pump clearance, controll
 
 Quest frame rate, stereo scale, loading and comfort require a fresh on-device check for this more detailed asset. The previous simple street's headset result does not validate this reconstruction. Materials are deliberately economical; measured facade surveys, more specific shopfront evidence and professionally authored surface detail could improve fidelity further.
 
-For this revision, all 15 automated checks and the production build passed. The desktop production preview loaded the authored model without console warnings/errors; pump selection, evidence collection, ground teleportation, travel to Snow's desk and return were exercised. The final exported doors, corner windows and street sight lines were inspected in the browser. These checks do not establish an XR frame-rate result.
+For the initial reconstruction, all 15 automated checks and the production build passed. The desktop production preview loaded the authored model without console warnings/errors; pump selection, evidence collection, ground teleportation, travel to Snow's desk and return were exercised. The final exported doors, corner windows and street sight lines were inspected in the browser. These checks do not establish an XR frame-rate result.
 
 
 ## In-world scene connections
@@ -65,6 +66,45 @@ Broad Street is the navigation hub. Enter an unlocked marked ring to travel auto
 | Registrar | South via Cambridge Street, then onward | An off-map records-office connection, not a claim that the office stood at the end of Cambridge Street. |
 | Household | Marked northern frontage, west of the pump | A representative interview location, not an identified family's documented address. Its map marker has moved to Broad Street. The highlighted door is part of the modeled no. 19 frontage. |
 
-East/south are approximate street-relative directions, consistent with the model axes. Door placement and exit distances remain illustrative. The household, brewery and workhouse panoramas have stationary selectable return targets to Broad Street. The registrar returns to Snow for records review. Household, brewery and workhouse remain stationary panorama viewpoints, so their return targets require selection. The registrar is now a walkable records room with a doorway back to Snow; see [registrar notes](walkable-registrar.md). Snow’s office is now a furnished 3D room with a selectable door and automatic doorway approach zone; see [office notes](walkable-office.md). The Board remains behind the existing Snow-review flow.
+East/south are approximate street-relative directions, consistent with the model axes. Door placement and exit distances remain illustrative. The [household](walkable-household.md), [brewery](walkable-brewery.md) and [workhouse](walkable-workhouse.md) are now walkable environments with marked returns to Broad Street. The registrar returns to Snow for records review. The registrar is now a walkable records room with a doorway back to Snow; see [registrar notes](walkable-registrar.md). Snow’s office is now a furnished 3D room with a selectable door and automatic doorway approach zone; see [office notes](walkable-office.md). The Board remains behind the existing Snow-review flow.
 
 Routes and approach zones are defined in `src/walkable/TravelRoutes.ts`; `WorldTravelTargets.ts` creates small runtime meshes and labels. No Blender asset rebuild is required to reposition them. Panorama return markers are world-fixed wayfinding labels, not calibrated physical door geometry or compass bearings.
+
+
+## Broad Street visual pass — 28 September 2026
+
+This pass preserves the reconstructed building footprints, pump position, walking
+bounds, route markers, evidence mechanics and original panorama. Weathering and
+interior suggestions remain artistic choices, not newly established historical facts.
+
+- Less regular-looking granite setts with worn edges, restrained color variation,
+  fine surface relief and patches of lower roughness. Yorkstone paving, brick,
+  limewash, limestone, slate and painted timber receive dedicated finish maps.
+- Vertex shading grounds the pavements against facades and adds subtle soiling to
+  building bases and parapets. This is an economical approximation, not a physically
+  baked lighting solution. Sparse ground tessellation carries the gradients.
+- Opaque windows use a complete pane composition with subdued sky reflections,
+  dark interiors and shaded linen edges. The old wood normal map is removed from
+  glazing. No transparent window layers or modeled shop interiors are introduced.
+- Nearby shopfronts gain molded capitals and recessed panel trim. Distant terraces
+  retain simpler joinery. Diffuse daylight uses a cooler sky and a brighter reflected
+  fill so dark shopfronts remain legible.
+
+The authored model stays at 16 material batches and below the existing 180,000
+triangle / 20 MiB limits. The full street has 175,603 triangles (previously 165,047);
+the GLB is 17.54 MiB (previously 15.60 MiB). The fixed-camera desktop review
+renders 24 draw calls, unchanged from the baseline, including the runtime pump and sky. This does not
+measure Quest stereo performance: loading and frame time still need an on-device
+check. Lower-resolution trim, glass and roughness maps keep the total embedded
+texture pixel count slightly below the original (8,224,768 versus 8,257,536),
+about 41.83 versus 42.00 MiB assuming RGBA8 and mipmaps; actual GPU allocation
+can differ. All materials remain opaque and there are no shadow maps, extra
+lights or postprocessing passes.
+
+The local production build and all 43 walkable regression checks passed,
+alongside fixed-camera corner, northern facade and close pump inspections.
+The normal app flow loaded the revised street from Snow’s desk; pump selection,
+evidence collection and ground teleportation worked without browser warnings or
+errors. Building footprints match the previous generated report exactly. The
+published version is intentionally left unchanged during the parallel user
+playthrough; this visual pass is a local review candidate.

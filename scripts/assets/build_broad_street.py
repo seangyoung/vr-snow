@@ -6,7 +6,7 @@ import bpy, math, random, json
 from pathlib import Path
 from mathutils import Vector
 ROOT=Path(__file__).resolve().parents[2]
-TEX=ROOT/'assets/broad-street/textures'
+TEX=ROOT/'assets/broad-street/finish-textures'
 random.seed(1854)
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=False)
 M={}; BUFF={}; footprints=[]
@@ -20,9 +20,17 @@ def material(name,color,texture=None,repeat=1,rough=.9,metal=0):
     if texture:
         im=m.node_tree.nodes.new('ShaderNodeTexImage'); im.image=bpy.data.images.load(str(TEX/f'{texture}.jpg'))
         m.node_tree.links.new(im.outputs['Color'],bs.inputs['Base Color'])
-        nm=m.node_tree.nodes.new('ShaderNodeTexImage'); nm.image=bpy.data.images.load(str(TEX/f'{texture if texture not in ["cool-glass","warm-glass"] else "wood"}-normal.png')); nm.image.colorspace_settings.name='Non-Color'
-        normal=m.node_tree.nodes.new('ShaderNodeNormalMap'); normal.inputs['Strength'].default_value=.65
-        m.node_tree.links.new(nm.outputs['Color'],normal.inputs['Color']); m.node_tree.links.new(normal.outputs['Normal'],bs.inputs['Normal'])
+        normal_path=TEX/f'{texture}-normal.png'
+        if normal_path.exists():
+            nm=m.node_tree.nodes.new('ShaderNodeTexImage'); nm.image=bpy.data.images.load(str(normal_path)); nm.image.colorspace_settings.name='Non-Color'
+            normal=m.node_tree.nodes.new('ShaderNodeNormalMap'); normal.inputs['Strength'].default_value=.5
+            m.node_tree.links.new(nm.outputs['Color'],normal.inputs['Color']); m.node_tree.links.new(normal.outputs['Normal'],bs.inputs['Normal'])
+        roughness_path=TEX/f'{texture}-roughness.png'
+        if roughness_path.exists():
+            rm=m.node_tree.nodes.new('ShaderNodeTexImage'); rm.image=bpy.data.images.load(str(roughness_path)); rm.image.colorspace_settings.name='Non-Color'
+            channels=m.node_tree.nodes.new('ShaderNodeSeparateColor')
+            m.node_tree.links.new(rm.outputs['Color'],channels.inputs['Color'])
+            m.node_tree.links.new(channels.outputs['Green'],bs.inputs['Roughness'])
     M[name]=(m,repeat)
     BUFF[name]=[[],[],[],[]]
 
@@ -32,18 +40,18 @@ material('Granite setts','777771','setts',2.4,rough=.84)
 material('Yorkstone paving','a5a18b','flags',2.4)
 material('Welsh slate','555c60','slate',2.4)
 material('Old timber','514632','wood',1.5)
-material('Limestone','9d9988')
-material('Sooty render','aaa18b')
-material('Window frame','9e9c8b')
-material('Painted shopfront','273c36')
+material('Limestone','838170','limestone',1.5)
+material('Sooty render','8b8774','limewash',2)
+material('Window frame','8c8976')
+material('Painted shopfront','28362e','paint',1.5)
 material('Ironwork','262b28',rough=.63,metal=.45)
 material('Terracotta','79543e')
 material('Recess','1a201f')
-material('Window glass','3a4547','cool-glass',2,rough=.5,metal=.05)
-material('Warm glass','635c43','warm-glass',2,rough=.5,metal=.05)
+material('Window glass','3a4547','cool-glass',2,rough=.37,metal=0)
+material('Warm glass','635c43','warm-glass',2,rough=.37,metal=0)
 material('Lettering','bdb59a')
 
-origin=(0,0,0); angle=0
+origin=(0,0,0); angle=0; facade_height=10
 
 def transform(p):
     x,y,z=p; c=math.cos(angle);s=math.sin(angle)
@@ -59,14 +67,42 @@ def face(points,mat,shade=1):
     if axis==2: axes=[0,1]
     if axis==0: axes=[2,1]
     repeat=M[mat][1]
-    uvs.extend((p[axes[0]]/repeat,p[axes[1]]/repeat) for p in points)
-    colors.extend([(shade,shade,shade,1)]*len(points))
+    if mat in ['Window glass','Warm glass']:
+        # Each pane gets a complete reflection/curtain composition, not a repeat
+        # accidentally shared with neighboring masonry. Glass has no wood normal.
+        low=[min(p[i] for p in points) for i in axes]
+        span=[max(p[i] for p in points)-low[j] or 1 for j,i in enumerate(axes)]
+        uvs.extend(tuple((p[i]-low[j])/span[j] for j,i in enumerate(axes)) for p in points)
+    else:
+        uvs.extend((p[axes[0]]/repeat,p[axes[1]]/repeat) for p in points)
+    for x,y,z in world:
+        weather=1
+        if mat in ['London stock brick','Weathered red brick','Sooty render','Limestone','Painted shopfront'] and y>.08:
+            # Baked broad-scale weathering, independent of the geometry RNG.
+            weather=(.91+.05*math.sin(origin[0]*1.7+origin[2]*.9))
+            weather*=1-.18*math.exp(-max(y,0)/.9)
+            weather*=1-.10*math.exp(-abs(y-facade_height)/.5)
+        if mat in ['Yorkstone paving','Granite setts'] and y<=.02:
+            # Vertex contact shading avoids shadow maps and transparent overlays.
+            distance=min(math.hypot(max(r['minX']-x,0,x-r['maxX']),max(r['minZ']-z,0,z-r['maxZ'])) for r in footprints)
+            weather=(.66+.34*min(distance/1.5,1))
+            weather*=.95+.035*math.sin(x*.57+math.sin(z*.71))*math.cos(z*.49)
+        v=shade*weather
+        colors.append((v,v,v,1))
 
-def box(x,y,z,w,h,d,mat,shade=1):
+def box(x,y,z,w,h,d,mat,shade=1,top_grid=None):
     a=x-w/2;b=x+w/2;c=y-h/2;e=y+h/2;f=z-d/2;g=z+d/2
     p=[(a,c,f),(b,c,f),(b,e,f),(a,e,f),(a,c,g),(b,c,g),(b,e,g),(a,e,g)]
     for ids,ao in [((0,3,2,1),.88),((5,6,7,4),.9),((4,7,3,0),.85),((1,2,6,5),.94),((3,7,6,2),1),((4,0,1,5),.6)]:
-        face([p[i] for i in ids],mat,shade*ao)
+        if ids==(3,7,6,2) and top_grid:
+            # Sparse tessellation carries contact shading; surfaces stay flat and
+            # do not alter collision, movement height or the curb footprint.
+            nx=math.ceil(w/top_grid);nz=math.ceil(d/top_grid)
+            for ix in range(nx):
+                for iz in range(nz):
+                    x0=a+w*ix/nx;x1=a+w*(ix+1)/nx;z0=f+d*iz/nz;z1=f+d*(iz+1)/nz
+                    face([(x0,e,z0),(x0,e,z1),(x1,e,z1),(x1,e,z0)],mat,shade*ao)
+        else:face([p[i] for i in ids],mat,shade*ao)
 
 def tube(points,r,mat,sides=8):
     rings=[]
@@ -131,6 +167,15 @@ def facade(width,height,brick,shop=False,number=None):
             tube([(gap+.4,1.1,-.2),(gap+.4,1.1,-.26)],.035,'Ironwork')
             box(0,2.9,-.12,width,.42,.24,'Painted shopfront')
             box(0,3.15,-.18,width+.12,.13,.4,'Old timber')
+            box(0,2.67,-.17,width,.055,.29,'Old timber',.72)
+            box(0,3.04,-.21,width+.05,.045,.32,'Painted shopfront',1.06)
+            # Simple recessed stall risers and molded pilaster capitals.
+            for j in (range(3) if math.hypot(origin[0],origin[2])<26 else []):
+                x=(j-1)*gap
+                for y in [.29,.69]:box(x,y,-.18,gap-.36,.032,.07,'Painted shopfront',.8)
+                for dx in [-gap/2+.12,gap/2-.12]:
+                    box(x+dx,2.57,-.19,.16,.10,.21,'Painted shopfront')
+                    box(x+dx,.19,-.19,.15,.17,.21,'Painted shopfront',.72)
             continue
         if level==0:
             for j in range(3):
@@ -168,7 +213,8 @@ def facade(width,height,brick,shop=False,number=None):
 
 
 def house(x,z,width=6,height=9.6,rot=0,shop=False,number=None,side=False):
-    global origin,angle
+    global origin,angle,facade_height
+    facade_height=height
     origin=(x,0,z);angle=rot
     brick='Weathered red brick' if random.random()<.25 else 'London stock brick'
     depth=8
@@ -234,10 +280,10 @@ for x,w in [(-31.5,3),(-22.5,3),(16.5,3),(27.5,3)]:
     box(x,4.8,-24,w,9.6,15,'London stock brick',.8)
 origin=(0,0,0);angle=0
 # Single ground plus raised paving. Ground remains at a uniform locomotion height.
-box(4,-.19,8,116,.12,110,'Granite setts')
+box(4,-.19,8,116,.12,110,'Granite setts',top_grid=2)
 # A shallow curb gives readable depth without a step-height locomotion system.
 for x,z,w,d in [(-42,-8.25,24,1.5),(-3,-8.25,42,1.5),(42,-8.25,32,1.5),(-25.2,2.2,53.6,1.6),(32.4,2.2,51.2,1.6),(.8,28,1.6,50),(7.6,28,1.6,50)]:
-    box(x,-.07,z,w,.14,d,'Yorkstone paving')
+    box(x,-.07,z,w,.14,d,'Yorkstone paving',top_grid=1)
 # Separate kerbstones and gutter strips; no visible barriers at movement limits.
 for z,segments in [(-7.46,[(-54,-30),(-24,18),(26,58)]),(1.38,[(-54,1.6),(6.8,58)])]:
     for start,end in segments:
