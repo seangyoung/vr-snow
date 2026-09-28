@@ -1,0 +1,17 @@
+{
+  "width": 10, "depth": 12, "height": 4.5,
+  "spawn": [1.1, 0, 4.25],
+  "deskTarget": [0, 1.1, 1.1],
+  "door": [1.8, 0, 6],
+  "furniture": [
+    {"id":"owners-table", "x":0, "z":1.1, "width":2, "depth":0.95, "height":0.84},
+    {"id":"west-copper", "x":-2.35, "z":-2.6, "width":2.6, "depth":2.6, "height":4.5},
+    {"id":"east-copper", "x":2.35, "z":-2.6, "width":2.6, "depth":2.6, "height":4.5},
+    {"id":"timber-vat", "x":-4, "z":0.2, "width":1.65, "depth":1.65, "height":2.65},
+    {"id":"barrel-rack", "x":4.4, "z":0, "width":0.9, "depth":4.8, "height":2.8},
+    {"id":"sacks", "x":-4.25, "z":3, "width":1, "depth":1.8, "height":1.1},
+    {"id":"bench", "x":-2.4, "z":4.9, "width":1.9, "depth":0.5, "height":0.52},
+    {"id":"west-stool", "x":-0.6, "z":0.05, "width":0.5, "depth":0.5, "height":0.6},
+    {"id":"east-stool", "x":0.6, "z":0.05, "width":0.5, "depth":0.5, "height":0.6}
+  ]
+}

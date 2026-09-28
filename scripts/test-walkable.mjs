@@ -8,14 +8,14 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/FurnishedRoom", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/FurnishedRoom", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
   await mkdir(resolve(output, name, ".."), { recursive: true });
   await writeFile(resolve(output, `${name}.js`), compiled);
 }
-for (const name of ["office-layout", "registrar-layout", "household-layout", "workhouse-layout"]) await copyFile(`src/walkable/${name}.json`, resolve(output, `walkable/${name}.json`));
+for (const name of ["office-layout", "registrar-layout", "household-layout", "workhouse-layout", "brewery-layout"]) await copyFile(`src/walkable/${name}.json`, resolve(output, `walkable/${name}.json`));
 await writeFile(resolve(output, "package.json"), '{"type":"module"}');
 const load = (name) => import(pathToFileURL(resolve(output, `${name}.js`)).href);
 const { teleportViewer, turnViewer, standardTurnAxis } = await load("walkable/locomotion");
@@ -375,6 +375,7 @@ test('scene automatic travel uses tracked viewer position, blocks panels and ded
   assert.equal(fades,1);assert.ok(scene.worldTravelPending);
 });
 
+const { BreweryRoom, breweryArea, brewerySpawn, breweryOwnersTarget } = await load("walkable/BreweryRoom");
 const { WorkhouseCourtyard, workhouseArea, workhouseSpawn, workhouseStewardTarget } = await load("walkable/WorkhouseCourtyard");
 const { HouseholdRoom, householdArea, householdSpawn, householdInterviewTarget } = await load("walkable/HouseholdRoom");
 const { RegistrarRoom, registrarArea, registrarSpawn, registrarLedgerTarget } = await load("walkable/RegistrarRoom");
@@ -445,19 +446,31 @@ test('actual office controller path selects desk, respects panels, teleports and
 
 test('office/street/panorama lifecycle restores scene geometry, lighting and arrival',()=>{
   const game=fieldGame(true),scene=Object.create(BroadStreetScene.prototype);
+  for (const [location,hotspot,questions] of [
+    ['household','broad-street-household',['household-water-question','household-pattern-question']],
+    ['workhouse','poland-workhouse',['workhouse-water-question']],
+    ['brewery','broad-street-brewery',['brewery-drink-question']],
+  ]) {
+    game.travelToLocation(location);game.inspectHotspot(hotspot);for(const question of questions) game.askQuestion(question);
+  }
+  game.travelToLocation('snow-desk');game.selectHypothesis('waterborne');game.setSynthesisConfidence('proportionate');
+  assert.ok(game.prepareBoardArgument().prepared);
   const rig=new THREE.Group(),camera=new THREE.PerspectiveCamera();camera.position.y=1.62;rig.add(camera);
-  const courtyard=new PumpCourtyard(),office=new SnowOffice(),registrar=new RegistrarRoom(),household=new HouseholdRoom(),workhouse=new WorkhouseCourtyard();
-  Object.assign(scene,{gameState:game,playerRig:rig,camera,courtyard,office,registrar,household,workhouse,desktopMovement:new DesktopMovement(),
+  const courtyard=new PumpCourtyard(),office=new SnowOffice(),registrar=new RegistrarRoom(),household=new HouseholdRoom(),workhouse=new WorkhouseCourtyard(),brewery=new BreweryRoom();
+  Object.assign(scene,{gameState:game,playerRig:rig,camera,courtyard,office,registrar,household,workhouse,brewery,desktopMovement:new DesktopMovement(),
     travelZones:new TravelZoneTracker(),scene:new THREE.Scene(),panoramaLighting:new THREE.Group(),panoramaSky:new THREE.Group(),
     renderer:{xr:{isPresenting:false}},primeMotionLookReference:()=>{},applyPanorama:()=>{},refreshLocationObjects:()=>{},
     refreshHotspots:()=>{},markVrPanelDirty:()=>{}});
-  for(const id of ['snow-desk','broad-street','registrar','household','workhouse','brewery','workhouse','household','broad-street','snow-desk']) {
-    game.travelToLocation(id);scene.applyCurrentLocation();
-    assert.equal(office.group.visible,id==='snow-desk');assert.equal(courtyard.group.visible,id==='broad-street');assert.equal(registrar.group.visible,id==='registrar');assert.equal(household.group.visible,id==='household');assert.equal(workhouse.group.visible,id==='workhouse');
-    assert.equal(scene.panoramaSky.visible,id==='brewery');assert.equal(scene.panoramaLighting.visible,id==='brewery');
-    const spawn=id==='snow-desk'?officeSpawn:id==='broad-street'?streetSpawn:id==='registrar'?registrarSpawn:id==='household'?householdSpawn:id==='workhouse'?workhouseSpawn:new THREE.Vector3();
+  for(const id of ['snow-desk','broad-street','registrar','household','workhouse','brewery','board-room','brewery','workhouse','household','broad-street','snow-desk']) {
+    if(id==='board-room') assert.ok(game.presentToBoard().accepted);
+    else assert.ok(game.travelToLocation(id).traveled);
+    scene.applyCurrentLocation();
+    assert.equal(office.group.visible,id==='snow-desk');assert.equal(courtyard.group.visible,id==='broad-street');assert.equal(registrar.group.visible,id==='registrar');assert.equal(household.group.visible,id==='household');assert.equal(workhouse.group.visible,id==='workhouse');assert.equal(brewery.group.visible,id==='brewery');
+    assert.equal(scene.panoramaSky.visible,id==='board-room');assert.equal(scene.panoramaLighting.visible,id==='board-room');
+    const spawn=id==='snow-desk'?officeSpawn:id==='broad-street'?streetSpawn:id==='registrar'?registrarSpawn:id==='household'?householdSpawn:id==='workhouse'?workhouseSpawn:id==='brewery'?brewerySpawn:new THREE.Vector3();
     const viewer=camera.getWorldPosition(new THREE.Vector3());assert.ok(Math.hypot(viewer.x-spawn.x,viewer.z-spawn.z)<1e-10);
     assert.equal(scene.worldTravelPending,false);
+    if(id==='board-room') game.finishBoard();
   }
 });
 
@@ -659,6 +672,73 @@ test('workhouse authored courtyard matches navigation layout and embeds modest a
   const report=JSON.parse(await readFile('assets/workhouse-courtyard/build-report.json','utf8'));
   assert.deepEqual(report.layout,workhouseLayout);assert.ok(report.triangles<30000);assert.ok(report.materialBatches<=16);
   const glb=await readFile('public/models/workhouse-courtyard.glb');assert.equal(glb.readUInt32LE(0),0x46546c67);
+  const json=JSON.parse(glb.subarray(20,20+glb.readUInt32LE(12)).toString());
+  assert.ok(json.meshes.length>0);assert.ok(json.images.every(image=>image.bufferView!==undefined));
+});
+
+test('brewery controller interview retains the workers evidence and returns through the marked exit',()=>{
+  const game=fieldGame(true);game.travelToLocation('brewery');
+  const room=new BreweryRoom();room.group.visible=true;
+  const camera=new THREE.PerspectiveCamera();camera.position.set(0,1.62,0);
+  const rig=new THREE.Group();rig.add(camera);teleportViewer(rig,camera,brewerySpawn);
+  const controller=new THREE.Group();controller.position.copy(brewerySpawn).setY(1.62);
+  controller.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),breweryOwnersTarget.clone().setY(.8).sub(controller.position).normalize());
+  const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
+  const scene=Object.create(BroadStreetScene.prototype);
+  Object.assign(scene,{camera,playerRig:rig,courtyard:new PumpCourtyard(),office:new SnowOffice(),registrar:new RegistrarRoom(),household:new HouseholdRoom(),workhouse:new WorkhouseCourtyard(),brewery:room,worldTravel:targets,gameState:game,
+    renderer:{xr:{isPresenting:true}},desktopMovement:new DesktopMovement(),controllerRaycaster:new THREE.Raycaster(),
+    controllerWorldPosition:new THREE.Vector3(),controllerWorldQuaternion:new THREE.Quaternion(),controllerWorldDirection:new THREE.Vector3(),
+    cameraWorldPosition:new THREE.Vector3(),travelZones:new TravelZoneTracker(),vrPanelVisible:false,vrPanelButtons:[],
+    hotspotVisuals:new Map(),worldTravelPending:false,hideVrPanel:()=>{},activateVrHotspot:h=>game.inspectHotspot(h.id)});
+  scene.selectFromVrController(controller);assert.ok(game.hasInspected('broad-street-brewery'));
+  game.askQuestion('brewery-drink-question');assert.ok(game.hasEvidence('brewery-exception'));
+  const zone=returnTravelRoutes.find(r=>r.id==='brewery-return').zone;
+  scene.vrPanelVisible=true;teleportViewer(rig,camera,new THREE.Vector3(zone.x,0,zone.z));scene.updateWorldTravelZones();
+  scene.vrPanelVisible=false;scene.updateWorldTravelZones();assert.equal(game.getCurrentLocation().id,'brewery','closing interview does not trigger travel');
+  teleportViewer(rig,camera,brewerySpawn);scene.updateWorldTravelZones();
+  teleportViewer(rig,camera,new THREE.Vector3(zone.x,0,zone.z));scene.updateWorldTravelZones();
+  assert.equal(game.getCurrentLocation().id,'broad-street');assert.ok(game.hasEvidence('brewery-exception'));
+  assert.ok(game.travelToLocation('brewery').traveled,'map return remains available');
+});
+
+const breweryLayout=JSON.parse(await readFile('src/walkable/brewery-layout.json','utf8'));
+test('brewery has an accessible interview, exit and central aisle while vessels block walking',()=>{
+  const zone=returnTravelRoutes.find(r=>r.id==='brewery-return').zone;
+  assert.ok(breweryArea.canWalkBetween(brewerySpawn,new THREE.Vector3(0,0,2.1)));
+  assert.ok(breweryArea.canWalkBetween(brewerySpawn,new THREE.Vector3(zone.x,0,zone.z)));
+  const aisle=[[1.1,4.25],[2.1,2.2],[2.1,-.4],[0,-.8],[0,-4.8]].map(([x,z])=>new THREE.Vector3(x,0,z));
+  for(let i=1;i<aisle.length;i++) assert.ok(breweryArea.canWalkBetween(aisle[i-1],aisle[i]),'route around table and between copper vessels');
+  assert.ok(Math.hypot(brewerySpawn.x-zone.x,brewerySpawn.z-zone.z)>zone.radius+.5);
+  for(const f of breweryLayout.furniture) assert.equal(breweryArea.isValidDestination(new THREE.Vector3(f.x,0,f.z)),false,f.id);
+  assert.equal(breweryArea.canWalkBetween(new THREE.Vector3(2.35,0,-.7),new THREE.Vector3(2.35,0,-4.5)),false,'no crossing the copper between valid endpoints');
+  const keys=new DesktopMovement();keys.press('w');let p=new THREE.Vector3(0,1.62,2.2);
+  for(let i=0;i<100;i++) p=keys.update(p,0,.05,breweryArea.canWalkBetween).position;
+  assert.ok(p.z>=1.825 && p.z<1.95,'stop before owners table');
+});
+
+test('brewery seated and standing rays select owners, floor and door but not equipment as evidence',()=>{
+  const room=new BreweryRoom();room.group.visible=true;const game=fieldGame(true);game.travelToLocation('brewery');
+  const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
+  const ray=new THREE.Raycaster();
+  for(const eyeHeight of [1.15,1.62]) {
+    const from=brewerySpawn.clone().setY(eyeHeight);
+    for(const y of [.8,1.45]) {
+      ray.set(from,breweryOwnersTarget.clone().setY(y).sub(from).normalize());
+      const hit=room.pick(ray);assert.equal(room.hotspotFor(hit.object),'broad-street-brewery');assert.equal(room.canTeleport(hit),false);
+    }
+    ray.set(from,new THREE.Vector3(0,-1,0));assert.ok(room.canTeleport(room.pick(ray)));
+  }
+  ray.set(new THREE.Vector3(1.8,1.3,4.25),new THREE.Vector3(0,0,1));
+  const hit=targets.pick(ray,'brewery',room.pick(ray));assert.equal(targets.routeFor(hit.object).to,'broad-street');
+  ray.set(new THREE.Vector3(2.35,1.62,-.6),new THREE.Vector3(0,-.2,-1).normalize());
+  const copper=room.pick(ray);assert.equal(room.canTeleport(copper),false);assert.equal(room.hotspotFor(copper.object),undefined);
+  room.group.visible=false;assert.equal(room.pick(ray),undefined);
+});
+
+test('brewery model matches its collision layout and stays within the authored room budget',async()=>{
+  const report=JSON.parse(await readFile('assets/brewery-room/build-report.json','utf8'));
+  assert.deepEqual(report.layout,breweryLayout);assert.ok(report.triangles<30000);assert.ok(report.materialBatches<=16);
+  const glb=await readFile('public/models/brewery-room.glb');assert.equal(glb.readUInt32LE(0),0x46546c67);
   const json=JSON.parse(glb.subarray(20,20+glb.readUInt32LE(12)).toString());
   assert.ok(json.meshes.length>0);assert.ok(json.images.every(image=>image.bufferView!==undefined));
 });
