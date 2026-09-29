@@ -791,3 +791,36 @@ test("VR modal panels overlay scenery and keep controller actions modal", () => 
     else globalThis.document = originalDocument;
   }
 });
+
+test('exported workhouse has one ground surface and soil behind the stone edging', async () => {
+  const bytes = await readFile('public/models/workhouse-courtyard.glb');
+  const jsonLength = bytes.readUInt32LE(12);
+  const gltf = JSON.parse(bytes.toString('utf8', 20, 20 + jsonLength));
+  // Keep the actual exported geometry/transforms, but omit image loading in Node.
+  gltf.materials = gltf.materials.map(m => ({ name: m.name }));
+  delete gltf.images; delete gltf.textures; delete gltf.samplers;
+  const json = Buffer.from(JSON.stringify(gltf));
+  const padded = Buffer.alloc(Math.ceil(json.length / 4) * 4, 0x20); json.copy(padded);
+  const bin = bytes.subarray(20 + jsonLength);
+  const header = Buffer.alloc(20);
+  header.write('glTF'); header.writeUInt32LE(2, 4);
+  header.writeUInt32LE(20 + padded.length + bin.length, 8);
+  header.writeUInt32LE(padded.length, 12); header.writeUInt32LE(0x4e4f534a, 16);
+  const buffer = Buffer.concat([header, padded, bin]);
+  const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+  const model = (await new GLTFLoader().parseAsync(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength), '')).scene;
+  model.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster(); ray.far = .2;
+  // Non-diagonal samples avoid double hits along the triangles' shared edge.
+  for (const [x,z] of [[8.71,-5.13],[8.21,9.23],[-8.31,-9.17],[.37,.19]]) {
+    ray.set(new THREE.Vector3(x,.1,z), new THREE.Vector3(0,-1,0));
+    assert.equal(ray.intersectObject(model,true).length, 1, `Single ground layer at ${x}, ${z}`);
+  }
+  const soil = model.getObjectByName('Soil'); assert.ok(soil);
+  const soilBounds = new THREE.Box3().setFromObject(soil);
+  const layout = JSON.parse(await readFile('src/walkable/workhouse-layout.json','utf8'));
+  const bed = layout.furniture.find(f => f.id === 'garden-bed');
+  assert.ok(soilBounds.min.x > bed.x-bed.width/2+.04 && soilBounds.max.x < bed.x+bed.width/2-.04);
+  assert.ok(soilBounds.min.z > bed.z-bed.depth/2+.04 && soilBounds.max.z < bed.z+bed.depth/2-.04);
+  model.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+});

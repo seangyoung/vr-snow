@@ -45,10 +45,14 @@ def tube(name,points,r,mat):
         bpy.ops.mesh.primitive_cylinder_add(vertices=10,radius=r,depth=delta.length,location=(aa+bb)/2)
         o=bpy.context.object;o.name=name;o.rotation_euler=delta.to_track_quat('Z','Y').to_euler();o.data.materials.append(M[mat])
 w,d,h=layout['width'],layout['depth'],layout['height']
-box('Courtyard cobbles',0,-.035,0,w,.06,d,'Setts')
-# Flat perimeter paving remains flush with the navigable ground.
-for x in [-w/2+.65,w/2-.65]:box('Side paving',x,-.017,0,1.3,.025,d,'Paving')
-for z in [-d/2+.65,d/2-.65]:box('End paving',0,-.017,z,w,.025,1.3,'Paving')
+# Partition the ground instead of stacking paving 0.5 mm above full-size
+# cobbles. Shared edges are fine; overlapping top faces flicker at grazing angles.
+paving_width=1.3
+box('Courtyard cobbles',0,-.035,0,w-2*paving_width,.06,d-2*paving_width,'Setts')
+for x in [-w/2+paving_width/2,w/2-paving_width/2]:
+    box('Side paving',x,-.017,0,paving_width,.025,d,'Paving')
+for z in [-d/2+paving_width/2,d/2-paving_width/2]:
+    box('End paving',0,-.017,z,w-2*paving_width,.025,paving_width,'Paving')
 # Each wing is built facing inward. All projection remains outside the walking boundary.
 def wing(width):
     box('Brick wing',0,h/2,-.55,width,h,1.1,'Stock brick')
@@ -133,9 +137,14 @@ for id in ['west-bench','east-bench']:
         for dx in [-.24,.24]:box('Bench leg',x+dx,.23,z+dz,.08,.46,.08,'Paint')
         box('Bench back support',x+back*.28,.75,z+dz,.07,.55,.07,'Paint')
 f=furniture('garden-bed');x,z=f['x'],f['z']
-box('Garden soil',x,.20,z,1.4,.4,5.6,'Soil')
-for dx in [-.67,.67]:box('Garden edge',x+dx,.25,z,.06,.5,5.6,'Stone')
-for dz in [-2.77,2.77]:box('Garden edge',x,.25,z+dz,1.4,.5,.06,'Stone')
+bed_width,bed_depth=f['width'],f['depth'];edge=.06
+# Soil tucks 5 mm into the inner edging, well behind the visible exterior.
+# End caps meet shortened side rails without overlapping coplanar corners.
+box('Garden soil',x,.20,z,bed_width-2*edge+.01,.4,bed_depth-2*edge+.01,'Soil')
+for dx in [-(bed_width-edge)/2,(bed_width-edge)/2]:
+    box('Garden edge',x+dx,.24,z,edge,.52,bed_depth-2*edge,'Stone')
+for dz in [-(bed_depth-edge)/2,(bed_depth-edge)/2]:
+    box('Garden edge',x,.24,z+dz,bed_width,.52,edge,'Stone')
 for i in range(9):
     for dx in [-.35,.35]:
         for angle in [-.55,.55]:
