@@ -8,7 +8,7 @@ import { RegistrarRoom, registrarLedgerTarget } from "../walkable/RegistrarRoom"
 import type { WalkableEnvironment } from "../walkable/WalkableArea";
 import { WorldTravelTargets } from "../walkable/WorldTravelTargets";
 import { worldTravelRoutes, TravelZoneTracker, type WorldTravelRoute } from "../walkable/TravelRoutes";
-import { DesktopMovement } from "../walkable/DesktopMovement";
+import { DesktopMovement, desktopPitchLimit } from "../walkable/DesktopMovement";
 import { standardTurnAxis, teleportViewer, turnViewer } from "../walkable/locomotion";
 import { VRButton } from "three/addons/webxr/VRButton.js";
 import { boardThreshold, fieldStudyGoal, noDialogueActionsText } from "../simulation/content";
@@ -185,7 +185,7 @@ const snapTurnReleaseThreshold = 0.22;
 const vrIdleHintDelaySeconds = 10;
 const vrIdleHintDistance = 2;
 const vrIdleHintLowerOffset = 0.44;
-const motionLookPitchLimit = 1.15;
+const motionLookPitchLimit = desktopPitchLimit;
 const motionLookCameraCorrection = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
 const motionLookZAxis = new THREE.Vector3(0, 0, 1);
 
@@ -761,6 +761,8 @@ export class BroadStreetScene {
       if (this.renderer.xr.isPresenting) {
         return;
       }
+      if (document.body.dataset.overlayOpen === "true") return;
+      this.canvas.focus({ preventScroll: true });
       this.dragging = true;
       this.pointerTravel = 0;
       this.previousPointer = { x: event.clientX, y: event.clientY };
@@ -814,6 +816,7 @@ export class BroadStreetScene {
     });
     this.canvas.addEventListener("pointercancel", () => { this.dragging = false; this.pointerTravel = Infinity; });
     window.addEventListener("keydown", (event) => {
+      if (event.defaultPrevented) return;
       if (event.altKey || event.ctrlKey || event.metaKey) {
         this.desktopMovement.clear();
         return;
@@ -825,6 +828,7 @@ export class BroadStreetScene {
       if (this.renderer.xr.isPresenting || document.body.dataset.overlayOpen === "true"
         || (event.target instanceof HTMLElement && event.target.closest("button, input, textarea, select, [contenteditable]"))) return;
       if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
         if (event.repeat) return;
         if (this.focusedTravel) {
           event.preventDefault();
@@ -868,6 +872,7 @@ export class BroadStreetScene {
   }
 
   private handleVrSessionStart(): void {
+    document.body.dataset.xrPresenting = "true";
     this.desktopMovement.clear();
     this.pendingXrSpawn = true;
     this.disableMotionLook("idle");
@@ -880,6 +885,7 @@ export class BroadStreetScene {
   }
 
   private handleVrSessionEnd(): void {
+    document.body.dataset.xrPresenting = "false";
     this.pendingXrSpawn = false;
     this.destinationLabels.forEach(({ valid, blocked }) => { valid.visible = blocked.visible = false; });
     this.hideVrPanel(false);
@@ -901,7 +907,7 @@ export class BroadStreetScene {
   }
 
   private canUseDesktopMovement(): boolean {
-    return Boolean(this.walkable) && !this.renderer.xr.isPresenting
+    return !this.renderer.xr.isPresenting
       && !document.hidden && document.body.dataset.overlayOpen !== "true"
       && !(document.activeElement instanceof HTMLElement
         && document.activeElement.closest("button, input, textarea, select, a, [contenteditable]"));
@@ -913,12 +919,17 @@ export class BroadStreetScene {
       return;
     }
     const position = this.camera.getWorldPosition(this.cameraWorldPosition);
-    const next = this.desktopMovement.update(position, this.yaw, elapsed, this.walkable?.canWalkBetween);
+    const next = this.desktopMovement.update(position, this.yaw, elapsed, this.walkable?.canWalkBetween ?? (() => false), this.pitch);
     const turn = next.yaw - this.yaw;
+    const tilt = next.pitch - this.pitch;
     this.yaw = next.yaw;
-    if (this.motionLookEnabled) this.motionYawOffset += turn;
+    this.pitch = next.pitch;
+    if (this.motionLookEnabled) {
+      this.motionYawOffset += turn;
+      this.motionPitchOffset = THREE.MathUtils.clamp(this.motionPitchOffset + tilt, -motionLookPitchLimit, motionLookPitchLimit);
+    }
     this.applyCameraOrientation();
-    teleportViewer(this.playerRig, this.camera, next.position);
+    if (this.walkable) teleportViewer(this.playerRig, this.camera, next.position);
   }
 
   private updateVrControls(timeSeconds: number): void {

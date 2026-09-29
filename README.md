@@ -36,6 +36,8 @@ Walkable-only work remains on `walkable-prototype` until it is deliberately merg
 
 On `walkable-prototype`, Broad Street is a textured, source-informed reconstruction of the pump junction, with an editable Blender environment and a selectable pump. Snow’s office is a compact furnished 3D room with desk interaction and a doorway to Broad Street; see [office scope and headset checks](docs/walkable-office.md). The [registrar’s records room](docs/walkable-registrar.md) also supports walking, ledger interaction and doorway return to Snow. The [household interior](docs/walkable-household.md) adds a compact domestic room, a marked interview chair and a return doorway to Broad Street. The [workhouse courtyard](docs/walkable-workhouse.md) adds an open-air yard, steward interview and a Poland Street exit back to Broad Street. The [brewery interior](docs/walkable-brewery.md) supports walking around copper vessels, the owners’ interview and a doorway back to Broad Street. The Board scene retains its panorama. See [the reconstruction sources and asset workflow](docs/broad-street-reconstruction.md) and [the headset test card](docs/walkable-pump-test.md) for controls, scope, and acceptance checks.
 
+Desktop keyboard controls: WASD moves, all four arrows look, and Space/Enter selects the centered target. M opens the map; N opens the notebook. Panels use Tab/Shift+Tab or arrows to choose, Enter/Space to activate, Escape to close, and Page Up/Down to scroll. See [keyboard controls and test card](docs/desktop-keyboard.md).
+
 Run `npm run test:walkable` for movement, obstruction, input mapping, and evidence regression checks. The walkable validation workflow runs these checks before deployment eligibility.
 
 ## Concept

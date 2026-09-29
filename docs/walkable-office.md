@@ -11,7 +11,7 @@ This is an interpretive room based on the existing panorama's timber, books, wri
 - Desk, chair, bookcase, fireplace and cabinet block artificial movement. A 25 cm clearance surrounds their footprints and the room perimeter. Sweep checks reject crossing furniture even between two valid endpoints.
 - Select the desk or its Snow label to talk/review. Books and decorative items have no new actions.
 - Select the modeled door or enter its marked ring to reach Broad Street after receiving the assignment. Opening a panel, unlocking while inside a ring, and returning to the office do not cause an automatic exit.
-- Desktop: WASD walking; Up/Down forward/back and Left/Right turning; drag to look; select clear floor to teleport. Enter/Space activates the centered desk/exit.
+- Desktop: WASD walking; Up/Down looking up/down and Left/Right turning; drag to look; select clear floor to teleport. Enter/Space activates the centered desk/exit.
 - WebXR: existing controller-ray select, floor teleport, squeeze panel access and snap turning. All essential interaction is possible by ray from a seated position; there is no requirement to reach over the desk.
 - Collision constrains artificial movement. It cannot stop a person physically walking through furniture; use the headset's real play boundary.
 

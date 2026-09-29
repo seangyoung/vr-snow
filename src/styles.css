@@ -1812,3 +1812,19 @@ body[data-overlay-open="true"] .vr-entry-button {
     animation-iteration-count: 1 !important;
   }
 }
+
+
+/* Visible keyboard focus for menus, evidence and synthesis controls. */
+button:focus-visible, [role="dialog"]:focus-visible {
+  outline: 3px solid #ffe49a;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(12, 24, 27, .9);
+}
+#scene:focus-visible { outline: 2px solid #ffe49a; outline-offset: -2px; }
+.keyboard-help {
+  display: block;
+  margin-top: 7px;
+  color: #c2d5cf;
+  font-size: .67rem;
+  line-height: 1.5;
+}

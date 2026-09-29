@@ -1,3 +1,4 @@
+import { DesktopKeyboard } from "./DesktopKeyboard";
 import { createIcons, icons } from "lucide";
 import { boardThreshold, fieldStudyGoal, locationEvidenceIds, noDialogueActionsText } from "../simulation/content";
 import type { GameState } from "../simulation/gameState";
@@ -119,6 +120,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   let isTransitioning = false;
   let snowReviewOpen = false;
   let motionLookControls: MotionLookControls | undefined;
+  const keyboard = new DesktopKeyboard(root, document.getElementById("scene"), () => isTransitioning);
 
   const ui: PrototypeUi = {
     beginTravel,
@@ -295,6 +297,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   });
 
   function render(): void {
+    keyboard.beforeRender();
     const collected = gameState.getCollectedEvidence();
     const allEvidence = gameState.getAllEvidence();
     const activeDialogue = gameState.getActiveDialogue();
@@ -320,20 +323,21 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           <span class="objective-kicker">Broad Street Inquiry</span>
           <strong>${escapeHtml(gameState.getObjective())}</strong>
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
-          ${currentLocation.id === "snow-desk" ? '<span class="location-line">WASD / arrows to move · Drag to look<br>Select the desk to speak with Snow<br>Select clear floor to teleport · Door leads to Broad Street</span>' : ""}
-          ${currentLocation.id === "brewery" ? '<span class="location-line">WASD / arrows to move · Drag to look<br>Select the marked table to speak with the brewery owners<br>Select clear floor to teleport · Door returns to Broad Street</span>' : ""}
-          ${currentLocation.id === "workhouse" ? '<span class="location-line">WASD / arrows to move · Drag to look<br>Select the marked table to speak with the steward<br>Select clear ground to teleport · Door returns to Broad Street</span>' : ""}
-          ${currentLocation.id === "household" ? '<span class="location-line">WASD / arrows to move · Drag to look<br>Select the marked chair to interview the household<br>Select clear floor to teleport · Door returns to Broad Street</span>' : ""}
-          ${currentLocation.id === "registrar" ? '<span class="location-line">WASD / arrows to move · Drag to look<br>Select the open ledger for the daily returns<br>Select clear floor to teleport · Door returns to Snow</span>' : ""}
-          ${currentLocation.id === "broad-street" ? '<span class="location-line">WASD to move · ↑/↓ forward/back · ←/→ turn<br>Drag to look · Click ground to teleport · Select signs or enter travel rings<br>Broad Street · London, 1854</span>' : ""}
+          ${currentLocation.id === "snow-desk" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the desk to speak with Snow<br>Select clear floor to teleport · Door leads to Broad Street</span>' : ""}
+          ${currentLocation.id === "brewery" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the marked table to speak with the brewery owners<br>Select clear floor to teleport · Door returns to Broad Street</span>' : ""}
+          ${currentLocation.id === "workhouse" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the marked table to speak with the steward<br>Select clear ground to teleport · Door returns to Broad Street</span>' : ""}
+          ${currentLocation.id === "household" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the marked chair to interview the household<br>Select clear floor to teleport · Door returns to Broad Street</span>' : ""}
+          ${currentLocation.id === "registrar" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the open ledger for the daily returns<br>Select clear floor to teleport · Door returns to Snow</span>' : ""}
+          ${currentLocation.id === "broad-street" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Drag to look · Click ground to teleport · Select signs or enter travel rings<br>Broad Street · London, 1854</span>' : ""}
+          <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Panels: Tab / arrows, Enter to choose · Esc: close<br>Page Up / Down: read more · Mouse also supported</span>
         </section>
 
         <nav class="tool-rail" aria-label="Investigation tools">
-          <button class="icon-button ${overlayMode === "notebook" ? "is-active" : ""}" data-action="notebook" aria-label="Notebook">
+          <button class="icon-button ${overlayMode === "notebook" ? "is-active" : ""}" data-action="notebook" aria-label="Notebook" aria-keyshortcuts="N" title="Notebook (N)">
             <i data-lucide="notebook-tabs"></i>
             <span>${gameState.getProgressText()}</span>
           </button>
-          <button class="icon-button ${overlayMode === "map" ? "is-active" : ""}" data-action="map" aria-label="Map">
+          <button class="icon-button ${overlayMode === "map" ? "is-active" : ""}" data-action="map" aria-label="Map" aria-keyshortcuts="M" title="Map (M)">
             <i data-lucide="map"></i>
           </button>
           <button class="icon-button" data-action="reset" aria-label="Reset inquiry">
@@ -355,6 +359,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     `;
 
     createIcons({ icons });
+    keyboard.afterRender();
   }
 
   function beginTravel(locationId: LocationId | undefined): void {

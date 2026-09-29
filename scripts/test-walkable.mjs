@@ -168,16 +168,18 @@ test("keyboard movement follows yaw, preserves height and normalizes diagonals",
   assert.ok(turned.x < 0 && Math.abs(turned.z) < 1e-10);
 });
 
-test("arrow translation matches WASD, arrow turns rotate without translating", () => {
+test("all arrow keys look without translating; WASD remains horizontal movement", () => {
   const controls = new DesktopMovement();
   const start = new THREE.Vector3();
   controls.press("ArrowUp");
-  assert.ok(controls.update(start, 0, 0.05).position.z < 0);
+  assert.deepEqual(controls.update(start, 0, 0.05).position, start);
+  assert.ok(controls.update(start, 0, 0.05).pitch > 0);
   controls.press("KeyW");
   assert.ok(Math.abs(controls.update(start, 0, 0.05).position.z + 0.1) < 1e-10);
   controls.clear();
   controls.press("ArrowDown");
-  assert.ok(controls.update(start, 0, 0.05).position.z > 0);
+  assert.deepEqual(controls.update(start, 0, 0.05).position, start);
+  assert.ok(controls.update(start, 0, 0.05).pitch < 0);
   controls.clear();
   controls.press("ArrowLeft");
   assert.ok(controls.update(start, 0, 0.05).yaw > 0);
@@ -827,4 +829,34 @@ test('exported workhouse has one ground surface and soil behind the stone edging
   assert.ok(soilBounds.min.x > bed.x-bed.width/2+.04 && soilBounds.max.x < bed.x+bed.width/2-.04);
   assert.ok(soilBounds.min.z > bed.z-bed.depth/2+.04 && soilBounds.max.z < bed.z+bed.depth/2-.04);
   model.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+});
+
+
+test("keyboard pitch is bounded, movement stays horizontal and look works without a walkable floor", () => {
+  const keys = new DesktopMovement();
+  const start = new THREE.Vector3(0,1.62,0);
+  keys.press('ArrowUp'); keys.press('KeyW');
+  let state = {position:start, yaw:0, pitch:0};
+  for(let frame=0;frame<200;frame++) state=keys.update(state.position,state.yaw,.05,()=>false,state.pitch);
+  assert.equal(state.pitch,1.15);
+  assert.deepEqual(state.position,start);
+  const walk=keys.update(start,0,.05,()=>true,state.pitch);
+  assert.equal(walk.position.y,1.62);
+  assert.ok(Math.abs(walk.position.z+.1)<1e-10);
+  keys.clear(); keys.press('ArrowDown');
+  for(let frame=0;frame<200;frame++) state=keys.update(state.position,state.yaw,.05,()=>false,state.pitch);
+  assert.equal(state.pitch,-1.15);
+  keys.clear(); keys.press('ArrowDown',true);
+  assert.equal(keys.update(start,0,.05,()=>false,state.pitch).pitch,state.pitch,'held look cannot resume after a panel closes');
+});
+
+test("brief arrow taps are applied once and discarded when focus changes", () => {
+  const keys = new DesktopMovement();
+  const start = new THREE.Vector3(0,1.62,0);
+  keys.press('ArrowDown'); keys.release('ArrowDown');
+  const look = keys.update(start,0,1/60,()=>false);
+  assert.ok(look.pitch < 0);
+  assert.equal(keys.update(start,0,1/60,()=>false,look.pitch).pitch,look.pitch);
+  keys.press('ArrowUp'); keys.release('ArrowUp'); keys.clear();
+  assert.equal(keys.update(start,0,1/60,()=>false,look.pitch).pitch,look.pitch);
 });
