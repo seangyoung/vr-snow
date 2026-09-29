@@ -13,7 +13,7 @@ WASD and arrow controls, floor teleportation, controller selection, squeeze pane
 - `src/walkable/registrar-layout.json`: 8 × 8.4 m footprint and 3.5 m ceiling, with furniture, arrival, ledger target and door positions. Dimensions are design choices, not historical measurements.
 - `scripts/assets/build_registrar_room.py`: deterministic Blender generator using that layout.
 - `assets/registrar-room/registrar-room.blend`: packed, editable model with individually named pieces.
-- `public/models/registrar-room.glb`: merged browser export, approximately 1.4 MB, 18,976 triangles and 13 material batches.
+- `public/models/registrar-room.glb`: merged browser export, approximately 1.95 MB, 18,976 triangles and 13 material batches.
 - `assets/registrar-room/build-report.json`: geometry counts and the exact layout used during export.
 - `src/walkable/RegistrarRoom.ts`: configures the shared `FurnishedRoom.ts` with registrar assets and the existing ledger hotspot.
 
@@ -23,7 +23,7 @@ npm run test:walkable
 VITE_BASE_PATH=/vr-snow/walkable/ npm run build
 ```
 
-The room uses the project's original wood texture and simple materials, no real-time shadow maps, and no new dependency. Model loading has a usable furnished fallback. Other scenes keep their existing assets and interactions.
+The room uses the [procedural interior finish library and offline vertex shading](interior-visual-pass.md), no real-time shadow maps, and no new dependency. Model loading has a usable furnished fallback. Other scenes keep their existing assets and interactions.
 
 ## Validation and headset check
 
@@ -37,4 +37,4 @@ On Quest, check:
 4. Door selection and automatic entry into its ring; exactly one return to Snow, with evidence retained.
 5. Panel placement after moving, snap turning with a tracked head offset, and repeated map travel between all three 3D scenes and a panorama.
 
-Headset frame rate, readability and comfort have not been validated by desktop checks. Detailed textures, aged surfaces, more historically specific fittings and refined lighting remain outside this prototype milestone.
+Headset frame rate, readability and comfort have not been validated by desktop checks. More historically specific fittings and a fuller lighting study remain future work.

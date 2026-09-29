@@ -6,3 +6,6 @@ tmp/
 
 # Blender autosave backups; the primary .blend is tracked.
 *.blend1
+
+# Imported Blender asset-building helpers.
+__pycache__/

@@ -1,6 +1,6 @@
 # Household: walkable interior prototype
 
-The household panorama is replaced on `walkable-prototype` by an illustrative 5.4 × 6 m domestic room with a 3.15 m ceiling. These are design dimensions, not historical measurements. It contains a timber bed, wool coverlet, cold hearth, small table with a water jug and cup, clothes chest, washstand and a marked interview chair. The mourning ribbon echoes the existing dialogue. This remains a composite household, not a reconstruction of an identified family's interior. Period texture and lighting refinement is deferred, as with the office and registrar prototypes.
+The household panorama is replaced on `walkable-prototype` by an illustrative 5.4 × 6 m domestic room with a 3.15 m ceiling. These are design dimensions, not historical measurements. It contains a timber bed, wool coverlet, cold hearth, small table with a water jug and cup, clothes chest, washstand and a marked interview chair. The mourning ribbon echoes the existing dialogue. This remains a composite household, not a reconstruction of an identified family's interior. A shared [interior finish pass](interior-visual-pass.md) adds timber, cloth and plaster detail with offline vertex shading.
 
 ## Interaction and travel
 
@@ -13,11 +13,11 @@ WASD/arrows, clear-floor teleport, controller selection, squeeze panels and snap
 - `src/walkable/household-layout.json`: shared room, furniture, arrival, interview and door positions.
 - `scripts/assets/build_household_room.py`: deterministic Blender generator.
 - `assets/household-room/household-room.blend`: packed editable source with named pieces.
-- `public/models/household-room.glb`: roughly 462 KiB, 5,324 triangles, 13 material batches.
+- `public/models/household-room.glb`: roughly 715 KiB, 5,324 triangles, 13 material batches.
 - `assets/household-room/build-report.json`: geometry counts and exported layout.
 - `src/walkable/HouseholdRoom.ts`: configures the existing furnished-room implementation.
 
-The model reuses the project's original timber texture, uses simple materials without real-time shadows, and has a furnished fallback if loading fails.
+The model uses the original procedural interior finish library without real-time shadows, and has a furnished fallback if loading fails.
 
 ```sh
 blender --background --factory-startup --python scripts/assets/build_household_room.py

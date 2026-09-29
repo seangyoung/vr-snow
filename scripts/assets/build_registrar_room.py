@@ -112,6 +112,10 @@ for x in [-1.2,1.2]:
     cylinder('Pendant cord',x,3.22,-1.8,.012,.5,'Recess')
     cylinder('Pendant shade',x,2.93,-1.8,.20,.10,'Brass')
     cylinder('Pendant diffuser',x,2.875,-1.8,.17,.015,'Paper')
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from interior_finish import finish_room
+finish_room(M,layout)
 asset=ROOT/'assets/registrar-room';asset.mkdir(exist_ok=True)
 bpy.context.scene.unit_settings.system='METRIC';bpy.context.preferences.filepaths.save_version=0
 bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(asset/'registrar-room.blend'))
@@ -121,7 +125,7 @@ for name,mat in M.items():
     bpy.ops.object.select_all(action='DESELECT')
     for o in obs:o.select_set(True)
     bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=name
-bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/registrar-room.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False)
+bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/registrar-room.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False,export_vertex_color='ACTIVE')
 triangles=sum(len(p.vertices)-2 for o in bpy.context.scene.objects if o.type=='MESH' for p in o.data.polygons)
 report={'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
 (asset/'build-report.json').write_text(json.dumps(report,indent=2)+'\n')

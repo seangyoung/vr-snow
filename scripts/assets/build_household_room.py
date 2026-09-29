@@ -87,10 +87,12 @@ def vessel(name,x,y,z,profile,mat):
         for i in range(n):
             a=j*n+i;b=j*n+(i+1)%n;faces.append((a,b,b+n,a+n))
     mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
+    for poly in mesh.polygons: poly.use_smooth=abs(poly.normal.z)<.98
     ob=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(ob);ob.data.materials.append(M[mat]);return ob
 vessel('Water jug',x+.18,.785,z-.12,[(0,0),(.11,0),(.15,.09),(.145,.24),(.08,.33),(.08,.39),(.06,.39),(.06,.33),(.105,.22),(.09,.035),(0,.035)],'Pottery')
 bpy.ops.mesh.primitive_torus_add(major_segments=16,minor_segments=6,location=(x+.32,-z+.12,.985),major_radius=.092,minor_radius=.017)
 o=bpy.context.object;o.name='Jug handle';o.rotation_euler.x=math.pi/2;o.scale.x=.65;o.data.materials.append(M['Pottery'])
+for poly in o.data.polygons: poly.use_smooth=True
 vessel('Drinking cup',x-.25,.785,z+.1,[(0,0),(.06,0),(.075,.11),(.063,.11),(.05,.02),(0,.02)],'Pottery')
 box('Folded cloth',x-.30,.80,z-.21,.3,.025,.22,'Linen',.01)
 f=furniture('hearth');x,z=f['x'],f['z']
@@ -118,6 +120,10 @@ vessel('Wash basin',x,.86,z,[(0,0),(.12,0),(.23,.13),(.21,.145),(.105,.025),(0,.
 box('Mourning ribbon',doorX+.28,2.04,d/2-.18,.055,.38,.008,'Recess')
 for angle in [-.55,.55]:
     o=box('Ribbon loop',doorX+.28,2.18,d/2-.19,.065,.18,.012,'Recess');o.rotation_euler.y=angle
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from interior_finish import finish_room
+finish_room(M,layout)
 asset=ROOT/'assets/household-room';asset.mkdir(exist_ok=True)
 bpy.context.scene.unit_settings.system='METRIC';bpy.context.preferences.filepaths.save_version=0
 bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(asset/'household-room.blend'))
@@ -127,7 +133,7 @@ for name,mat in M.items():
     bpy.ops.object.select_all(action='DESELECT')
     for o in obs:o.select_set(True)
     bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=name
-bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/household-room.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False)
+bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/household-room.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False,export_vertex_color='ACTIVE')
 triangles=sum(len(p.vertices)-2 for o in bpy.context.scene.objects if o.type=='MESH' for p in o.data.polygons)
 report={'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
 (asset/'build-report.json').write_text(json.dumps(report,indent=2)+'\n')

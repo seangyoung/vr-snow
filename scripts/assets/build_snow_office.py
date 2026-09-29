@@ -39,7 +39,7 @@ for i in range(24):
     x=-w/2+(i+.5)*w/24
     for j in range(4):box('Floorboard',x,-.035,-d/2+(j+.5)*d/4,w/24-.007,.06,d/4-.006,'Oak')
 box('Desk rug',-.65,.005,-.95,3.15,.012,2.6,'Rug')
-for z in [-1.2-1.02,-1.2+1.5]:box('Woven rug border',-.65,.012,z,3.0,.005,.05,'Trim')
+# Woven border is part of the rug texture, avoiding raised overlapping strips.
 box('Ceiling',0,h+.05,0,w+.2,.1,d+.2,'Ceiling')
 box('North wall',0,h/2,-d/2-.05,w+.2,h,.1,'Plaster')
 box('South wall',0,h/2,d/2+.05,w+.2,h,.1,'Plaster')
@@ -117,6 +117,10 @@ box('Print mount',-2.775,2.13,-.15,.02,.83,1.30,'Paper')
 box('Print field',-2.758,2.13,-.15,.01,.62,1.08,'Green binding')
 for i in range(8):box('Print engraving',-2.748,1.90+i*.05,-.15,.006,.012,.88-.06*(i%3),'Oak')
 # Join by material for few draw calls; preserve descriptive pieces in the editable source first.
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from interior_finish import finish_room
+finish_room(M,layout)
 asset=ROOT/'assets/snow-office';asset.mkdir(exist_ok=True)
 bpy.context.scene.unit_settings.system='METRIC';bpy.context.preferences.filepaths.save_version=0
 bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(asset/'snow-office.blend'))
@@ -126,7 +130,7 @@ for name,mat in M.items():
     bpy.ops.object.select_all(action='DESELECT')
     for o in obs:o.select_set(True)
     bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=name
-bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/snow-office.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False)
+bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/snow-office.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False,export_vertex_color='ACTIVE')
 triangles=sum(len(p.vertices)-2 for o in bpy.context.scene.objects if o.type=='MESH' for p in o.data.polygons)
 report={'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
 (asset/'build-report.json').write_text(json.dumps(report,indent=2)+'\n')
