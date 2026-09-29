@@ -106,7 +106,6 @@ type VrPanelNotebookCardCommand = {
   title: string;
   body: string;
   meta?: string;
-  tags?: string[];
   unlocked: boolean;
   studyGoal?: boolean;
 };
@@ -1456,7 +1455,6 @@ export class BroadStreetScene {
           title: unlocked ? card.title : "Unrecorded evidence",
           body: unlocked ? card.summary : this.gameState.getMissingEvidencePrompt(card),
           meta: unlocked ? card.sourceLabel : undefined,
-          tags: unlocked ? card.supports.slice(0, 2) : undefined,
           unlocked,
         };
       }),
@@ -2882,14 +2880,6 @@ function drawVrNotebookCard(ctx: CanvasRenderingContext2D, command: VrPanelNoteb
   if (command.meta) {
     cursorY = drawVrNotebookLeftText(ctx, command.meta, contentX, cursorY + 5 * scale, contentWidth, 18, "700", "#b9c9c4", 1);
   }
-
-  if (command.tags?.length) {
-    let tagX = contentX;
-    const tagY = Math.min(cursorY + 7 * scale, rect.y + rect.height - 34 * scale);
-    command.tags.forEach((tag) => {
-      tagX = drawVrNotebookTag(ctx, tag, tagX, tagY, rect.x + rect.width - padding);
-    });
-  }
 }
 
 function drawVrNotebookLeftText(
@@ -2918,36 +2908,6 @@ function drawVrNotebookLeftText(
   });
 
   return y + lines.length * lineHeight;
-}
-
-function drawVrNotebookTag(
-  ctx: CanvasRenderingContext2D,
-  label: string,
-  x: number,
-  y: number,
-  maxRight: number,
-): number {
-  const scale = vrPanelTextureWidth / vrPanelDesignWidth;
-  const fontSize = 16 * scale;
-  const paddingX = 10 * scale;
-  const height = 26 * scale;
-  ctx.font = `800 ${fontSize}px Arial, Helvetica, sans-serif`;
-  const width = Math.min(ctx.measureText(label).width + paddingX * 2, Math.max(0, maxRight - x));
-  if (width < 45 * scale) {
-    return x;
-  }
-
-  drawRoundRect(ctx, x, y, width, height, height * 0.45);
-  ctx.fillStyle = "rgba(241, 215, 156, 0.14)";
-  ctx.fill();
-  ctx.strokeStyle = "rgba(241, 215, 156, 0.36)";
-  ctx.lineWidth = Math.max(1.5 * scale, 2);
-  ctx.stroke();
-  ctx.fillStyle = "#f1d79c";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(ellipsizeCanvasText(ctx, label, Math.max(fontSize, width - paddingX * 2)), x + width / 2, y + height / 2);
-  return x + width + 8 * scale;
 }
 
 function getVrMapCanvasPoint(

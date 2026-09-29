@@ -574,10 +574,7 @@ function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[], 
                 ? `<div class="source-line">
                     <i data-lucide="${sourceIcon(card.sourceType)}"></i>
                     <span>${escapeHtml(card.sourceLabel)}</span>
-                  </div>
-                  <div class="tag-row">${card.supports
-                    .map((tag) => `<span>${escapeHtml(tag)}</span>`)
-                    .join("")}</div>`
+                  </div>`
                 : ""
             }
           </div>

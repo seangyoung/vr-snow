@@ -34,3 +34,24 @@ All 39 automated checks and the production build pass. Automated coverage includ
 Browser checks confirmed map prerequisites, courtyard rendering, physical table selection, water-source evidence, ground teleport, automatic exit, direct door selection, evidence retention and repeat entry. The final asset was also inspected from both ends after closing the wing corner seams. No browser warnings or errors were recorded.
 
 On Quest, check courtyard loading and frame rate, scale, distant window shimmer, steward/table readability, floor teleport around the well, return door/ring operation and repeated travel to Broad Street. Desktop validation cannot establish headset comfort or performance.
+
+## Planter flicker and notebook cleanup
+
+Headset feedback identified flickering at the raised planting bed. Its soil box
+shared exterior planes with the stone frame; the ground also stacked paving only
+0.5 mm above full-size cobbles, with overlapping paving at the corners. The soil
+now sits behind the visible edging, frame corners meet without overlapping, and
+paving/cobbles partition the ground instead of sharing the same area. The frame
+extends slightly below the ground to close the previous base gap. Navigation
+footprints and the model's 20,356 triangles / 14 material batches are unchanged.
+
+Field Notebook support tags are removed from both VR canvas cards and desktop
+cards. Evidence summaries, source labels and underlying support metadata remain;
+investigation and argument logic are unchanged.
+
+All 45 automated tests and the production build passed. A regression check loads
+the exported GLB geometry and verifies single ground intersections near the bed
+and yard corners, plus soil bounds behind the stone exterior. Browser inspection
+covered the planter from multiple viewpoints and recorded VR/desktop evidence
+cards without tags; no warnings/errors were reported. A fresh Quest check of the
+planter during head movement remains necessary to confirm the reported flicker.
