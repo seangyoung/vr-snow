@@ -1,6 +1,6 @@
 {
-  "triangles": 12120,
-  "materialBatches": 14,
+  "triangles": 10336,
+  "materialBatches": 15,
   "layout": {
     "width": 5.8,
     "depth": 6.4,
@@ -39,9 +39,9 @@
       },
       {
         "id": "bookcase",
-        "x": -0.25,
+        "x": -0.95,
         "z": -2.95,
-        "width": 3.75,
+        "width": 2.1,
         "depth": 0.45,
         "height": 2.65
       },
@@ -60,6 +60,14 @@
         "width": 1.35,
         "depth": 0.5,
         "height": 1.35
+      },
+      {
+        "id": "medical-table",
+        "x": 1.25,
+        "z": -2.48,
+        "width": 1.45,
+        "depth": 0.65,
+        "height": 1.15
       }
     ]
   }

@@ -491,15 +491,15 @@ test('authored office fits a small mesh budget and matches the runtime furniture
 const registrarLayout=JSON.parse(await readFile('src/walkable/registrar-layout.json','utf8'));
 test('registrar approach and return door are reachable while furniture blocks walking',()=>{
   const zone=returnTravelRoutes.find(r=>r.id==='registrar-return').zone;
-  assert.ok(registrarArea.canWalkBetween(registrarSpawn,new THREE.Vector3(0,0,.8)));
+  assert.ok(registrarArea.canWalkBetween(registrarSpawn,new THREE.Vector3(0,0,3.5)));
   assert.ok(registrarArea.canWalkBetween(registrarSpawn,new THREE.Vector3(zone.x,0,zone.z)));
   assert.ok(Math.hypot(registrarSpawn.x-zone.x,registrarSpawn.z-zone.z)>zone.radius+.5);
   for(const f of registrarLayout.furniture) assert.equal(registrarArea.isValidDestination(new THREE.Vector3(f.x,0,f.z)),false,f.id);
-  assert.equal(registrarArea.canWalkBetween(new THREE.Vector3(-1.7,0,-.4),new THREE.Vector3(1.7,0,-.4)),false,'no cutting through table');
-  assert.equal(registrarArea.canWalkBetween(new THREE.Vector3(-2.8,0,-2.05),new THREE.Vector3(2.8,0,-2.05)),false,'no cutting through counter');
-  const keys=new DesktopMovement();keys.press('w');let p=new THREE.Vector3(0,1.62,1);
+  assert.equal(registrarArea.canWalkBetween(new THREE.Vector3(-1.7,0,2.3),new THREE.Vector3(1.7,0,2.3)),false,'no cutting through table');
+  assert.equal(registrarArea.canWalkBetween(new THREE.Vector3(-2.8,0,.65),new THREE.Vector3(2.8,0,.65)),false,'no cutting through counter');
+  const keys=new DesktopMovement();keys.press('w');let p=new THREE.Vector3(0,1.62,3.7);
   for(let i=0;i<80;i++) p=keys.update(p,0,.05,registrarArea.canWalkBetween).position;
-  assert.ok(p.z>=.45 && p.z<.6,'stop at ledger table');
+  assert.ok(p.z>=3.15 && p.z<3.3,'stop at ledger table');
 });
 
 test('registrar ledger, label, floor and return door have unobstructed intended ray targets',()=>{
@@ -507,10 +507,10 @@ test('registrar ledger, label, floor and return door have unobstructed intended 
   const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
   const from=registrarSpawn.clone().setY(1.62);const ray=new THREE.Raycaster();
   for(const y of [.82,1.35]) {
-    ray.set(from,new THREE.Vector3(0,y,-.4).sub(from).normalize());
+    ray.set(from,new THREE.Vector3(0,y,2.3).sub(from).normalize());
     const hit=room.pick(ray);assert.equal(room.hotspotFor(hit.object),'registrar-ledger');assert.equal(room.canTeleport(hit),false);
   }
-  ray.set(new THREE.Vector3(2.1,1.3,2.5),new THREE.Vector3(0,0,1));
+  ray.set(new THREE.Vector3(2.1,1.3,5.2),new THREE.Vector3(0,0,1));
   const hit=targets.pick(ray,'registrar',room.pick(ray));assert.equal(targets.routeFor(hit.object).to,'snow-desk');
   ray.set(from,new THREE.Vector3(0,-1,0));assert.ok(room.canTeleport(room.pick(ray)));
   ray.set(from,new THREE.Vector3(1,0,0));assert.equal(room.canTeleport(room.pick(ray)),false,'window/wall cannot be crossed');

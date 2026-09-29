@@ -1,30 +1,30 @@
 {
-  "triangles": 18976,
+  "triangles": 16656,
   "materialBatches": 13,
   "layout": {
     "width": 8,
-    "depth": 8.4,
-    "height": 3.5,
+    "depth": 14,
+    "height": 4.3,
     "spawn": [
       1.8,
       0,
-      2.5
+      5.2
     ],
     "deskTarget": [
       0,
-      1.0,
-      -0.4
+      1,
+      2.3
     ],
     "door": [
       2.1,
       0,
-      4.2
+      7
     ],
     "furniture": [
       {
         "id": "ledger-table",
         "x": 0,
-        "z": -0.4,
+        "z": 2.3,
         "width": 2.6,
         "depth": 1.2,
         "height": 0.86
@@ -32,7 +32,7 @@
       {
         "id": "counter",
         "x": 0,
-        "z": -2.05,
+        "z": 0.65,
         "width": 4.6,
         "depth": 0.75,
         "height": 1.05
@@ -40,7 +40,7 @@
       {
         "id": "archive-west",
         "x": -1.75,
-        "z": -3.92,
+        "z": -6.72,
         "width": 3.2,
         "depth": 0.5,
         "height": 2.7
@@ -48,7 +48,7 @@
       {
         "id": "archive-east",
         "x": 1.75,
-        "z": -3.92,
+        "z": -6.72,
         "width": 3.2,
         "depth": 0.5,
         "height": 2.7
@@ -56,7 +56,7 @@
       {
         "id": "drawers",
         "x": -3.7,
-        "z": -0.4,
+        "z": 2.25,
         "width": 0.5,
         "depth": 4.8,
         "height": 1.4
@@ -64,26 +64,74 @@
       {
         "id": "bench",
         "x": -3.55,
-        "z": 2.75,
+        "z": 5.45,
         "width": 0.7,
         "depth": 1.8,
         "height": 0.95
       },
       {
-        "id": "chair-west",
-        "x": -1.2,
-        "z": -3.05,
-        "width": 0.6,
-        "depth": 0.6,
-        "height": 1.1
+        "id": "clerk-desk-0-0",
+        "x": -1.85,
+        "z": -1.9,
+        "width": 1.8,
+        "depth": 0.85,
+        "height": 0.83
       },
       {
-        "id": "chair-east",
-        "x": 1.2,
-        "z": -3.05,
-        "width": 0.6,
-        "depth": 0.6,
-        "height": 1.1
+        "id": "chair-0-0",
+        "x": -1.85,
+        "z": -0.9699999999999999,
+        "width": 0.58,
+        "depth": 0.58,
+        "height": 1.06
+      },
+      {
+        "id": "clerk-desk-0-1",
+        "x": 1.85,
+        "z": -1.9,
+        "width": 1.8,
+        "depth": 0.85,
+        "height": 0.83
+      },
+      {
+        "id": "chair-0-1",
+        "x": 1.85,
+        "z": -0.9699999999999999,
+        "width": 0.58,
+        "depth": 0.58,
+        "height": 1.06
+      },
+      {
+        "id": "clerk-desk-1-0",
+        "x": -1.85,
+        "z": -4.6,
+        "width": 1.8,
+        "depth": 0.85,
+        "height": 0.83
+      },
+      {
+        "id": "chair-1-0",
+        "x": -1.85,
+        "z": -3.6699999999999995,
+        "width": 0.58,
+        "depth": 0.58,
+        "height": 1.06
+      },
+      {
+        "id": "clerk-desk-1-1",
+        "x": 1.85,
+        "z": -4.6,
+        "width": 1.8,
+        "depth": 0.85,
+        "height": 0.83
+      },
+      {
+        "id": "chair-1-1",
+        "x": 1.85,
+        "z": -3.6699999999999995,
+        "width": 0.58,
+        "depth": 0.58,
+        "height": 1.06
       }
     ]
   }

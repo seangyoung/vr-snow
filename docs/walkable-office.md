@@ -2,13 +2,13 @@
 
 A compact furnished room replaces the office panorama on `walkable-prototype`. The desk opens the existing John Snow conversation and, when ready, the existing evidence review. Map and notebook access, assignment prerequisites, and the Board preparation gate are unchanged.
 
-This is an interpretive room based on the existing panorama's timber, books, writing desk, fireplace and daylight palette. It is not a documented reconstruction of Snow's actual office, furniture or floor plan. The first milestone establishes scale, movement and interactions; a character representation remains future work. A subsequent [interior finish pass](interior-visual-pass.md) adds surface detail and precomputed shading. The original panorama is retained in the repository.
+This is an interpretive room based on the existing panorama's timber, books, writing desk, fireplace and daylight palette. It is not a documented reconstruction of Snow's actual office, furniture or floor plan. The first milestone establishes scale, movement and interactions; a character representation remains future work. A subsequent [interior finish pass](interior-visual-pass.md) adds surface detail and precomputed shading. The original panorama is retained in the repository. The subsequent [office and registrar identity pass](office-and-registrar-identity.md) reduces the library and adds a medical side table with a Snow-type inhaler, stoppered bottles, case notes and an anatomical study.
 
 ## Layout and interaction
 
 - Room: 5.8 × 6.4 m, ceiling 3.25 m. These are design dimensions, not historical measurements.
 - Arrival: near the door, facing the desk, outside the exit zone. A clear aisle runs from the door to the desk's front/right side.
-- Desk, chair, bookcase, fireplace and cabinet block artificial movement. A 25 cm clearance surrounds their footprints and the room perimeter. Sweep checks reject crossing furniture even between two valid endpoints.
+- Desk, chair, bookcase, fireplace, cabinet and medical table block artificial movement. A 25 cm clearance surrounds their footprints and the room perimeter. Sweep checks reject crossing furniture even between two valid endpoints.
 - Select the desk or its Snow label to talk/review. Books and decorative items have no new actions.
 - Select the modeled door or enter its marked ring to reach Broad Street after receiving the assignment. Opening a panel, unlocking while inside a ring, and returning to the office do not cause an automatic exit.
 - Desktop: WASD walking; Up/Down looking up/down and Left/Right turning; drag to look; select clear floor to teleport. Enter/Space activates the centered desk/exit.
@@ -25,11 +25,11 @@ npm run test:walkable
 VITE_BASE_PATH=/vr-snow/walkable/ npm run build
 ```
 
-The editable source is `assets/snow-office/snow-office.blend`, with separate named pieces and packed texture data. The export `public/models/snow-office.glb` joins geometry into 14 material batches, totals 12,120 triangles and is approximately 1.44 MB. It uses the original procedural interior finish library. `assets/snow-office/build-report.json` records geometry counts and the layout used to generate the asset. No realtime shadows, transparency layers, physics engine or additional package dependencies are introduced.
+The editable source is `assets/snow-office/snow-office.blend`, with separate named pieces and packed texture data. The export `public/models/snow-office.glb` joins geometry into 15 material batches, totals 10,336 triangles and is approximately 1.24 MB. It uses the original procedural interior finish library. `assets/snow-office/build-report.json` records geometry counts and the layout used to generate the asset. No realtime shadows, transparency layers, physics engine or additional package dependencies are introduced.
 
 ## Verification
 
-All 27 automated checks passed, including the existing street regressions, office floor/furniture clearance, controller desk targeting and teleporting, automatic exit prerequisites, duplicate-transition protection, office/street/panorama lifecycle, and the GLB budget/layout check. The production build passed. Browser checks exercised arrival, the desk label and assignment dialogue, floor teleport beside the desk, the modeled exit door, correct street arrival, and map return to the furnished office.
+The original office slice passed 27 automated checks, including the existing street regressions, office floor/furniture clearance, controller desk targeting and teleporting, automatic exit prerequisites, duplicate-transition protection, office/street/panorama lifecycle, and the GLB budget/layout check. The production build passed. Browser checks exercised arrival, the desk label and assignment dialogue, floor teleport beside the desk, the modeled exit door, correct street arrival, and map return to the furnished office.
 
 ## Headset acceptance check
 

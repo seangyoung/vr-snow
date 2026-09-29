@@ -24,6 +24,9 @@ def material(name,color,wood=False,emission=False):
 for name,color in [('Plaster','b2a58b'),('Ceiling','c7beaa'),('Oak','66523d'),('Dark walnut','49382b'),('Trim','c1b493'),('Recess','252a27'),('Green leather','3a4c40'),('Rug','705342'),('Paper','d9cda9'),('Brass','a9905b'),('Red binding','784f43'),('Green binding','53634e'),('Blue binding','515f66')]:
     material(name,color,wood=name=='Oak')
 material('Daylight','d3dfd9',emission=True)
+material('Pewter','9b9c96')
+M['Pewter'].node_tree.nodes.get('Principled BSDF').inputs['Metallic'].default_value=.45
+M['Pewter'].node_tree.nodes.get('Principled BSDF').inputs['Roughness'].default_value=.48
 def box(name,x,y,z,w,h,d,mat,bevel=0):
     bpy.ops.mesh.primitive_cube_add(size=1,location=(x,-z,y));o=bpy.context.object;o.name=name;o.dimensions=(w,d,h)
     bpy.ops.object.transform_apply(location=False,rotation=False,scale=True);o.data.materials.append(M[mat])
@@ -95,11 +98,59 @@ box('Bookcase back',x,1.325,z-.19,bw,2.65,.06,'Dark walnut')
 for dx in [-bw/2,0,bw/2]:box('Bookcase upright',x+dx,1.325,z,.07,2.65,.45,'Dark walnut')
 for y in [.13,.69,1.26,1.83,2.4,2.65]:box('Bookcase shelf',x,y,z,bw+.1,.055,.48,'Dark walnut',.006)
 for shelf in [.16,.72,1.29,1.86]:
-    for i in range(30):
+    for i in range(int(bw/.12)-1):
         bx=x-bw/2+.1+i*.12;bh=random.uniform(.32,.46)
         mat=random.choice(['Red binding','Green binding','Blue binding','Oak'])
         box('Bound volume',bx,shelf+bh/2,z+.05,.09,bh,.26,mat,.004)
         for yy in [shelf+.055,shelf+bh-.05]:box('Spine band',bx,yy,z+.186,.091,.014,.007,'Brass')
+# Medical side table: compact interpretive Snow-type inhaler, based on the
+# 1848 description (water-bath cylinder, elastic tube and metal facepiece).
+f=next(f for f in layout['furniture'] if f['id']=='medical-table');x,z=f['x'],f['z']
+box('Medical side table',x,.79,z,f['width'],.07,f['depth'],'Dark walnut',.015)
+for dx in [-.62,.62]:
+    for dz in [-.25,.25]:box('Medical table leg',x+dx,.38,z+dz,.065,.76,.065,'Dark walnut')
+box('Instrument cloth',x,.83,z,.94,.012,.48,'Paper')
+cylinder('Inhaler water bath',x-.15,.916,z,.055,.16,'Pewter')
+cylinder('Inhaler lid',x-.15,1.003,z,.06,.014,'Pewter')
+cylinder('Inhaler neck',x-.15,1.027,z,.018,.04,'Pewter')
+cylinder('Inhaler filling cap',x-.18,1.022,z-.025,.014,.018,'Brass')
+# Mask laid on the cloth, with a metal shell and dark oval seal.
+bpy.ops.mesh.primitive_uv_sphere_add(segments=16,ring_count=8,radius=1,location=(x+.23,-z,.863))
+o=bpy.context.object;o.name='Metal inhaler facepiece';o.scale=(.055,.078,.029);o.data.materials.append(M['Pewter'])
+bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+for poly in o.data.polygons:poly.use_smooth=True
+bpy.ops.mesh.primitive_torus_add(major_segments=20,minor_segments=6,major_radius=.058,minor_radius=.006,location=(x+.23,-z,.846))
+o=bpy.context.object;o.name='Facepiece edge';o.scale.y=1.32;o.data.materials.append(M['Recess'])
+# Short curved fabric-covered hose; no moving parts or new interaction.
+curve=bpy.data.curves.new('Inhaler flexible tube','CURVE');curve.dimensions='3D';curve.resolution_u=8;curve.bevel_depth=.011;curve.bevel_resolution=2
+spline=curve.splines.new('BEZIER');spline.bezier_points.add(3)
+for point,co in zip(spline.bezier_points,[(x-.15,-z,1.043),(x-.02,-z+.1,1.04),(x+.13,-z+.08,.95),(x+.23,-z,.895)]):
+    point.co=co;point.handle_left_type='AUTO';point.handle_right_type='AUTO'
+o=bpy.data.objects.new('Short inhaler hose',curve);bpy.context.collection.objects.link(o);o.data.materials.append(M['Recess'])
+bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o;bpy.ops.object.convert(target='MESH')
+for dx in [-.52,.54]:
+    cylinder('Stoppered medicine bottle',x+dx,.906,z-.12,.031,.15,'Dark walnut')
+    cylinder('Bottle neck',x+dx,.995,z-.12,.016,.04,'Dark walnut')
+    cylinder('Bottle stopper',x+dx,1.022,z-.12,.018,.018,'Brass')
+    box('Bottle paper label',x+dx,.91,z-.087,.040,.055,.005,'Paper')
+# Case book and loose clinical notes keep the table recognizably medical.
+box('Medical case book',x+.49,.848,z+.17,.27,.035,.22,'Green leather',.003)
+box('Case book paper',x+.49,.87,z+.17,.24,.009,.19,'Paper')
+for dz in [-.04,0,.04]:box('Case note ruling',x+.49,.876,z+.17+dz,.18,.002,.002,'Dark walnut')
+# Framed anatomical line study above the instruments, deliberately non-specific.
+box('Medical print frame',x,1.93,-d/2+.09,.90,.88,.06,'Dark walnut',.009)
+box('Medical print mount',x,1.93,-d/2+.128,.80,.78,.015,'Paper')
+box('Anatomical study spine',x,1.94,-d/2+.14,.012,.49,.005,'Dark walnut')
+for i in range(7):
+    for side in [-1,1]:
+        verts=[]
+        for j in range(17):
+            t=j/16
+            px=x+side*(.025+(.20-i*.008)*math.sin(math.pi*t))
+            py=2.15-i*.041-.075*t
+            verts.extend([(px,d/2-.14,py-.0025),(px,d/2-.14,py+.0025)])
+        mesh=bpy.data.meshes.new('Curved rib line');mesh.from_pydata(verts,[],[(2*j,2*j+1,2*j+3,2*j+2) for j in range(16)])
+        ob=bpy.data.objects.new('Anatomical study rib',mesh);bpy.context.collection.objects.link(ob);ob.data.materials.append(M['Dark walnut'])
 # Fireplace on the west wall. Opaque hearth with subdued glow, no animated effects.
 box('Fireplace recess',-2.82,.56,-.15,.10,1.12,1.40,'Recess')
 for z in [-.91,.61]:box('Fireplace jamb',-2.65,.60,z,.5,1.2,.20,'Dark walnut',.015)

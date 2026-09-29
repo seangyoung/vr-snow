@@ -18,7 +18,7 @@ def material(name,color,wood=False,emission=False):
         m.node_tree.links.new(tex.outputs['Color'],bs.inputs['Base Color'])
     if emission:bs.inputs['Emission Color'].default_value=(*c,1);bs.inputs['Emission Strength'].default_value=.6
     M[name]=m
-for name,color in [('Plaster','b1ada0'),('Ceiling','c7c2b5'),('Oak','685941'),('Walnut','514536'),('Paint','536055'),('Trim','b9b4a3'),('Recess','282a26'),('Paper','d9cfad'),('Brass','a28d5e'),('Red binding','705045'),('Green binding','4e5b4c'),('Blue binding','56616a')]:material(name,color,wood=name=='Oak')
+for name,color in [('Plaster','c3c6bf'),('Ceiling','d2d4cb'),('Oak','685941'),('Walnut','514536'),('Paint','536568'),('Trim','b9b4a3'),('Recess','282a26'),('Paper','d9cfad'),('Brass','a28d5e'),('Red binding','705045'),('Green binding','4e5b4c'),('Blue binding','56616a')]:material(name,color,wood=name=='Oak')
 material('Daylight','d8e3df',emission=True)
 def box(name,x,y,z,w,h,d,mat,bevel=0):
     bpy.ops.mesh.primitive_cube_add(size=1,location=(x,-z,y));o=bpy.context.object;o.name=name;o.dimensions=(w,d,h)
@@ -30,7 +30,7 @@ def cylinder(name,x,y,z,r,h,mat):
     bpy.ops.mesh.primitive_cylinder_add(vertices=16,radius=r,depth=h,location=(x,-z,y));o=bpy.context.object;o.name=name;o.data.materials.append(M[mat]);return o
 w,d,h=layout['width'],layout['depth'],layout['height']
 for i in range(28):
-    for j in range(5):box('Floorboard',-w/2+(i+.5)*w/28,-.035,-d/2+(j+.5)*d/5,w/28-.008,.06,d/5-.006,'Oak')
+    for j in range(8):box('Floorboard',-w/2+(i+.5)*w/28,-.035,-d/2+(j+.5)*d/8,w/28-.008,.06,d/8-.006,'Oak')
 box('Ceiling',0,h+.05,0,w+.2,.1,d+.2,'Ceiling')
 for z in [-d/2-.05,d/2+.05]:box('Wall',0,h/2,z,w+.2,h,.1,'Plaster')
 for x in [-w/2-.05,w/2+.05]:box('Wall',x,h/2,0,.1,h,d,'Plaster')
@@ -38,11 +38,11 @@ for x in [-w/2+.03,w/2-.03]:
     box('Skirting',x,.10,0,.08,.20,d,'Walnut');box('Cornice',x,h-.12,0,.12,.1,d,'Trim')
 for z in [-d/2+.03,d/2-.03]:
     box('Skirting',0,.10,z,w,.20,.08,'Walnut');box('Cornice',0,h-.12,z,w,.1,.12,'Trim')
-for z in [-2.55,0,2.55]:
-    box('Window recess',3.96,2.0,z,.025,2.12,1.52,'Recess')
-    box('Daylight window',3.93,2.0,z,.025,2.0,1.42,'Daylight')
-    for dz in [-.76,0,.76]:box('Sash upright',3.88,2.0,z+dz,.12,2.15,.055,'Trim')
-    for y in [.94,1.63,2.32,3.06]:box('Sash rail',3.88,y,z,.12,.055,1.60,'Trim')
+for z in [-5.1,-1.7,1.7,5.1]:
+    box('Window recess',3.96,2.3,z,.025,2.72,1.52,'Recess')
+    box('Daylight window',3.93,2.3,z,.025,2.6,1.42,'Daylight')
+    for dz in [-.76,0,.76]:box('Sash upright',3.88,2.3,z+dz,.12,2.75,.055,'Trim')
+    for y in [.94,1.63,2.32,3.02,3.66]:box('Sash rail',3.88,y,z,.12,.055,1.60,'Trim')
     box('Window sill',3.80,.92,z,.36,.10,1.7,'Trim',.015)
 # Public entrance/exit with a substantial paneled door.
 doorX=layout['door'][0]
@@ -82,10 +82,30 @@ for f in [f for f in layout['furniture'] if f['id'].startswith('archive')]:
     for dx in [-bw/2,0,bw/2]:box('Archive upright',x+dx,1.35,z,.07,2.7,.5,'Walnut')
     for y in [.12,.7,1.3,1.9,2.5,2.7]:box('Archive shelf',x,y,z,bw+.06,.055,.52,'Walnut')
     for level,y in enumerate([.15,.73,1.33,1.93]):
-        for i in range(23):
-            bx=x-bw/2+.11+i*.135;bh=random.uniform(.37,.5)
-            box('Register volume',bx,y+bh/2,z+.05,.105,bh,.32,random.choice(['Red binding','Green binding','Blue binding','Oak']),.004)
-            box('Spine label',bx,y+bh*.57,z+.214,.073,.12,.004,'Paper')
+        if level<2:
+            for i in range(12):
+                bx=x-bw/2+.15+i*.25;bh=random.uniform(.37,.5)
+                box('Register volume',bx,y+bh/2,z+.05,.18,bh,.32,'Green binding',.004)
+                box('Spine label',bx,y+bh*.57,z+.214,.10,.12,.004,'Paper')
+        else:
+            for i in range(6):
+                bx=x-bw/2+.28+i*.52
+                box('Pigeonhole divider',bx+.24,y+.26,z,.025,.50,.43,'Walnut')
+                for k in range(2):
+                    box('Tied return bundle',bx,y+.075+k*.14,z+.035,.38,.12,.29,'Paper',.004)
+                    box('Bundle tie',bx,y+.139+k*.14,z+.035,.012,.009,.30,'Paint')
+# Four clerks' desks occupy the deeper working room behind the public counter.
+for f in [f for f in layout['furniture'] if f['id'].startswith('clerk-desk')]:
+    x,z=f['x'],f['z']
+    box('Clerk writing desk',x,.79,z,1.8,.08,.85,'Walnut',.015)
+    for dx in [-.76,.76]:
+        for dz in [-.32,.32]:box('Clerk desk leg',x+dx,.38,z+dz,.08,.76,.08,'Walnut')
+    box('Desk apron',x,.65,z,1.6,.20,.68,'Walnut')
+    for dx in [-.16,.16]:
+        book=box('Clerk open register',x+dx,.852,z,.30,.035,.42,'Paper',.004)
+    for k in range(3):box('Clerk returns bundle',x+.60,.85+k*.04,z,.29,.035,.36,'Paper')
+    cylinder('Clerk inkwell',x-.61,.866,z,.035,.075,'Recess')
+    box('Clerk pen',x-.47,.84,z+.16,.24,.008,.008,'Walnut')
 # Shallow drawer bank and waiting bench on the west wall.
 f=next(f for f in layout['furniture'] if f['id']=='drawers');x,z=f['x'],f['z']
 box('Drawer case',x,.7,z,.5,1.4,4.8,'Walnut',.012)
@@ -102,16 +122,13 @@ for dz in [-.73,.73]:
     for dx in [-.24,.24]:box('Bench leg',x+dx,.23,z+dz,.065,.46,.065,'Walnut')
 for f in [f for f in layout['furniture'] if f['id'].startswith('chair')]:
     x,z=f['x'],f['z'];box('Clerk chair seat',x,.45,z,.58,.09,.58,'Paint',.02)
-    box('Clerk chair back',x,.84,z-.25,.56,.52,.07,'Walnut',.02)
+    box('Clerk chair back',x,.84,z+.25,.56,.52,.07,'Walnut',.02)
     for dx in [-.23,.23]:
         for dz in [-.23,.23]:box('Chair leg',x+dx,.23,z+dz,.06,.46,.06,'Walnut')
-clock=cylinder('Clock case',0,3.1,-4.10,.25,.07,'Walnut');clock.rotation_euler.x=math.pi/2
-face=cylinder('Clock face',0,3.1,-4.045,.21,.02,'Paper');face.rotation_euler.x=math.pi/2
-box('Clock hand',0,3.16,-4.025,.012,.14,.01,'Recess');box('Clock hand',.065,3.1,-4.025,.14,.012,.01,'Recess')
-for x in [-1.2,1.2]:
-    cylinder('Pendant cord',x,3.22,-1.8,.012,.5,'Recess')
-    cylinder('Pendant shade',x,2.93,-1.8,.20,.10,'Brass')
-    cylinder('Pendant diffuser',x,2.875,-1.8,.17,.015,'Paper')
+clock=cylinder('Clock case',0,3.65,-d/2+.10,.29,.07,'Walnut');clock.rotation_euler.x=math.pi/2
+face=cylinder('Clock face',0,3.65,-d/2+.155,.25,.02,'Paper');face.rotation_euler.x=math.pi/2
+box('Clock hand',0,3.71,-d/2+.175,.012,.14,.01,'Recess');box('Clock hand',.065,3.65,-d/2+.175,.14,.012,.01,'Recess')
+# Daylit records room: omit the previous modern-looking pendant fixtures.
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from interior_finish import finish_room

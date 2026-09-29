@@ -272,7 +272,7 @@ export const dialogueNodes: DialogueNode[] = [
     id: "registrar-ledger-interview",
     locationId: "registrar",
     speaker: "Registrar",
-    role: "Parish records",
+    role: "Mortality returns",
     intro:
       "The registrar's ledger turns the outbreak into dates, addresses, and a curve of fatal attacks.",
     questions: [
@@ -371,9 +371,9 @@ export const locations: InvestigationLocation[] = [
   },
   {
     id: "registrar",
-    title: "Registrar's Ledger",
-    shortTitle: "Ledger",
-    description: "Daily mortality returns and addresses.",
+    title: "General Register Office",
+    shortTitle: "Somerset House",
+    description: "General Register Office, Somerset House, Strand. An onward journey beyond this Soho map for mortality returns and addresses.",
     mapPoint: { x: 92, y: 92 },
   },
   {
