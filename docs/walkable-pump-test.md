@@ -66,3 +66,31 @@ Automated coverage includes actual controller selection, tracked viewer zone ent
 For the travel-target revision, all 21 automated checks and the production build passed. The browser check confirmed locked signs, registrar travel and return, household door entry, map travel, visible ground rings, and non-overlapping household/brewery labels. No browser warning/error messages were recorded. Quest testing remains outstanding.
 
 Snow’s office now also supports walking and teleportation. See [the office test card](walkable-office.md) for the furnished room, doorway and shared movement changes.
+
+## VR panel visibility fix (September 2026)
+
+Headset playtesting found that furniture and architecture could obscure modal
+conversation/evidence panels placed in front of the viewer. The shared canvas
+panel had depth testing enabled and rendered in the opaque scene queue.
+
+The panel now uses the transparent queue at full opacity, with depth testing and
+writing disabled, after world meshes and labels. Its canvas background remains
+fully opaque. Controller beams and reticles draw after the panel, also without
+writing depth. Panel position, size, button hitboxes and modal input behavior are
+unchanged. This applies to all shared VR panel modes and locations, including
+map, notebook, conversations, evidence and synthesis. The desktop DOM panels
+and keyboard bindings are unchanged.
+
+Validation: all 44 walkable tests and the production build passed. The new test
+exercises the actual panel factory and controller picking with nearer geometry,
+including button activation and suppression of world actions behind the modal.
+A browser WebGL fixture using the production panel and pointer factories
+reproduced the old obstruction with a nearer solid box, transparent pane and
+world sprite; the fixed settings kept the panel and controller pointer visible.
+This is a desktop rendering check, not a headset validation.
+
+On Quest, reopen a conversation while standing close to a desk, wall or brewing
+vessel. Check that the entire panel and selection cursor remain visible, every
+button can be selected, and closing the panel restores normal world interaction.
+Repeat with the map and notebook. No additional scene assets or shadow passes
+are introduced by this fix.

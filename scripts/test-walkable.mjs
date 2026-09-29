@@ -742,3 +742,52 @@ test('brewery model matches its collision layout and stays within the authored r
   const json=JSON.parse(glb.subarray(20,20+glb.readUInt32LE(12)).toString());
   assert.ok(json.meshes.length>0);assert.ok(json.images.every(image=>image.bufferView!==undefined));
 });
+
+test("VR modal panels overlay scenery and keep controller actions modal", () => {
+  // Exercise the real panel factory; no browser/GPU is needed to paint an empty
+  // background. The browser regression fixture verifies the rendered result.
+  const originalDocument = globalThis.document;
+  const context = { createLinearGradient: () => ({ addColorStop() {} }), fillRect() {}, strokeRect() {} };
+  globalThis.document = { createElement: () => ({ width: 0, height: 0, getContext: () => context }) };
+  const scene = Object.create(BroadStreetScene.prototype);
+  const camera = new THREE.PerspectiveCamera();
+  const controller = new THREE.Group();
+  Object.assign(scene, {
+    camera, vrPanel: new THREE.Group(), vrPanelButtons: [], vrPanelDrawCommands: [], vrPanelVisible: true,
+    controllerRaycaster: new THREE.Raycaster(), controllerWorldPosition: new THREE.Vector3(),
+    controllerWorldQuaternion: new THREE.Quaternion(), controllerWorldDirection: new THREE.Vector3(),
+  });
+  try {
+    scene.addVrPanelSurface();
+    const surface = scene.vrPanelSurface;
+    assert.equal(surface.material.transparent, true, 'Panel must render after transparent scenery, too');
+    assert.equal(surface.material.opacity, 1, 'Scenery must not show through the panel');
+    assert.equal(surface.material.depthTest, false, 'Nearer desks and walls must not hide UI');
+    assert.equal(surface.material.depthWrite, false);
+    assert.ok(surface.renderOrder > 95, 'Panel must cover world labels and idle sprites');
+    scene.addVrPanelHitbox(0, 0, .4, .4, { type: 'close-panel' });
+    scene.vrPanel.position.z = -2;
+    scene.vrPanel.updateMatrixWorld(true);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(4, 4, .2), new THREE.MeshBasicMaterial());
+    wall.position.z = -1;
+    wall.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, 0, -1));
+    assert.ok(ray.intersectObject(wall)[0].distance < ray.intersectObject(surface)[0].distance);
+    let actions = 0;
+    scene.handleVrButton = action => { assert.equal(action.type, 'close-panel'); actions++; };
+    assert.equal(scene.pickVrPointerHit(controller).object, scene.vrPanelButtons[0]);
+    scene.selectFromVrController(controller);
+    assert.equal(actions, 1, 'Button still activates through foreground furniture');
+    controller.position.x = .8;
+    assert.equal(scene.pickVrPointerHit(controller).object, surface);
+    scene.selectFromVrController(controller);
+    controller.position.x = 3;
+    scene.selectFromVrController(controller);
+    assert.equal(actions, 1, 'Panel background and outside-panel rays cannot activate scenery');
+    scene.clearVrPanel();
+    wall.geometry.dispose(); wall.material.dispose();
+  } finally {
+    if (originalDocument === undefined) delete globalThis.document;
+    else globalThis.document = originalDocument;
+  }
+});

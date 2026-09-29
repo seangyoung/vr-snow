@@ -2151,13 +2151,14 @@ function createControllerPointer(): VrControllerPointer {
     transparent: true,
     opacity: 0.72,
     depthTest: false,
+    depthWrite: false,
     fog: false,
     toneMapped: false,
   });
   const beam = new THREE.Mesh(beamGeometry, beamMaterial);
   beam.position.z = -2.25;
   beam.scale.set(1, 1, 4.5);
-  beam.renderOrder = 90;
+  beam.renderOrder = 110;
   group.add(beam);
 
   const reticle = new THREE.Mesh(
@@ -2167,13 +2168,14 @@ function createControllerPointer(): VrControllerPointer {
       transparent: true,
       opacity: 0.75,
       depthTest: false,
+      depthWrite: false,
       side: THREE.DoubleSide,
       fog: false,
       toneMapped: false,
     }),
   );
   reticle.position.z = -4.5;
-  reticle.renderOrder = 92;
+  reticle.renderOrder = 112;
   group.add(reticle);
 
   return { group, beam, reticle };
@@ -2216,17 +2218,21 @@ function createVrPanelSurface(commands: VrPanelDrawCommand[]): THREE.Mesh {
   texture.anisotropy = 8;
   texture.needsUpdate = true;
 
+  // Modal UI must draw after opaque AND transparent scene geometry/labels.
+  // Keep the canvas fully opaque, but use the transparent render queue so a
+  // desk, wall, window or sprite cannot cover it. Pointers render above it.
   const material = new THREE.MeshBasicMaterial({
     map: texture,
     fog: false,
-    transparent: false,
-    depthTest: true,
-    depthWrite: true,
+    transparent: true,
+    opacity: 1,
+    depthTest: false,
+    depthWrite: false,
     side: THREE.DoubleSide,
     toneMapped: false,
   });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(vrPanelWidth, vrPanelHeight), material);
-  mesh.renderOrder = 35;
+  mesh.renderOrder = 100;
   return mesh;
 }
 
