@@ -38,7 +38,7 @@ On `walkable-prototype`, Broad Street is a textured, source-informed reconstruct
 
 Desktop keyboard controls: WASD moves, all four arrows look, and Space/Enter selects the centered target. M opens the map; N opens the notebook. Panels use Tab/Shift+Tab or arrows to choose, Enter/Space to activate, Escape to close, and Page Up/Down to scroll. See [keyboard controls and test card](docs/desktop-keyboard.md).
 
-The [interior visual pass](docs/interior-visual-pass.md) adds textured plaster, timber and fabrics plus precomputed contact shading to the office, registrar and household. The [office and registrar identity pass](docs/office-and-registrar-identity.md) distinguishes Snow’s medical study from the larger General Register Office at Somerset House.
+The [interior visual pass](docs/interior-visual-pass.md) adds textured plaster, timber and fabrics plus precomputed contact shading to the office, registrar and household. The [office and registrar identity pass](docs/office-and-registrar-identity.md) distinguishes Snow’s medical study from the larger registrar’s records room. Snow’s [window and instrument pass](docs/snow-office-window-and-instruments.md) adds a view with perspective depth and period medical props.
 
 Run `npm run test:walkable` for movement, obstruction, input mapping, and evidence regression checks. The walkable validation workflow runs these checks before deployment eligibility.
 

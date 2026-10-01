@@ -2,7 +2,7 @@
 
 A compact furnished room replaces the office panorama on `walkable-prototype`. The desk opens the existing John Snow conversation and, when ready, the existing evidence review. Map and notebook access, assignment prerequisites, and the Board preparation gate are unchanged.
 
-This is an interpretive room based on the existing panorama's timber, books, writing desk, fireplace and daylight palette. It is not a documented reconstruction of Snow's actual office, furniture or floor plan. The first milestone establishes scale, movement and interactions; a character representation remains future work. A subsequent [interior finish pass](interior-visual-pass.md) adds surface detail and precomputed shading. The original panorama is retained in the repository. The subsequent [office and registrar identity pass](office-and-registrar-identity.md) reduces the library and adds a medical side table with a Snow-type inhaler, stoppered bottles, case notes and an anatomical study.
+This is an interpretive room based on the existing panorama's timber, books, writing desk, fireplace and daylight palette. It is not a documented reconstruction of Snow's actual office, furniture or floor plan. The first milestone establishes scale, movement and interactions; a character representation remains future work. A subsequent [interior finish pass](interior-visual-pass.md) adds surface detail and precomputed shading. The original panorama is retained in the repository. The [window and instrument pass](snow-office-window-and-instruments.md) adds an exterior with perspective depth, a more detailed inhaler and a wooden monaural stethoscope. The subsequent [office and registrar identity pass](office-and-registrar-identity.md) reduces the library and adds a medical side table with a Snow-type inhaler, stoppered bottles, case notes and an anatomical study.
 
 ## Layout and interaction
 
@@ -25,7 +25,7 @@ npm run test:walkable
 VITE_BASE_PATH=/vr-snow/walkable/ npm run build
 ```
 
-The editable source is `assets/snow-office/snow-office.blend`, with separate named pieces and packed texture data. The export `public/models/snow-office.glb` joins geometry into 15 material batches, totals 10,336 triangles and is approximately 1.24 MB. It uses the original procedural interior finish library. `assets/snow-office/build-report.json` records geometry counts and the layout used to generate the asset. No realtime shadows, transparency layers, physics engine or additional package dependencies are introduced.
+The editable source is `assets/snow-office/snow-office.blend`, with separate named pieces and packed texture data. The export `public/models/snow-office.glb` joins geometry into 16 material batches, totals 25,696 triangles and is approximately 2.59 MB. It uses the original procedural interior finish library. `assets/snow-office/build-report.json` records geometry counts and the layout used to generate the asset. No realtime shadows, transparency layers, physics engine or additional package dependencies are introduced.
 
 ## Verification
 

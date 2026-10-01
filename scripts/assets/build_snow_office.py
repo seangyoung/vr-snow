@@ -2,8 +2,10 @@
 Run: blender --background --factory-startup --python scripts/assets/build_snow_office.py
 All helper coordinates use Three.js X/Y-up/Z metres; Blender maps these to X/-Z/Y.
 """
-import bpy, math, json, random
+import bpy, math, json, random, sys
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from snow_office_details import window_exterior, medical_instruments, desk_stethoscope
 ROOT=Path(__file__).resolve().parents[2]
 layout=json.loads((ROOT/'src/walkable/office-layout.json').read_text())
 random.seed(1854)
@@ -51,9 +53,9 @@ box('West wall',-w/2-.05,h/2,0,.1,h,d,'Plaster')
 for z,l in [(-2.4,1.6),(2.4,1.6)]:box('Window side wall',w/2+.05,h/2,z,.1,h,l,'Plaster')
 box('Below window',w/2+.05,.45,0,.1,.9,3.2,'Plaster')
 box('Above window',w/2+.05,3.05,0,.1,.4,3.2,'Plaster')
-box('Window light',w/2+.08,1.875,0,.03,1.95,3.18,'Daylight')
+window_exterior(box,cylinder,material,M,ROOT)
 for z in [-1.6,-.8,0,.8,1.6]:box('Window mullion',w/2-.02,1.875,z,.12,2.04,.055,'Trim')
-for y in [.87,1.52,2.17,2.89]:box('Window rail',w/2-.02,y,0,.12,.055,3.26,'Trim')
+for y in [.87,1.52,2.17,2.89]:box('Window rail',w/2-.04,y,0,.12,.055,3.26,'Trim')
 box('Window sill',w/2-.11,.87,0,.32,.10,3.4,'Trim',.02)
 for x in [-w/2+.025,w/2-.025]:
     box('Skirting',x,.11,0,.07,.22,d,'Dark walnut')
@@ -85,6 +87,7 @@ for dz in [i*.031 for i in range(-5,6)]:box('Ledger lines',x,.87,z+.04+dz,.55,.0
 for i in range(4):box('Correspondence',x+.74,.834+i*.005,z-.11,.32,.004,.40,'Paper')
 cylinder('Inkwell',x-.72,.87,z-.14,.055,.09,'Recess')
 box('Pen',x-.6,.89,z-.10,.25,.009,.012,'Dark walnut')
+desk_stethoscope(box,M)
 # Chair behind the desk.
 f=next(f for f in layout['furniture'] if f['id']=='chair');x,z=f['x'],f['z']
 box('Chair seat',x,.45,z,.60,.09,.58,'Green leather',.035)
@@ -110,29 +113,12 @@ box('Medical side table',x,.79,z,f['width'],.07,f['depth'],'Dark walnut',.015)
 for dx in [-.62,.62]:
     for dz in [-.25,.25]:box('Medical table leg',x+dx,.38,z+dz,.065,.76,.065,'Dark walnut')
 box('Instrument cloth',x,.83,z,.94,.012,.48,'Paper')
-cylinder('Inhaler water bath',x-.15,.916,z,.055,.16,'Pewter')
-cylinder('Inhaler lid',x-.15,1.003,z,.06,.014,'Pewter')
-cylinder('Inhaler neck',x-.15,1.027,z,.018,.04,'Pewter')
-cylinder('Inhaler filling cap',x-.18,1.022,z-.025,.014,.018,'Brass')
-# Mask laid on the cloth, with a metal shell and dark oval seal.
-bpy.ops.mesh.primitive_uv_sphere_add(segments=16,ring_count=8,radius=1,location=(x+.23,-z,.863))
-o=bpy.context.object;o.name='Metal inhaler facepiece';o.scale=(.055,.078,.029);o.data.materials.append(M['Pewter'])
-bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
-for poly in o.data.polygons:poly.use_smooth=True
-bpy.ops.mesh.primitive_torus_add(major_segments=20,minor_segments=6,major_radius=.058,minor_radius=.006,location=(x+.23,-z,.846))
-o=bpy.context.object;o.name='Facepiece edge';o.scale.y=1.32;o.data.materials.append(M['Recess'])
-# Short curved fabric-covered hose; no moving parts or new interaction.
-curve=bpy.data.curves.new('Inhaler flexible tube','CURVE');curve.dimensions='3D';curve.resolution_u=8;curve.bevel_depth=.011;curve.bevel_resolution=2
-spline=curve.splines.new('BEZIER');spline.bezier_points.add(3)
-for point,co in zip(spline.bezier_points,[(x-.15,-z,1.043),(x-.02,-z+.1,1.04),(x+.13,-z+.08,.95),(x+.23,-z,.895)]):
-    point.co=co;point.handle_left_type='AUTO';point.handle_right_type='AUTO'
-o=bpy.data.objects.new('Short inhaler hose',curve);bpy.context.collection.objects.link(o);o.data.materials.append(M['Recess'])
-bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o;bpy.ops.object.convert(target='MESH')
+medical_instruments(box,cylinder,M,x,z)
 for dx in [-.52,.54]:
-    cylinder('Stoppered medicine bottle',x+dx,.906,z-.12,.031,.15,'Dark walnut')
-    cylinder('Bottle neck',x+dx,.995,z-.12,.016,.04,'Dark walnut')
-    cylinder('Bottle stopper',x+dx,1.022,z-.12,.018,.018,'Brass')
-    box('Bottle paper label',x+dx,.91,z-.087,.040,.055,.005,'Paper')
+    cylinder('Stoppered medicine bottle',x+dx,.906,z-.22,.031,.15,'Dark walnut')
+    cylinder('Bottle neck',x+dx,.995,z-.22,.016,.04,'Dark walnut')
+    cylinder('Bottle stopper',x+dx,1.022,z-.22,.018,.018,'Brass')
+    box('Bottle paper label',x+dx,.91,z-.187,.040,.055,.005,'Paper')
 # Case book and loose clinical notes keep the table recognizably medical.
 box('Medical case book',x+.49,.848,z+.17,.27,.035,.22,'Green leather',.003)
 box('Case book paper',x+.49,.87,z+.17,.24,.009,.19,'Paper')

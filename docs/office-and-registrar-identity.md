@@ -16,6 +16,8 @@ The registrar is now an 8 × 14 m room with a 4.3 m ceiling. A public ledger tab
 
 The player-facing map label remains Registrar, with Registrar's Ledger on the scene heading and Broad Street travel sign. Somerset House is retained here as historical background rather than a destination name in the interface. Its existing off-map direction and travel unlock rules remain in use. The ledger still awards the same timeline evidence, and the relocated return door takes the player to Snow's office. The role label reads Mortality returns.
 
+The later [window and instrument pass](snow-office-window-and-instruments.md) updates Snow's props and adds an exterior. Asset figures below record this earlier identity pass.
+
 ## Assets and validation
 
 Both models use the existing [procedural finish library](interior-visual-pass.md), packed textures and offline vertex shading. No real-time shadow passes, new dependencies or new interactions were added. The medical table and all four clerical desks/chairs have shared Blender/runtime collision footprints. Registrar arrival, target and exit positions follow the expanded layout.
