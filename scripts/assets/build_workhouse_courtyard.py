@@ -153,6 +153,10 @@ f=furniture('storage-chest');x,z=f['x'],f['z']
 box('Yard storage chest',x,.49,z,1.6,.98,1.1,'Timber',.015)
 box('Storage lid',x,1.02,z,1.6,.08,1.1,'Paint',.01)
 for dx in [-.5,.5]:box('Chest strap',x+dx,.5,z+.558,.05,.9,.012,'Iron')
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from bake_scene_lighting import bake_lighting
+lighting_report=bake_lighting(M,ROOT,asset='workhouse-courtyard',lights=[], world_strength=1.6, sun=(1.8,.22))
 asset=ROOT/'assets/workhouse-courtyard';asset.mkdir(exist_ok=True)
 bpy.context.scene.unit_settings.system='METRIC';bpy.context.preferences.filepaths.save_version=0
 bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(asset/'workhouse-courtyard.blend'))
@@ -164,6 +168,6 @@ for name,mat in M.items():
     bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=name
 bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/workhouse-courtyard.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False)
 triangles=sum(len(p.vertices)-2 for o in bpy.context.scene.objects if o.type=='MESH' for p in o.data.polygons)
-report={'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
+report={'bakedLighting':lighting_report,'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
 (asset/'build-report.json').write_text(json.dumps(report,indent=2)+'\n')
 print('WORKHOUSE BUILD',triangles,'triangles;',report['materialBatches'],'material batches')

@@ -9,6 +9,7 @@ export const registrarLedgerTarget = new THREE.Vector3(...layout.deskTarget);
 export class RegistrarRoom extends FurnishedRoom {
   constructor() {
     super({name: "Registrar's records room", asset: "registrar-room.glb", layout, area: registrarArea,
+      bakedLighting: {lightMap: "registrar-room-lightmap.png", environment: "registrar-room-environment.png"},
       interactionFurniture: "ledger-table", hotspot: "registrar-ledger", daylight: "#edf3ff", fill: 0});
   }
 }

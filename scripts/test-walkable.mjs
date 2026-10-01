@@ -916,3 +916,92 @@ test('invalid baked UVs cannot partially replace original room materials',async(
   assert.throws(()=>applyBakedRoomLighting(root,new THREE.Texture(),new THREE.Texture()),/UVs/);
   assert.equal(material.lightMap,null);assert.equal(material.vertexColors,true);
 });
+
+for (const [asset, size] of [['registrar-room',2048],['household-room',1024],['brewery-room',2048],['workhouse-courtyard',2048],['broad-street',2048]]) {
+  test(`${asset} exports a complete lightmap UV set and bounded lighting textures`, async () => {
+    const bytes=await readFile(`public/models/${asset}.glb`);
+    const gltf=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
+    for (const mesh of gltf.meshes) for (const primitive of mesh.primitives) {
+      assert.notEqual(primitive.attributes.TEXCOORD_0,undefined,'base texture UVs preserved');
+      assert.notEqual(primitive.attributes.TEXCOORD_1,undefined,`${mesh.name} needs atlas coordinates`);
+      const uv=gltf.accessors[primitive.attributes.TEXCOORD_1];
+      assert.equal(uv.count,gltf.accessors[primitive.attributes.POSITION].count);
+      // UV accessor bounds are optional in glTF; inspect the actual binary values.
+      assert.equal(uv.componentType,5126);assert.equal(uv.type,'VEC2');
+      const view=gltf.bufferViews[uv.bufferView];
+      const binStart=28+bytes.readUInt32LE(12);
+      const start=binStart+(view.byteOffset??0)+(uv.byteOffset??0);
+      for(let i=0;i<uv.count;i++) for(let axis=0;axis<2;axis++) {
+        const value=bytes.readFloatLE(start+i*(view.byteStride??8)+axis*4);
+        assert.ok(Number.isFinite(value)&&value>=0&&value<=1,`${mesh.name} atlas UV out of bounds`);
+      }
+    }
+    for(const [kind,width,height] of [['lightmap',size,size],['environment',512,256]]) {
+      const png=await readFile(`public/models/${asset}-${kind}.png`);
+      assert.equal(png.subarray(1,4).toString(),'PNG');
+      assert.equal(png.readUInt32BE(16),width);assert.equal(png.readUInt32BE(20),height);
+    }
+    const report=JSON.parse(await readFile(`assets/${asset}/build-report.json`,'utf8'));
+    assert.equal(report.bakedLighting.size,size);assert.equal(report.bakedLighting.normalization,4);
+  });
+}
+
+test('remaining furnished scenes use separate baked environments and load their lighting once', async(t)=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const roots=[];const loaded=[];
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>{
+    const root=new THREE.Group(),geometry=new THREE.BoxGeometry();
+    geometry.setAttribute('uv1',geometry.getAttribute('uv').clone());
+    root.add(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({vertexColors:true})));
+    roots.push(root);return {scene:root};
+  });
+  t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async(url)=>{loaded.push(url);return new THREE.Texture();});
+  const rooms=[new RegistrarRoom(),new HouseholdRoom(),new BreweryRoom(),new WorkhouseCourtyard()];
+  for(const room of rooms) {
+    await Promise.all([room.loadVisuals('/'),room.loadVisuals('/')]);
+    assert.equal(room.group.userData.lightingStatus,'baked');
+    assert.equal(room.group.userData.environmentStatus,'ready');
+    assert.equal(room.group.children.find(o=>o.children.some(c=>c.isLight)).visible,false);
+  }
+  assert.equal(loaded.filter(url=>url.includes('-lightmap')).length,4);
+  assert.equal(loaded.filter(url=>url.includes('-environment')).length,4);
+  assert.equal(new Set(roots.map(root=>root.children[0].material.envMap)).size,4);
+});
+
+test('street keeps weathering and pump selection while adopting its baked environment',async(t)=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const root=new THREE.Group(),geometry=new THREE.BoxGeometry();
+  geometry.setAttribute('uv1',geometry.getAttribute('uv').clone());
+  const material=new THREE.MeshStandardMaterial({vertexColors:true});root.add(new THREE.Mesh(geometry,material));
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>({scene:root}));
+  let loads=0;t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async()=>{loads++;return new THREE.Texture();});
+  const street=new PumpCourtyard();
+  await Promise.all([street.loadVisuals('/'),street.loadVisuals('/')]);
+  assert.equal(loads,3,'two lighting textures and sky, once each');
+  assert.equal(street.group.userData.lightingStatus,'baked');assert.equal(material.vertexColors,true);
+  assert.equal(material.lightMap.channel,1);
+  const pumpMesh=street.pump.children.find(o=>o.material?.isMeshStandardMaterial);
+  assert.equal(pumpMesh.material.envMap,material.envMap);assert.equal(pumpMesh.material.lightMap,null);
+  street.group.visible=true;street.group.updateMatrixWorld(true);
+  const origin=pumpPosition.clone().add(new THREE.Vector3(0,1.4,-2));
+  const hit=street.pick(new THREE.Raycaster(origin,new THREE.Vector3(0,0,1)));
+  assert.ok(street.isPump(hit.object),'procedural pump remains the interactive target');
+  assert.equal(street.group.children.find(o=>o.children.some(c=>c.isLight)).visible,false);
+});
+
+test('street lighting failure retains its art, original lights and selectable pump',async(t)=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const root=new THREE.Group();root.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshStandardMaterial()));
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>({scene:root}));
+  const atlas=new THREE.Texture();let disposed=false;atlas.addEventListener('dispose',()=>{disposed=true;});
+  t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async(url)=>{
+    if(url.endsWith('-environment.png'))throw new Error('simulated missing environment');
+    return url.endsWith('-lightmap.png')?atlas:new THREE.Texture();
+  });
+  t.mock.method(console,'warn',()=>{});
+  const street=new PumpCourtyard();await street.loadVisuals('/');
+  assert.equal(street.group.userData.lightingStatus,'fallback');assert.equal(disposed,true);
+  assert.equal(street.group.userData.environmentStatus,'ready');assert.ok(street.group.children.includes(root));
+  assert.equal(street.group.children.find(o=>o.children.some(c=>c.isLight)).visible,true);
+  assert.equal(street.pump.children[0].material.envMap,null);
+});

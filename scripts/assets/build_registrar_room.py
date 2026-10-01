@@ -133,6 +133,10 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from interior_finish import finish_room
 finish_room(M,layout)
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from bake_scene_lighting import bake_lighting
+lighting_report=bake_lighting(M,ROOT,asset='registrar-room',lights=[('Records window '+str(z),(3.78,2.3,z),(0,1,z),190,1.5,(.88,.94,1)) for z in [-5.1,-1.7,1.7,5.1]] + [('Records room bounce',(0,4,0),(0,0,0),100,6,(1,.94,.84))])
 asset=ROOT/'assets/registrar-room';asset.mkdir(exist_ok=True)
 bpy.context.scene.unit_settings.system='METRIC';bpy.context.preferences.filepaths.save_version=0
 bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(asset/'registrar-room.blend'))
@@ -144,6 +148,6 @@ for name,mat in M.items():
     bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=name
 bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/registrar-room.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False,export_vertex_color='ACTIVE')
 triangles=sum(len(p.vertices)-2 for o in bpy.context.scene.objects if o.type=='MESH' for p in o.data.polygons)
-report={'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
+report={'bakedLighting':lighting_report,'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
 (asset/'build-report.json').write_text(json.dumps(report,indent=2)+'\n')
 print('REGISTRAR BUILD',triangles,'triangles;',report['materialBatches'],'material batches')

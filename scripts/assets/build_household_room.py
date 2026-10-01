@@ -124,6 +124,10 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from interior_finish import finish_room
 finish_room(M,layout)
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from bake_scene_lighting import bake_lighting
+lighting_report=bake_lighting(M,ROOT,asset='household-room',size=1024, lights=[('Household window',(2.48,1.97,-1.62),(-1,.8,0),150,1.1,(.95,.97,1)),('Household bounce',(0,2.7,.5),(0,0,0),35,3,(1,.88,.72))])
 asset=ROOT/'assets/household-room';asset.mkdir(exist_ok=True)
 bpy.context.scene.unit_settings.system='METRIC';bpy.context.preferences.filepaths.save_version=0
 bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(asset/'household-room.blend'))
@@ -135,6 +139,6 @@ for name,mat in M.items():
     bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=name
 bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/household-room.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False,export_vertex_color='ACTIVE')
 triangles=sum(len(p.vertices)-2 for o in bpy.context.scene.objects if o.type=='MESH' for p in o.data.polygons)
-report={'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
+report={'bakedLighting':lighting_report,'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
 (asset/'build-report.json').write_text(json.dumps(report,indent=2)+'\n')
 print('HOUSEHOLD BUILD',triangles,'triangles;',report['materialBatches'],'material batches')

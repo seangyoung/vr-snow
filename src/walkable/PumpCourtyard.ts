@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { loadBakedRoomLighting } from "./BakedRoomLighting";
 import { inRectangle, crossesRectangle } from "./WalkableArea";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
@@ -38,6 +39,7 @@ export class PumpCourtyard {
   readonly spawn = streetSpawn.clone();
   private readonly solids: THREE.Object3D[] = [];
   private readonly fallback = new THREE.Group();
+  private readonly lighting = new THREE.Group();
   private visualsPromise?: Promise<void>;
 
   constructor() {
@@ -70,10 +72,11 @@ export class PumpCourtyard {
     this.group.add(this.pump);
     this.solids.push(this.pump);
     // Soft daylight; no shadow-map passes or transparent window layers in the street.
-    this.group.add(new THREE.HemisphereLight("#dce3e5", "#8d8879", 3.2));
+    this.group.add(this.lighting);
+    this.lighting.add(new THREE.HemisphereLight("#dce3e5", "#8d8879", 3.2));
     const daylight = new THREE.DirectionalLight("#e6e8e2", 1.65);
     daylight.position.set(-15, 30, -12);
-    this.group.add(daylight);
+    this.lighting.add(daylight);
     this.group.visible = false;
   }
 
@@ -98,6 +101,28 @@ export class PumpCourtyard {
           }
         }
       });
+      try {
+        const environment = await loadBakedRoomLighting(gltf.scene, basePath, {
+          lightMap: "broad-street-lightmap.png", environment: "broad-street-environment.png",
+          // Street vertex colors also contain authored weathering, not just contact AO.
+          preserveVertexColors: true,
+        });
+        // The interactive pump is procedural. Illuminate it with the same captured sky.
+        this.pump.traverse(object => {
+          if (!(object instanceof THREE.Mesh)) return;
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          for (const material of materials) if (material instanceof THREE.MeshStandardMaterial) {
+            material.envMap = environment;
+            material.envMapIntensity = 1.4;
+            material.needsUpdate = true;
+          }
+        });
+        this.lighting.visible = false;
+        this.group.userData.lightingStatus = "baked";
+      } catch (error) {
+        this.group.userData.lightingStatus = "fallback";
+        console.warn("Using the original Broad Street lighting.", error);
+      }
       this.group.add(gltf.scene);
       this.fallback.visible = false;
       this.group.userData.environmentStatus = "ready";

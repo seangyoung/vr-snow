@@ -328,13 +328,32 @@ for name,(mat,_) in M.items():
     for o in obs:o.select_set(True)
     bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=name
 bpy.ops.object.select_all(action='SELECT');bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from bake_scene_lighting import bake_lighting
+# A bake-only silhouette grounds the separately rendered interactive pump.
+# Its material and transform follow PumpCourtyard; it never becomes a second pump.
+bpy.ops.mesh.primitive_cylinder_add(vertices=24,radius=.165,depth=2.27,location=(-3.8,-1.3,1.135))
+pump_occluder=bpy.context.object;pump_occluder.name='Bake-only pump occluder'
+pump_occluder.data.materials.append(M['Ironwork'][0])
+# Reserve atlas detail for continuous architecture and paving. Small repeated
+# trim, glazing and ironwork retain weathering and use the neutral atlas patch.
+receivers={'London stock brick','Weathered red brick','Granite setts','Yorkstone paving',
+           'Welsh slate','Sooty render','Painted shopfront'}
+neutral_meshes={o for o in bpy.context.scene.objects if o.type=='MESH' and o.name not in receivers}
+lighting_report=bake_lighting({name:pair[0] for name,pair in M.items()},ROOT,asset='broad-street',
+    lights=[],world_strength=3,sun=(2,.22),probe=(1.6,1.65,-2),exterior=neutral_meshes,
+    weld=True,island_margin=.001,neutral_value=.6)
+bpy.data.objects.remove(pump_occluder,do_unlink=True)
 # Keep the edit source packed and portable; GLB embeds the same texture maps.
 bpy.ops.file.pack_all()
 bpy.context.scene.unit_settings.system='METRIC'
 bpy.context.preferences.filepaths.save_version=0
 bpy.ops.wm.save_as_mainfile(filepath=str(ROOT/'assets/broad-street/broad-street.blend'))
 bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/broad-street.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False,export_attributes=False,export_vertex_color='NAME',export_vertex_color_name='Color',export_all_vertex_colors=False)
+from compact_vertex_colors import compact_vertex_colors
+compact_vertex_colors(ROOT/'public/models/broad-street.glb')
 triangles=sum(len(p.vertices)-2 for o in bpy.context.scene.objects if o.type=='MESH' for p in o.data.polygons)
-report={'seed':1854,'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'footprints':footprints}
+report={'bakedLighting':lighting_report,'seed':1854,'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'footprints':footprints}
 (ROOT/'assets/broad-street/build-report.json').write_text(json.dumps(report,indent=2)+'\n')
 print('STREET BUILD',triangles,'triangles;',report['materialBatches'],'material batches')

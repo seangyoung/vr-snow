@@ -1,6 +1,6 @@
 # Snow's office: baked-lighting pilot
 
-The office is the first room using a dedicated light atlas and static room reflection capture. The goal is to make window light, furniture contact shadows and material highlights visible in the walkable game, rather than only in offline presentation renders. Other rooms retain their existing lighting until the pilot is reviewed on a headset.
+The office is the first room using a dedicated light atlas and static room reflection capture. The goal is to make window light, furniture contact shadows and material highlights visible in the walkable game, rather than only in offline presentation renders. The visual pilot has been approved and extended to the other walkable scenes; see [the shared lighting workflow](walkable-baked-lighting.md). Headset performance still requires separate verification.
 
 ## Appearance
 
@@ -13,7 +13,7 @@ The lighting is an artistic interpretation. It does not claim to reproduce the h
 
 ## Asset workflow
 
-`build_snow_office.py` calls `bake_office_lighting.py` after the original surface finishes. The latter creates a second UV set across temporary joined copies of interior objects and transfers the packed atlas coordinates back to the original editable pieces. The exterior occupies a reserved neutral lighting patch. The original surface texture coordinates are retained.
+`build_snow_office.py` calls the office configuration in `bake_office_lighting.py` after the original surface finishes. The shared `bake_scene_lighting.py` creates a second UV set across temporary joined copies of interior objects and transfers the packed atlas coordinates back to the original editable pieces. The exterior occupies a reserved neutral lighting patch. The original surface texture coordinates are retained.
 
 Cycles bakes direct and indirect diffuse illumination without surface color, using 256 samples and up to four diffuse bounces. A two-pixel-radius separable filter reduces remaining sampling noise; atlas gutters exceed that radius. Illumination is divided by four, limited to the PNG range and encoded as sRGB in a 2048 × 2048 PNG. A separate 1024 × 512 room panorama supplies the static reflection environment. Editable bake lamps and the packed lightmap remain in the Blender file; lamps are excluded from the GLB.
 

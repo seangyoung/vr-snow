@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { WalkableArea, type WalkableEnvironment } from "./WalkableArea";
-import { applyBakedRoomLighting } from "./BakedRoomLighting";
+import { loadBakedRoomLighting } from "./BakedRoomLighting";
 
 export interface RoomLayout {
   width: number; depth: number; height: number;
@@ -89,23 +89,13 @@ export class FurnishedRoom implements WalkableEnvironment {
         if (object instanceof THREE.Mesh) { object.castShadow=false;object.receiveShadow=false; }
       });
       if (this.options.bakedLighting) {
-        const textures = new THREE.TextureLoader();
-        const config = this.options.bakedLighting;
-        const loaded = await Promise.allSettled([
-          textures.loadAsync(`${basePath}models/${config.lightMap}`),
-          textures.loadAsync(`${basePath}models/${config.environment}`),
-        ]);
         try {
-          if (loaded[0].status !== "fulfilled" || loaded[1].status !== "fulfilled") {
-            throw new Error("Office lighting texture could not load");
-          }
-          applyBakedRoomLighting(gltf.scene, loaded[0].value, loaded[1].value);
+          await loadBakedRoomLighting(gltf.scene, basePath, this.options.bakedLighting);
           this.lighting.visible = false;
           this.group.userData.lightingStatus = "baked";
         } catch (error) {
-          for (const result of loaded) if (result.status === "fulfilled") result.value.dispose();
           this.group.userData.lightingStatus = "fallback";
-          console.warn("Using the office's original lighting.", error);
+          console.warn(`Using the original lighting for ${this.options.name}.`, error);
         }
       }
       this.group.add(gltf.scene);this.fallback.visible=false;

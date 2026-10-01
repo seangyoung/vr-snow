@@ -10,6 +10,7 @@ export const householdInterviewTarget = new THREE.Vector3(...layout.deskTarget);
 export class HouseholdRoom extends FurnishedRoom {
   constructor() {
     super({name: "Broad Street household", asset: "household-room.glb", layout, area: householdArea,
+      bakedLighting: {lightMap: "household-room-lightmap.png", environment: "household-room-environment.png"},
       interactionFurniture: "interview-chair", hotspot: "broad-street-household", daylight: "#ede4d1", fill: 3});
   }
 }
