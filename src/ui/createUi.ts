@@ -327,7 +327,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           ${currentLocation.id === "brewery" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the marked table to speak with the brewery owners<br>Select clear floor to teleport · Door returns to Broad Street</span>' : ""}
           ${currentLocation.id === "workhouse" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the marked table to speak with the steward<br>Select clear ground to teleport · Door returns to Broad Street</span>' : ""}
           ${currentLocation.id === "household" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the marked chair to interview the household<br>Select clear floor to teleport · Door returns to Broad Street</span>' : ""}
-          ${currentLocation.id === "registrar" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Somerset House · Beyond the Soho map<br>Select the open ledger for the daily returns<br>Door returns to Snow in Soho</span>' : ""}
+          ${currentLocation.id === "registrar" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the open ledger for the daily returns<br>Door returns to Snow in Soho</span>' : ""}
           ${currentLocation.id === "broad-street" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Drag to look · Click ground to teleport · Select signs or enter travel rings<br>Broad Street · London, 1854</span>' : ""}
           <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Panels: Tab / arrows, Enter to choose · Esc: close<br>Page Up / Down: read more · Mouse also supported</span>
         </section>
@@ -870,7 +870,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
         <div class="map-brief">
           <div class="layer-summary">
             <span>Map evidence</span>
-            <p>Use the Broad Street map to travel between sources. Somerset House is an onward journey beyond this Soho map.</p>
+            <p>Use the Broad Street map to travel between sources.</p>
           </div>
           <ul class="map-findings">
             ${mapFindings}

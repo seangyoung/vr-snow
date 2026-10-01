@@ -371,9 +371,9 @@ export const locations: InvestigationLocation[] = [
   },
   {
     id: "registrar",
-    title: "General Register Office",
-    shortTitle: "Somerset House",
-    description: "General Register Office, Somerset House, Strand. An onward journey beyond this Soho map for mortality returns and addresses.",
+    title: "Registrar's Ledger",
+    shortTitle: "Registrar",
+    description: "Daily mortality returns and addresses.",
     mapPoint: { x: 92, y: 92 },
   },
   {

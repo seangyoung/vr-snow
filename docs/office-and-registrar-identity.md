@@ -14,7 +14,7 @@ The registrar is now an 8 × 14 m room with a 4.3 m ceiling. A public ledger tab
 
 [UCLA's Broad Street outbreak account](https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_d.html) describes Snow obtaining deaths information from the General Register Office. [Somerset House's history](https://www.somersethouse.org.uk/about-us/history) places that institution there during this period. These sources support the institution and location, not this floor plan. The original registrar panorama is a visual reference for a larger clerical workplace, not historical evidence.
 
-The map marker and Broad Street travel sign now say Somerset House, and the map/HUD explain that it is an onward journey beyond the Soho map. Its existing off-map direction and travel unlock rules remain in use. The ledger still awards the same timeline evidence, and the relocated return door takes the player to Snow's office. The role label reads Mortality returns.
+The player-facing map label remains Registrar, with Registrar's Ledger on the scene heading and Broad Street travel sign. Somerset House is retained here as historical background rather than a destination name in the interface. Its existing off-map direction and travel unlock rules remain in use. The ledger still awards the same timeline evidence, and the relocated return door takes the player to Snow's office. The role label reads Mortality returns.
 
 ## Assets and validation
 

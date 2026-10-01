@@ -18,7 +18,7 @@ export const streetTravelRoutes: WorldTravelRoute[] = [
   { id: "street-brewery", from: "broad-street", to: "brewery", title: "Lion Brewery", direction: "EAST · Along Broad Street", position: [13.4, 1.65, -1.5], yaw: -Math.PI/2, zone: {x:12.3,z:-1.5,radius:.75} },
   { id: "street-workhouse", from: "broad-street", to: "workhouse", title: "St. James Workhouse", direction: "EAST, THEN NORTH · Poland St", position: [13.4, 1.65, -6.2], yaw: -Math.PI/2, zone: {x:12.3,z:-6.2,radius:.75} },
   { id: "street-snow", from: "broad-street", to: "snow-desk", title: "Snow's Desk", direction: "SOUTH · Continue via Cambridge St", position: [2.3, 1.65, 11.7], yaw: Math.PI, zone: {x:2.3,z:10.6,radius:.75} },
-  { id: "street-registrar", from: "broad-street", to: "registrar", title: "Somerset House", direction: "SOUTH · Onward journey to the Strand", position: [6.1, 1.65, 11.7], yaw: Math.PI, zone: {x:6.1,z:10.6,radius:.75} },
+  { id: "street-registrar", from: "broad-street", to: "registrar", title: "Registrar's Ledger", direction: "SOUTH · Onward to the records office", position: [6.1, 1.65, 11.7], yaw: Math.PI, zone: {x:6.1,z:10.6,radius:.75} },
   // The right-hand door in the northern shop frontage is an illustrative household entrance.
   { id: "street-household", from: "broad-street", to: "household", title: "Broad Street Household", direction: "Household interview · This door", position: [-11, 2.85, -8.72], yaw: 0, zone: {x:-11,z:-7.15,radius:.65}, door: true },
 ];
