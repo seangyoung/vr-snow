@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { WalkableArea, type WalkableEnvironment } from "./WalkableArea";
+import { applyBakedRoomLighting } from "./BakedRoomLighting";
 
 export interface RoomLayout {
   width: number; depth: number; height: number;
@@ -11,6 +12,7 @@ export interface RoomOptions {
   name: string; asset: string; layout: RoomLayout; area: WalkableArea;
   interactionFurniture: string; hotspot: string;
   daylight?: string; fill?: number;
+  bakedLighting?: { lightMap: string; environment: string };
 }
 export function roomArea(layout: RoomLayout): WalkableArea {
   const clearance = 0.25;
@@ -30,6 +32,7 @@ export class FurnishedRoom implements WalkableEnvironment {
   readonly canWalkBetween: WalkableArea["canWalkBetween"];
   private readonly solids: THREE.Object3D[] = [];
   private readonly fallback = new THREE.Group();
+  private readonly lighting = new THREE.Group();
   private readonly desk: THREE.Mesh;
   private readonly deskPrompt: THREE.Mesh;
   private visualsPromise?: Promise<void>;
@@ -68,11 +71,12 @@ export class FurnishedRoom implements WalkableEnvironment {
     this.deskPrompt = new THREE.Mesh(new THREE.SphereGeometry(.32,12,8),rayOnly);
     this.deskPrompt.position.fromArray(layout.deskTarget).add(new THREE.Vector3(0,.35,0));
     this.group.add(this.deskPrompt);this.solids.push(this.deskPrompt);
-    this.group.add(new THREE.HemisphereLight("#f7ecd9", "#76654f", 1.8));
+    this.group.add(this.lighting);
+    this.lighting.add(new THREE.HemisphereLight("#f7ecd9", "#76654f", 1.8));
     const daylight=new THREE.DirectionalLight(options.daylight ?? "#fff0d4",2.1);
-    daylight.position.set(2.7,2.5,-.5);this.group.add(daylight);
+    daylight.position.set(2.7,2.5,-.5);this.lighting.add(daylight);
     const fill=new THREE.PointLight("#ffcf91",options.fill ?? 9,6,2);
-    fill.position.set(-2.1,1.1,-.1);this.group.add(fill);
+    fill.position.set(-2.1,1.1,-.1);this.lighting.add(fill);
     this.group.visible=false;
   }
   loadVisuals(basePath: string): Promise<void> {
@@ -84,6 +88,26 @@ export class FurnishedRoom implements WalkableEnvironment {
       gltf.scene.traverse(object => {
         if (object instanceof THREE.Mesh) { object.castShadow=false;object.receiveShadow=false; }
       });
+      if (this.options.bakedLighting) {
+        const textures = new THREE.TextureLoader();
+        const config = this.options.bakedLighting;
+        const loaded = await Promise.allSettled([
+          textures.loadAsync(`${basePath}models/${config.lightMap}`),
+          textures.loadAsync(`${basePath}models/${config.environment}`),
+        ]);
+        try {
+          if (loaded[0].status !== "fulfilled" || loaded[1].status !== "fulfilled") {
+            throw new Error("Office lighting texture could not load");
+          }
+          applyBakedRoomLighting(gltf.scene, loaded[0].value, loaded[1].value);
+          this.lighting.visible = false;
+          this.group.userData.lightingStatus = "baked";
+        } catch (error) {
+          for (const result of loaded) if (result.status === "fulfilled") result.value.dispose();
+          this.group.userData.lightingStatus = "fallback";
+          console.warn("Using the office's original lighting.", error);
+        }
+      }
       this.group.add(gltf.scene);this.fallback.visible=false;
       this.group.userData.environmentStatus="ready";
     } catch (error) {

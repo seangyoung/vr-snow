@@ -33,7 +33,7 @@ def box(name,x,y,z,w,h,d,mat,bevel=0):
     bpy.ops.mesh.primitive_cube_add(size=1,location=(x,-z,y));o=bpy.context.object;o.name=name;o.dimensions=(w,d,h)
     bpy.ops.object.transform_apply(location=False,rotation=False,scale=True);o.data.materials.append(M[mat])
     if bevel:
-        mod=o.modifiers.new('Soft edges','BEVEL');mod.width=bevel;mod.segments=1
+        mod=o.modifiers.new('Soft edges','BEVEL');mod.width=bevel;mod.segments=2 if name in ('Desk top','Mantel','Fireplace jamb') else 1
         bpy.context.view_layer.objects.active=o;bpy.ops.object.modifier_apply(modifier=mod.name)
     return o
 def cylinder(name,x,y,z,r,h,mat):
@@ -53,10 +53,14 @@ box('West wall',-w/2-.05,h/2,0,.1,h,d,'Plaster')
 for z,l in [(-2.4,1.6),(2.4,1.6)]:box('Window side wall',w/2+.05,h/2,z,.1,h,l,'Plaster')
 box('Below window',w/2+.05,.45,0,.1,.9,3.2,'Plaster')
 box('Above window',w/2+.05,3.05,0,.1,.4,3.2,'Plaster')
+before_exterior=set(bpy.context.scene.objects)
 window_exterior(box,cylinder,material,M,ROOT)
+exterior=set(bpy.context.scene.objects)-before_exterior
 for z in [-1.6,-.8,0,.8,1.6]:box('Window mullion',w/2-.02,1.875,z,.12,2.04,.055,'Trim')
 for y in [.87,1.52,2.17,2.89]:box('Window rail',w/2-.04,y,0,.12,.055,3.26,'Trim')
 box('Window sill',w/2-.11,.87,0,.32,.10,3.4,'Trim',.02)
+box('Window apron',w/2-.055,.77,0,.13,.12,3.27,'Trim',.008)
+for z in [-1.69,1.69]:box('Window architrave',w/2-.07,1.89,z,.15,2.22,.10,'Trim',.008)
 for x in [-w/2+.025,w/2-.025]:
     box('Skirting',x,.11,0,.07,.22,d,'Dark walnut')
     box('Cornice',x,h-.14,0,.13,.12,d,'Trim')
@@ -141,6 +145,7 @@ for i in range(7):
 box('Fireplace recess',-2.82,.56,-.15,.10,1.12,1.40,'Recess')
 for z in [-.91,.61]:box('Fireplace jamb',-2.65,.60,z,.5,1.2,.20,'Dark walnut',.015)
 box('Mantel',-2.65,1.29,-.15,.55,.12,1.75,'Dark walnut',.025)
+box('Mantel lower molding',-2.65,1.19,-.15,.49,.08,1.64,'Dark walnut',.01)
 box('Hearth',-2.65,.025,-.15,.5,.05,1.65,'Recess')
 for z in [-.47,-.21,.05,.30]:box('Grate bar',-2.38,.29,z,.025,.45,.025,'Recess')
 # Cabinet and framed print: deliberately decorative, not additional action targets.
@@ -158,6 +163,8 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from interior_finish import finish_room
 finish_room(M,layout)
+from bake_office_lighting import bake_office
+lighting_report=bake_office(M,ROOT,exterior)
 asset=ROOT/'assets/snow-office';asset.mkdir(exist_ok=True)
 bpy.context.scene.unit_settings.system='METRIC';bpy.context.preferences.filepaths.save_version=0
 bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(asset/'snow-office.blend'))
@@ -169,6 +176,6 @@ for name,mat in M.items():
     bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=name
 bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/snow-office.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False,export_vertex_color='ACTIVE')
 triangles=sum(len(p.vertices)-2 for o in bpy.context.scene.objects if o.type=='MESH' for p in o.data.polygons)
-report={'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
+report={'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout,'bakedLighting':lighting_report}
 (asset/'build-report.json').write_text(json.dumps(report,indent=2)+'\n')
 print('OFFICE BUILD',triangles,'triangles;',report['materialBatches'],'material batches')

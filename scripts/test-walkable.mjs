@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/FurnishedRoom", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
@@ -486,6 +486,16 @@ test('authored office fits a small mesh budget and matches the runtime furniture
   const glb=await readFile('public/models/snow-office.glb');assert.equal(glb.readUInt32LE(0),0x46546c67);
   const json=JSON.parse(glb.subarray(20,20+glb.readUInt32LE(12)).toString());
   assert.ok(json.meshes.length>0);assert.ok(json.images.every(image=>image.bufferView!==undefined),'textures embedded');
+  for(const mesh of json.meshes) for(const primitive of mesh.primitives) {
+    assert.notEqual(primitive.attributes.TEXCOORD_1,undefined,'exported lighting UVs must survive GLB export');
+    assert.equal(json.accessors[primitive.attributes.TEXCOORD_1].count,json.accessors[primitive.attributes.POSITION].count);
+  }
+  for(const [name,width,height] of [['lightmap',2048,2048],['environment',1024,512]]) {
+    const png=await readFile(`public/models/snow-office-${name}.png`);
+    assert.equal(png.subarray(1,4).toString(),'PNG');
+    assert.equal(png.readUInt32BE(16),width);assert.equal(png.readUInt32BE(20),height);
+  }
+
 });
 
 const registrarLayout=JSON.parse(await readFile('src/walkable/registrar-layout.json','utf8'));
@@ -859,4 +869,50 @@ test("brief arrow taps are applied once and discarded when focus changes", () =>
   assert.equal(keys.update(start,0,1/60,()=>false,look.pitch).pitch,look.pitch);
   keys.press('ArrowUp'); keys.release('ArrowUp'); keys.clear();
   assert.equal(keys.update(start,0,1/60,()=>false,look.pitch).pitch,look.pitch);
+});
+
+
+test('office baked lighting loads once and replaces fallback lights only after both textures load',async(t)=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const root=new THREE.Group(),geometry=new THREE.BoxGeometry();
+  geometry.setAttribute('uv1',geometry.getAttribute('uv').clone());
+  const material=new THREE.MeshStandardMaterial({vertexColors:true});
+  root.add(new THREE.Mesh(geometry,material));
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>({scene:root}));
+  let count=0;
+  t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async()=>{count++;return new THREE.Texture();});
+  const room=new SnowOffice();
+  await Promise.all([room.loadVisuals('/'),room.loadVisuals('/')]);
+  assert.equal(count,2);assert.equal(room.group.userData.lightingStatus,'baked');
+  assert.equal(room.group.userData.environmentStatus,'ready');
+  assert.equal(material.lightMap.channel,1);assert.equal(material.vertexColors,false);
+  const lights=room.group.children.find(o=>o.children.some(c=>c.isLight));
+  assert.equal(lights.visible,false,'no duplicate direct lighting over the bake');
+});
+
+test('failed lighting texture keeps the furnished office and original lights usable',async(t)=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const root=new THREE.Group(),material=new THREE.MeshStandardMaterial({vertexColors:true});
+  root.add(new THREE.Mesh(new THREE.BoxGeometry(),material));
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>({scene:root}));
+  const texture=new THREE.Texture();let disposed=false;texture.addEventListener('dispose',()=>{disposed=true;});
+  t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async(url)=>{
+    if(url.includes('environment')) throw new Error('simulated missing texture');return texture;
+  });
+  t.mock.method(console,'warn',()=>{});
+  const room=new SnowOffice();await room.loadVisuals('/');
+  assert.equal(room.group.userData.lightingStatus,'fallback');
+  assert.equal(room.group.userData.environmentStatus,'ready');assert.ok(room.group.children.includes(root));
+  assert.equal(material.vertexColors,true);assert.equal(material.lightMap,null);assert.equal(disposed,true);
+  const lights=room.group.children.find(o=>o.children.some(c=>c.isLight));assert.equal(lights.visible,true);
+});
+
+test('invalid baked UVs cannot partially replace original room materials',async()=>{
+  const {applyBakedRoomLighting}=await load('walkable/BakedRoomLighting');
+  const root=new THREE.Group(),geometry=new THREE.BoxGeometry();
+  geometry.setAttribute('uv1',geometry.getAttribute('uv').clone());
+  const material=new THREE.MeshStandardMaterial({vertexColors:true});
+  root.add(new THREE.Mesh(geometry,material),new THREE.Mesh(new THREE.BoxGeometry(),material.clone()));
+  assert.throws(()=>applyBakedRoomLighting(root,new THREE.Texture(),new THREE.Texture()),/UVs/);
+  assert.equal(material.lightMap,null);assert.equal(material.vertexColors,true);
 });

@@ -1,5 +1,5 @@
 {
-  "triangles": 25696,
+  "triangles": 26128,
   "materialBatches": 16,
   "layout": {
     "width": 5.8,
@@ -69,6 +69,15 @@
         "depth": 0.65,
         "height": 1.15
       }
+    ]
+  },
+  "bakedLighting": {
+    "size": 2048,
+    "normalization": 4,
+    "diffusePeak999": 9.6313,
+    "environmentSize": [
+      1024,
+      512
     ]
   }
 }

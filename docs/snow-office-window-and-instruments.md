@@ -14,6 +14,8 @@ The revised inhaler has a turned brass canister, rolled metal seams, shoulder, c
 
 For a future scientific-workbench pass, a period microscope is worth investigating separately. Snow's own [1855 account reproduced by UCLA](https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_a.html) credits Dr. Hassall with examining the Broad Street water microscopically. A microscope prop or future interaction must not suggest that Snow identified the cholera organism in that water. Measuring glassware and experimental notes would also connect to the research described in Snow's 1848 paper; they would require individual form/date references before modeling.
 
+The later [baked-lighting pilot](snow-office-baked-lighting.md) changes office materials, trim and export size. The following counts describe this earlier window/instrument pass.
+
 ## Rebuild and budgets
 
 `build_snow_office.py` calls `snow_office_details.py`; both use Three.js metre coordinates. The packed editable source and merged GLB remain in their existing locations. The exterior brick reuses the project's original procedural street texture. Existing interior finishes and offline vertex colors are retained. All materials remain opaque; no reflection capture, extra runtime light, realtime shadow or transparency pass is introduced.
