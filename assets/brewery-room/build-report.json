@@ -2,13 +2,13 @@
   "bakedLighting": {
     "size": 2048,
     "normalization": 4,
-    "diffusePeak999": 14.6493,
+    "diffusePeak999": 12.1028,
     "environmentSize": [
       512,
       256
     ]
   },
-  "triangles": 13280,
+  "triangles": 23332,
   "materialBatches": 13,
   "layout": {
     "width": 10,

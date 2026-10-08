@@ -1828,3 +1828,9 @@ button:focus-visible, [role="dialog"]:focus-visible {
   font-size: .67rem;
   line-height: 1.5;
 }
+
+.sound-settings { display: grid; gap: 1.1rem; padding: 1.25rem; }
+.sound-level { display: flex; align-items: center; gap: .75rem; }
+.sound-level > span { flex: 1; }
+.sound-level > button { min-width: 2.75rem; min-height: 2.75rem; }
+.sound-settings p { color: #c1cfca; line-height: 1.5; }

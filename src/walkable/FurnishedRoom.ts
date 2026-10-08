@@ -34,7 +34,7 @@ export class FurnishedRoom implements WalkableEnvironment {
   private readonly fallback = new THREE.Group();
   private readonly lighting = new THREE.Group();
   private readonly desk: THREE.Mesh;
-  private readonly deskPrompt: THREE.Mesh;
+  protected readonly deskPrompt: THREE.Mesh;
   private visualsPromise?: Promise<void>;
 
   constructor(private readonly options: RoomOptions) {

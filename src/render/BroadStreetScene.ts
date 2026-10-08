@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { Soundscape, SoundChannel } from "../audio/Soundscape";
 import { PumpCourtyard, pumpPosition } from "../walkable/PumpCourtyard";
 import { SnowOffice, officeDeskTarget } from "../walkable/SnowOffice";
 import { BreweryRoom, breweryOwnersTarget } from "../walkable/BreweryRoom";
@@ -24,11 +25,13 @@ type HotspotVisual = {
   label: THREE.Sprite;
 };
 
-type VrPanelMode = "home" | "map" | "notebook" | "synthesis";
+type VrPanelMode = "home" | "map" | "notebook" | "synthesis" | "sound";
 type VrPanelIcon = "map" | "notebook" | "x";
 
 type VrButtonAction =
   | { type: "mode"; mode: VrPanelMode }
+  | { type: "sound-level"; channel: SoundChannel; delta: number }
+  | { type: "sound-mute" }
   | { type: "close-panel" }
   | { type: "recenter" }
   | { type: "travel"; locationId: LocationId }
@@ -190,11 +193,17 @@ const motionLookCameraCorrection = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, M
 const motionLookZAxis = new THREE.Vector3(0, 0, 1);
 
 export class BroadStreetScene {
+  private sound?: Soundscape;
+  private readonly soundPosition = new THREE.Vector3();
+  private readonly soundForward = new THREE.Vector3();
+  private readonly soundUp = new THREE.Vector3();
+  setSoundscape(sound: Soundscape): void { this.sound=sound; }
   onFocusChange?: (hotspot?: Hotspot) => void;
   onHotspotActivate?: (hotspot: Hotspot) => void;
   onWorldTravel?: (locationId: LocationId) => void;
   onMotionLookChange?: () => void;
 
+  private readonly reducedCharacterMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(65, 1, 0.05, 100);
   private readonly playerRig = new THREE.Group();
@@ -377,8 +386,16 @@ export class BroadStreetScene {
       this.updateDesktopMovement(elapsed);
       this.updateWorldTravelZones();
       this.updateHotspots(timeSeconds);
+      if(this.office.group.visible)this.office.character.update(timeSeconds,this.reducedCharacterMotion.matches);
       this.updateVrControls(timeSeconds);
       this.updateFocusFromCenter();
+      if(this.sound) {
+        this.sound.setLocation(this.gameState.getCurrentLocation().id);
+        this.camera.getWorldPosition(this.soundPosition);this.camera.getWorldDirection(this.soundForward);
+        this.soundUp.set(0,1,0).applyQuaternion(this.camera.getWorldQuaternion(this.controllerWorldQuaternion));
+        this.sound.update(this.soundPosition,this.soundForward,this.soundUp,!!this.walkable &&
+          (this.renderer.xr.isPresenting?!this.vrPanelVisible:this.canUseDesktopMovement()));
+      }
       this.renderer.render(this.scene, this.camera);
       if (this.allowCanvasCapture && this.captureFrameCounter % 12 === 0) {
         this.canvas.dataset.captureFrame = createCaptureDataUrl(this.renderer.domElement);
@@ -860,6 +877,7 @@ export class BroadStreetScene {
         this.vrControllerButtonStates.delete(controller);
         this.snapTurnLocked = false;
       });
+      controller.addEventListener("selectstart", () => { void this.sound?.unlock(); });
       controller.addEventListener("select", () => this.selectFromVrController(controller));
       controller.addEventListener("squeeze", () => this.toggleVrPanel());
       this.playerRig.add(controller);
@@ -872,6 +890,11 @@ export class BroadStreetScene {
   }
 
   private handleVrSessionStart(): void {
+    const session=this.renderer.xr.getSession?.();
+    if(session) {
+      const syncSound=()=>this.sound?.setHidden(session.visibilityState!=="visible","xr");
+      session.addEventListener("visibilitychange",syncSound);syncSound();
+    }
     document.body.dataset.xrPresenting = "true";
     this.desktopMovement.clear();
     this.pendingXrSpawn = true;
@@ -885,6 +908,7 @@ export class BroadStreetScene {
   }
 
   private handleVrSessionEnd(): void {
+    this.sound?.setHidden(false,"xr");
     document.body.dataset.xrPresenting = "false";
     this.pendingXrSpawn = false;
     this.destinationLabels.forEach(({ valid, blocked }) => { valid.visible = blocked.visible = false; });
@@ -1023,6 +1047,7 @@ export class BroadStreetScene {
   }
 
   private activateVrHotspot(hotspot: Hotspot): void {
+    this.sound?.effect("select");
     const wasPanelVisible = this.vrPanelVisible;
     this.showVrPanel(!wasPanelVisible);
     this.vrPanelMode = "home";
@@ -1046,9 +1071,16 @@ export class BroadStreetScene {
   }
 
   private handleVrButton(action: VrButtonAction): void {
+    this.sound?.effect(action.type==="mode" && ["map","notebook"].includes(action.mode)?"paper":"select");
     switch (action.type) {
+      case "sound-mute":
+        this.sound?.toggleMuted();
+        break;
+      case "sound-level":
+        if(this.sound)this.sound.setLevel(action.channel,this.sound.getSettings()[action.channel]+action.delta);
+        break;
       case "mode":
-        this.gameState.clearActiveDialogueAnswer();
+        if(action.mode!=="sound")this.gameState.clearActiveDialogueAnswer();
         this.vrPanelMode = this.vrPanelMode === action.mode ? "home" : action.mode;
         if (action.mode === "map") {
           this.vrMapNeedsAttention = false;
@@ -1203,7 +1235,7 @@ export class BroadStreetScene {
       fontSize: 48,
       weight: "700",
     });
-    if (this.vrPanelMode !== "map" && this.vrPanelMode !== "notebook") {
+    if (this.vrPanelMode !== "map" && this.vrPanelMode !== "notebook" && this.vrPanelMode !== "sound") {
       this.addVrText(this.gameState.getObjective(), 0, 0.55, vrPanelContentWidth, 0.25, {
         color: "#d9e5e1",
         fontSize: 34,
@@ -1214,6 +1246,8 @@ export class BroadStreetScene {
       this.buildVrMapPanel();
     } else if (this.vrPanelMode === "notebook") {
       this.buildVrNotebookPanel();
+    } else if (this.vrPanelMode === "sound") {
+      this.buildVrSoundPanel();
     } else if (this.vrPanelMode === "synthesis") {
       this.buildVrSynthesisPanel();
     } else {
@@ -1248,7 +1282,21 @@ export class BroadStreetScene {
     }, {
       active: this.vrPanelMode === "notebook",
     });
+    this.addVrPanelButton("Sound", .96, .82, .27, .20, {type:"mode",mode:"sound"});
     this.addVrIconButton("x", 1.22, 0.82, 0.2, { type: "close-panel" });
+  }
+
+  private buildVrSoundPanel(): void {
+    const settings=this.sound?.getSettings()??{muted:true,ambience:0,effects:0};
+    this.addVrText("Sound",0,.39,2.2,.15,{fontSize:38,color:"#f1d79c"});
+    this.addVrPanelButton(settings.muted?"Unmute sound":"Mute sound",0,.13,1.3,.22,{type:"sound-mute"});
+    (["ambience","effects"] as const).forEach((channel,index)=>{
+      const y=-.19-index*.30;
+      this.addVrText(`${channel==="ambience"?"Ambience":"Effects"}: ${Math.round(settings[channel]*100)}%`,0,y,1.4,.16,{fontSize:30});
+      this.addVrPanelButton("−",-.96,y,.28,.20,{type:"sound-level",channel,delta:-.1});
+      this.addVrPanelButton("+",.96,y,.28,.20,{type:"sound-level",channel,delta:.1});
+    });
+    this.addVrText("All clues and actions remain available visually.",0,-.78,2.4,.15,{fontSize:25,color:"#b9c9c4"});
   }
 
   private buildVrHomePanel(): void {

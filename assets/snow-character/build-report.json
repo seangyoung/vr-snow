@@ -1,0 +1,15 @@
+{
+  "triangles": 10794,
+  "materialBatches": 12,
+  "bakedLighting": {
+    "size": 512,
+    "normalization": 4,
+    "diffusePeak999": 1.0913,
+    "environmentSize": [
+      256,
+      128
+    ]
+  },
+  "interpretive": true,
+  "reference": "https://epi-snow.ph.ucla.edu/Stream1_introduction_b.html"
+}

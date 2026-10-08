@@ -1,3 +1,4 @@
+import type { SoundControls } from "../audio/Soundscape";
 import { DesktopKeyboard } from "./DesktopKeyboard";
 import { createIcons, icons } from "lucide";
 import { boardThreshold, fieldStudyGoal, locationEvidenceIds, noDialogueActionsText } from "../simulation/content";
@@ -16,7 +17,7 @@ import type {
   SynthesisConfidence,
 } from "../simulation/types";
 
-type OverlayMode = "none" | "notebook" | "map";
+type OverlayMode = "none" | "notebook" | "map" | "sound";
 type MotionLookStatus = "unavailable" | "idle" | "requesting" | "enabled" | "denied";
 type ActiveDialogueAnswer = NonNullable<ReturnType<GameState["getActiveDialogueAnswer"]>>;
 
@@ -109,6 +110,7 @@ export interface PrototypeUi {
   openSnowReview: () => void;
   beginTravel: (locationId: LocationId) => void;
   render: () => void;
+  setSoundControls: (controls: SoundControls) => void;
   setMotionLookControls: (controls: MotionLookControls) => void;
   setPrompt: (hotspot?: Hotspot) => void;
   setMessage: (message: string) => void;
@@ -119,6 +121,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   let message = "Speak with Snow at the desk to receive the field assignment.";
   let isTransitioning = false;
   let snowReviewOpen = false;
+  let soundControls: SoundControls | undefined;
   let motionLookControls: MotionLookControls | undefined;
   const keyboard = new DesktopKeyboard(root, document.getElementById("scene"), () => isTransitioning);
 
@@ -137,6 +140,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       message = "Return to Snow with enough evidence before preparing the Board argument.";
       render();
     },
+    setSoundControls(controls: SoundControls) { soundControls=controls;render(); },
     setMotionLookControls(controls: MotionLookControls) {
       motionLookControls = controls;
       render();
@@ -159,6 +163,15 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     const stage = gameState.getStage();
     const toolsAvailable = stage !== "briefing" && stage !== "board";
 
+    if(action==="sound") {overlayMode=overlayMode==="sound"?"none":"sound";render();return;}
+    if(soundControls && ["toggle-sound","ambience-down","ambience-up","effects-down","effects-up"].includes(action)) {
+      if(action==="toggle-sound")soundControls.toggleMuted();
+      else {
+        const channel=action.startsWith("ambience")?"ambience":"effects";
+        soundControls.setLevel(channel,soundControls.getSettings()[channel]+(action.endsWith("up")?.1:-.1));
+      }
+      render();return;
+    }
     if (action === "toggle-motion-look") {
       if (!motionLookControls || !motionLookControls.isAvailable()) {
         return;
@@ -323,7 +336,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           <span class="objective-kicker">Broad Street Inquiry</span>
           <strong>${escapeHtml(gameState.getObjective())}</strong>
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
-          ${currentLocation.id === "snow-desk" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the desk to speak with Snow<br>Select clear floor to teleport · Door leads to Broad Street</span>' : ""}
+          ${currentLocation.id === "snow-desk" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select Snow or his desk to speak with him<br>Select clear floor to teleport · Door leads to Broad Street</span>' : ""}
           ${currentLocation.id === "brewery" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the marked table to speak with the brewery owners<br>Select clear floor to teleport · Door returns to Broad Street</span>' : ""}
           ${currentLocation.id === "workhouse" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the marked table to speak with the steward<br>Select clear ground to teleport · Door returns to Broad Street</span>' : ""}
           ${currentLocation.id === "household" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the marked chair to interview the household<br>Select clear floor to teleport · Door returns to Broad Street</span>' : ""}
@@ -343,6 +356,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           <button class="icon-button" data-action="reset" aria-label="Reset inquiry">
             <i data-lucide="rotate-ccw"></i>
           </button>
+          <button class="icon-button" data-action="sound" aria-label="Sound settings" title="Sound settings"><i data-lucide="volume-2"></i></button>
         </nav>
 
         ${renderMotionLookToggle(motionLookControls)}
@@ -354,6 +368,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         ${activeDialogue && overlayMode === "none" ? renderDialoguePanel(activeDialogue, gameState) : ""}
         ${overlayMode === "notebook" ? renderNotebook(collected, allEvidence, gameState) : ""}
         ${overlayMode === "map" ? renderMap(collected, gameState) : ""}
+        ${overlayMode === "sound" ? renderSoundPanel(soundControls) : ""}
         ${isTransitioning ? renderTravelFade(message) : ""}
       </div>
     `;
@@ -537,6 +552,7 @@ function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gameState:
         ${boardFindings}
       </div>
       <div class="chapter-actions">
+        <button class="secondary-action" data-action="sound">Sound settings</button>
         ${action}
       </div>
     </aside>
@@ -1138,4 +1154,18 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function renderSoundPanel(controls?: SoundControls): string {
+  const settings=controls?.getSettings()??{muted:true,ambience:0,effects:0};
+  return `<aside class="overlay-panel notebook-panel" aria-label="Sound settings">
+    <div class="panel-header"><div><span>Preferences</span><strong>Sound</strong></div>
+      <button class="icon-button" data-action="close" aria-label="Close sound settings"><i data-lucide="x"></i></button></div>
+    <div class="panel-body sound-settings">
+      <button class="secondary-action" data-action="toggle-sound" aria-pressed="${settings.muted}">${settings.muted?"Unmute sound":"Mute sound"}</button>
+      ${(["ambience","effects"] as const).map(channel=>`<div class="sound-level"><span>${channel==="ambience"?"Ambience":"Effects"}: <strong>${Math.round(settings[channel]*100)}%</strong></span>
+        <button class="secondary-action" data-action="${channel}-down" aria-label="Lower ${channel}" ${settings[channel]<=0?"disabled":""}>−</button>
+        <button class="secondary-action" data-action="${channel}-up" aria-label="Raise ${channel}" ${settings[channel]>=1?"disabled":""}>+</button></div>`).join("")}
+      <p>All clues and actions remain available visually. Sound starts after you interact with the app.</p>
+    </div></aside>`;
 }

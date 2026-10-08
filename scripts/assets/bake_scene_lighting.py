@@ -7,7 +7,7 @@ from mathutils import Vector
 
 def bake_lighting(materials, root, *, asset, lights, exterior=(), size=2048, environment_width=512,
                   world_strength=.25, probe=(0,1.45,0), sun=None, weld=False,
-                  island_margin=.004, neutral_value=.45):
+                  island_margin=.004, neutral_value=.45, occluders=()):
     scene=bpy.context.scene
     scene.render.engine='CYCLES';scene.cycles.device='CPU';scene.cycles.samples=256
     scene.cycles.sample_clamp_indirect=3
@@ -37,7 +37,7 @@ def bake_lighting(materials, root, *, asset, lights, exterior=(), size=2048, env
         if name not in materials:continue
         bs=materials[name].node_tree.nodes.get('Principled BSDF')
         bs.inputs['Roughness'].default_value=rough;bs.inputs['Metallic'].default_value=metal
-    interior=[o for o in scene.objects if o.type=='MESH' and o not in exterior]
+    interior=[o for o in scene.objects if o.type=='MESH' and o not in exterior and o not in occluders]
     originals=[];copies=[];face_map={};face_id=0
     for ob in interior:
         if not ob.data.uv_layers:ob.data.uv_layers.new(name='UVMap')

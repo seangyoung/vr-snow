@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "audio/Soundscape", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
@@ -872,18 +872,19 @@ test("brief arrow taps are applied once and discarded when focus changes", () =>
 });
 
 
-test('office baked lighting loads once and replaces fallback lights only after both textures load',async(t)=>{
+test('office and character lighting load once and replace fallback lights after textures load',async(t)=>{
   const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
   const root=new THREE.Group(),geometry=new THREE.BoxGeometry();
   geometry.setAttribute('uv1',geometry.getAttribute('uv').clone());
   const material=new THREE.MeshStandardMaterial({vertexColors:true});
   root.add(new THREE.Mesh(geometry,material));
-  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>({scene:root}));
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async(url)=>({scene:url.includes('snow-character')?new THREE.Group():root}));
   let count=0;
   t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async()=>{count++;return new THREE.Texture();});
   const room=new SnowOffice();
   await Promise.all([room.loadVisuals('/'),room.loadVisuals('/')]);
-  assert.equal(count,2);assert.equal(room.group.userData.lightingStatus,'baked');
+  assert.equal(count,4);assert.equal(room.group.userData.lightingStatus,'baked');
+  assert.equal(room.character.group.userData.characterStatus,'ready');
   assert.equal(room.group.userData.environmentStatus,'ready');
   assert.equal(material.lightMap.channel,1);assert.equal(material.vertexColors,false);
   const lights=room.group.children.find(o=>o.children.some(c=>c.isLight));
@@ -894,7 +895,7 @@ test('failed lighting texture keeps the furnished office and original lights usa
   const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
   const root=new THREE.Group(),material=new THREE.MeshStandardMaterial({vertexColors:true});
   root.add(new THREE.Mesh(new THREE.BoxGeometry(),material));
-  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>({scene:root}));
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async(url)=>({scene:url.includes('snow-character')?new THREE.Group():root}));
   const texture=new THREE.Texture();let disposed=false;texture.addEventListener('dispose',()=>{disposed=true;});
   t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async(url)=>{
     if(url.includes('environment')) throw new Error('simulated missing texture');return texture;
@@ -973,7 +974,7 @@ test('street keeps weathering and pump selection while adopting its baked enviro
   const root=new THREE.Group(),geometry=new THREE.BoxGeometry();
   geometry.setAttribute('uv1',geometry.getAttribute('uv').clone());
   const material=new THREE.MeshStandardMaterial({vertexColors:true});root.add(new THREE.Mesh(geometry,material));
-  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>({scene:root}));
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async(url)=>({scene:url.includes('snow-character')?new THREE.Group():root}));
   let loads=0;t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async()=>{loads++;return new THREE.Texture();});
   const street=new PumpCourtyard();
   await Promise.all([street.loadVisuals('/'),street.loadVisuals('/')]);
@@ -992,7 +993,7 @@ test('street keeps weathering and pump selection while adopting its baked enviro
 test('street lighting failure retains its art, original lights and selectable pump',async(t)=>{
   const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
   const root=new THREE.Group();root.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshStandardMaterial()));
-  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>({scene:root}));
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async(url)=>({scene:url.includes('snow-character')?new THREE.Group():root}));
   const atlas=new THREE.Texture();let disposed=false;atlas.addEventListener('dispose',()=>{disposed=true;});
   t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async(url)=>{
     if(url.endsWith('-environment.png'))throw new Error('simulated missing environment');
@@ -1004,4 +1005,125 @@ test('street lighting failure retains its art, original lights and selectable pu
   assert.equal(street.group.userData.environmentStatus,'ready');assert.ok(street.group.children.includes(root));
   assert.equal(street.group.children.find(o=>o.children.some(c=>c.isLight)).visible,true);
   assert.equal(street.pump.children[0].material.envMap,null);
+});
+
+test('Snow figure is independently selectable and remains behind the desk collision',async()=>{
+  const room=new SnowOffice();room.group.visible=true;room.character.group.userData.characterStatus='ready';
+  const ray=new THREE.Raycaster(new THREE.Vector3(-.65,1.5,1),new THREE.Vector3(0,0,-1));
+  const hit=room.pick(ray);assert.ok(hit.object===room.character.target,'ray selects the figure');assert.equal(room.hotspotFor(hit.object),'john-snow');
+  assert.equal(room.canTeleport(hit),false);
+  ray.set(new THREE.Vector3(-.65,.7,1),new THREE.Vector3(0,0,-1));
+  assert.notEqual(room.pick(ray).object,room.character.target,'desk occludes the figure at desk height');
+  room.group.visible=false;assert.equal(room.pick(ray),undefined);
+  room.group.visible=true;room.character.group.userData.characterStatus='unavailable';
+  ray.set(new THREE.Vector3(-.65,1.5,1),new THREE.Vector3(0,0,-1));
+  assert.notEqual(room.pick(ray)?.object,room.character.target,'no invisible person target when its art fails');
+});
+
+test('Snow idle motion is small, bounded and disabled for reduced motion',async()=>{
+  const {SnowCharacter}=await load('walkable/SnowCharacter');const person=new SnowCharacter();
+  person.head=new THREE.Group();person.upper=new THREE.Group();person.upperY=.69;person.headYaw=0;
+  for(let t=0;t<300;t+=.37){person.update(t);assert.ok(Math.abs(person.head.rotation.y)<=.014);assert.ok(Math.abs(person.upper.position.y-.69)<=.001501);}
+  person.update(2,true);assert.equal(person.head.rotation.y,0);assert.equal(person.upper.position.y,.69);
+});
+
+test('seated Snow exports only its own meshes with lightmap UVs and a compact asset budget',async()=>{
+  const bytes=await readFile('public/models/snow-character.glb');
+  const gltf=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
+  const names=gltf.nodes.map(n=>n.name);assert.ok(names.includes('Snow_head'));assert.ok(names.includes('Snow_upper'));
+  assert.ok(gltf.nodes.filter(n=>n.mesh!==undefined).every(n=>n.name.startsWith('Snow_')),'reference office is not exported with actor');
+  assert.ok(bytes.length<1.5*1024*1024);
+  let triangles=0;
+  for(const mesh of gltf.meshes)for(const p of mesh.primitives){assert.notEqual(p.attributes.TEXCOORD_1,undefined);triangles+=gltf.accessors[p.indices].count/3;}
+  assert.ok(triangles<12000);assert.ok(gltf.meshes.length<=12);
+  for(const [type,width,height] of [['lightmap',512,512],['environment',256,128]]) {
+    const png=await readFile(`public/models/snow-character-${type}.png`);assert.equal(png.readUInt32BE(16),width);assert.equal(png.readUInt32BE(20),height);
+  }
+});
+
+test('failed character lighting does not remove the office or its desk interaction',async(t)=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>({scene:new THREE.Group()}));
+  t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async(url)=>{if(url.includes('snow-character'))throw Error('missing actor texture');return new THREE.Texture();});
+  t.mock.method(console,'warn',()=>{});
+  const room=new SnowOffice();await room.loadVisuals('/');room.group.visible=true;
+  assert.equal(room.group.userData.environmentStatus,'ready');assert.equal(room.group.userData.lightingStatus,'baked');
+  assert.equal(room.character.group.userData.characterStatus,'unavailable');
+  const ray=new THREE.Raycaster(new THREE.Vector3(-.65,.7,1),new THREE.Vector3(0,0,-1));
+  assert.equal(room.hotspotFor(room.pick(ray).object),'john-snow');
+});
+
+const {Soundscape,FootstepTracker,sanitizeSoundSettings}=await load('audio/Soundscape');
+function fakeAudioContext() {
+  const param=(value=0)=>({value,setTargetAtTime(v){this.value=v;},setValueAtTime(v){this.value=v;},linearRampToValueAtTime(v){this.value=v;},exponentialRampToValueAtTime(v){this.value=v;},cancelScheduledValues(){}});
+  const node=()=>({connections:[],connect(other){this.connections.push(other);return other;},disconnect(){this.connections=[];}});
+  const c={state:'suspended',currentTime:1,destination:node(),sources:[],buffers:[],gains:[],resumeCount:0,suspendCount:0,
+    async resume(){this.resumeCount++;this.state='running';},async suspend(){this.suspendCount++;this.state='suspended';},async close(){this.state='closed';},
+    createGain(){const n={...node(),gain:param()};this.gains.push(n);return n;},
+    createBiquadFilter:()=>({...node(),frequency:param(),Q:param()}),
+    createPanner:()=>({...node(),positionX:param(),positionY:param(),positionZ:param()}),
+    createBuffer(channels,length,rate){const data=new Float32Array(length);const b={length,sampleRate:rate,getChannelData:()=>data};this.buffers.push(b);return b;},
+    createBufferSource(){const source={...node(),playbackRate:param(1),started:false,stopped:false,start(){this.started=true;},stop(time){this.stopped=true;this.stopAt=time;}};this.sources.push(source);return source;},
+    listener:Object.fromEntries(['positionX','positionY','positionZ','forwardX','forwardY','forwardZ','upX','upY','upZ'].map(name=>[name,param()]))};return c;
+}
+
+test('sound preferences reject invalid stored values and clamp both volume channels',()=>{
+  assert.deepEqual(sanitizeSoundSettings(null),{muted:false,ambience:.2,effects:.35});
+  assert.deepEqual(sanitizeSoundSettings({muted:'yes',ambience:-2,effects:8}),{muted:false,ambience:0,effects:1});
+  assert.deepEqual(sanitizeSoundSettings({muted:true,ambience:NaN,effects:Infinity}),{muted:true,ambience:.2,effects:.35});
+});
+
+test('footsteps follow distance but never fire on teleport, turning or panel close',()=>{
+  const steps=new FootstepTracker();const p={x:0,y:1.62,z:0};assert.equal(steps.update(p,true),false);
+  for(let i=0;i<20;i++)assert.equal(steps.update({...p,y:1.5+i*.01},true),false,'head height changes are not steps');
+  assert.equal(steps.update({...p,x:.25},true),false);assert.equal(steps.update({...p,x:.50},true),false);assert.equal(steps.update({...p,x:.75},true),true);
+  assert.equal(steps.update({...p,x:8},true),false);assert.equal(steps.update({...p,x:8.3},false),false);
+  assert.equal(steps.update({...p,x:8.4},true),false);steps.reset();assert.equal(steps.update({...p,x:2},true),false);
+});
+
+test('audio is gesture-started, generated samples are finite, and location loops crossfade and dispose',async()=>{
+  const c=fakeAudioContext();let created=0;const audio=new Soundscape(()=>{created++;return c;});
+  audio.setLocation('brewery');audio.effect('paper');assert.equal(created,0);
+  await Promise.all([audio.unlock(),audio.unlock()]);assert.equal(created,1);assert.equal(c.state,'running');
+  assert.equal(audio.active.length,1);
+  for(const b of c.buffers){let peak=0;for(const v of b.getChannelData(0)){assert.ok(Number.isFinite(v));peak=Math.max(peak,Math.abs(v));}assert.ok(peak>0&&peak<=1);}
+  const old=audio.active[0];audio.setLocation('broad-street');assert.equal(audio.active.length,2);assert.ok(old.source.stopped);assert.equal(old.source.stopAt,c.currentTime+.4);
+  audio.update({x:1,y:2,z:3},{x:0,y:0,z:-1},{x:0,y:1,z:0},false);assert.equal(c.listener.positionX.value,1);assert.equal(c.listener.forwardZ.value,-1);
+  audio.dispose();assert.equal(c.state,'closed');assert.ok(c.sources.every(s=>s.stopped));assert.equal(audio.allSources.size,0);
+  const count=c.sources.length;audio.setLocation('household');await audio.unlock();assert.equal(c.sources.length,count);
+});
+
+test('mute, independent levels and background suspension suppress sound without changing game state',async()=>{
+  const c=fakeAudioContext(),audio=new Soundscape(()=>c);await audio.unlock();
+  audio.setLevel('ambience',.6);audio.setLevel('effects',.1);
+  assert.equal(audio.ambience.gain.value,.6);assert.equal(audio.effects.gain.value,.1);
+  audio.toggleMuted();const initial=c.sources.length;audio.effect('paper');assert.equal(c.sources.length,initial);assert.equal(audio.master.gain.value,0);
+  audio.toggleMuted();audio.effect('paper');assert.equal(c.sources.length,initial+1);
+  audio.setHidden(true);assert.equal(audio.master.gain.value,0);assert.equal(c.suspendCount,1);audio.effect('step');assert.equal(c.sources.length,initial+1);
+  audio.setHidden(false);await Promise.resolve();assert.equal(c.state,'running');
+  audio.dispose();
+});
+
+test('unsupported audio and a blocked resume remain non-fatal and can be retried',async()=>{
+  const unsupported=new Soundscape(()=>{throw new Error('no Web Audio');});await unsupported.unlock();unsupported.effect('select');assert.equal(unsupported.failed,true);
+  const c=fakeAudioContext();let resumes=0;c.resume=async()=>{if(++resumes===1)throw new Error('gesture needed');c.state='running';};
+  const retry=new Soundscape(()=>c);await retry.unlock();assert.equal(retry.failed,false);await retry.unlock();assert.equal(c.state,'running');retry.dispose();
+});
+
+test('VR sound controls adjust preferences without clearing evidence or a dialogue answer',()=>{
+  const game=fieldGame(true);game.travelToLocation('brewery');game.inspectHotspot('broad-street-brewery');game.askQuestion('brewery-drink-question');
+  const answer=game.getActiveDialogueAnswer(),evidence=game.getCollectedEvidence().length;
+  const scene=Object.create(BroadStreetScene.prototype),sound=new Soundscape();
+  Object.assign(scene,{gameState:game,sound,vrPanelMode:'home',getDefaultVrStatus(){return '';},showVrPanel(){},refreshHotspots(){},markVrPanelDirty(){}});
+  scene.handleVrButton({type:'mode',mode:'sound'});assert.deepEqual(game.getActiveDialogueAnswer(),answer);
+  scene.handleVrButton({type:'sound-level',channel:'ambience',delta:.1});assert.ok(Math.abs(sound.getSettings().ambience-.3)<1e-8);
+  scene.handleVrButton({type:'sound-mute'});assert.equal(sound.getSettings().muted,true);assert.equal(game.getCollectedEvidence().length,evidence);
+});
+
+
+test('XR system-menu visibility stays muted when document visibility returns',async()=>{
+  const c=fakeAudioContext(),sound=new Soundscape(()=>c);await sound.unlock();
+  sound.setHidden(true,'xr');sound.setHidden(true,'document');sound.setHidden(false,'document');
+  await Promise.resolve();assert.equal(sound.hidden,true);assert.equal(sound.master.gain.value,0);
+  sound.setHidden(false,'xr');await Promise.resolve();assert.equal(sound.hidden,false);assert.equal(c.state,'running');sound.dispose();
 });

@@ -32,9 +32,12 @@ def box(name,x,y,z,w,h,d,mat,bevel=0):
         axis=max(range(3),key=lambda i:abs(p.normal[i]));axes=[i for i in range(3) if i!=axis]
         for li in p.loop_indices:
             co=o.data.vertices[o.data.loops[li].vertex_index].co
-            uv.data[li].uv=(co[axes[0]]/REPEAT[mat],co[axes[1]]/REPEAT[mat])
+            if mat=='Timber':
+                long_axis=max(axes,key=lambda a:o.dimensions[a]);short_axis=next(a for a in axes if a!=long_axis)
+                uv.data[li].uv=(co[short_axis]/.32,co[long_axis]/2.0)
+            else:uv.data[li].uv=(co[axes[0]]/REPEAT[mat],co[axes[1]]/REPEAT[mat])
     if bevel:
-        mod=o.modifiers.new('Soft edges','BEVEL');mod.width=bevel;mod.segments=1;bpy.ops.object.modifier_apply(modifier=mod.name)
+        mod=o.modifiers.new('Soft edges','BEVEL');mod.width=bevel;mod.segments=2;bpy.ops.object.modifier_apply(modifier=mod.name)
     return o
 def cylinder(name,x,y,z,r,h,mat):
     bpy.ops.mesh.primitive_cylinder_add(vertices=16,radius=r,depth=h,location=(x,-z,y));o=bpy.context.object;o.name=name;o.data.materials.append(M[mat]);return o
@@ -84,22 +87,50 @@ def lathe(name,x,y,z,profile,mat,sides=32):
     mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
     uv=mesh.uv_layers.new(name='UVMap')
     for p in mesh.polygons:
-        for li in p.loop_indices:
-            vi=mesh.loops[li].vertex_index;uv.data[li].uv=((vi%sides)/sides*3,profile[vi//sides][1]/REPEAT[mat])
+        ring=p.index//sides;segment=p.index%sides
+        for li,(u,v) in zip(p.loop_indices,[(segment,ring),(segment+1,ring),(segment+1,ring+1),(segment,ring+1)]):
+            repeats=6 if mat=='Timber' else 1
+            uv.data[li].uv=(u/sides*repeats,profile[v][1]/(1.5 if mat=='Timber' else REPEAT[mat]))
         p.use_smooth=True
     ob=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(ob);ob.data.materials.append(M[mat]);return ob
+def staves(name,x,y,z,profile,count=20):
+    verts=[];faces=[];uvs=[]
+    for stave in range(count):
+        start=len(verts)
+        for r,yy in profile:
+            for side in [0,1]:
+                angle=(stave+(.013 if side==0 else .987))*math.tau/count
+                verts.append((x+r*math.cos(angle),-z+r*math.sin(angle),y+yy))
+                uvs.append((side*.85+stave*.137,yy/1.4))
+        for ring in range(len(profile)-1):
+            a=start+ring*2;faces.append((a,a+1,a+3,a+2))
+    mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
+    uv=mesh.uv_layers.new(name='UVMap')
+    for loop in mesh.loops:uv.data[loop.index].uv=uvs[loop.vertex_index]
+    for face in mesh.polygons:face.use_smooth=True
+    ob=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(ob);mesh.materials.append(M['Timber'])
+    return ob
+
 def furniture(id):return next(f for f in layout['furniture'] if f['id']==id)
 for id in ['west-copper','east-copper']:
     f=furniture(id);x,z=f['x'],f['z']
     lathe('Brick copper plinth',x,0,z,[(0,0),(1.22,0),(1.22,.76),(0,.76)],'Brick')
     lathe('Brewing copper',x,0,z,[(0,.74),(1.17,.74),(1.17,1.75),(1.2,1.8),(1.18,1.91),(.97,2.10),(.7,2.27),(.43,2.50),(.26,2.78),(.20,2.95),(.20,4.5),(0,4.5)],'Copper')
     for yy in [.79,1.75]:lathe('Copper band',x,yy,z,[(1.18,0),(1.22,.025),(1.22,.07),(1.18,.095)],'Iron')
+    for yy in [1.18,1.58]:
+        lathe('Copper sheet lap',x,yy,z,[(1.17,0),(1.179,.007),(1.179,.017),(1.17,.023)],'Copper',40)
+        for j in range(16):
+            a=j*math.tau/16
+            bpy.ops.mesh.primitive_uv_sphere_add(segments=8,ring_count=4,radius=.018,location=(x+1.18*math.cos(a),-z+1.18*math.sin(a),yy+.011))
+            rivet=bpy.context.object;rivet.name='Copper rivet';rivet.data.materials.append(M['Copper'])
+    box('Firebox hinge',x-.245,.37,z+1.245,.045,.29,.035,'Iron',.008)
+    box('Firebox latch',x+.15,.43,z+1.25,.14,.035,.03,'Iron',.006)
     box('Closed firebox',x,.37,z+1.225,.48,.49,.025,'Iron',.04)
     for dx in [-.15,-.05,.05,.15]:box('Firebox vent',x+dx,.33,z+1.244,.035,.17,.012,'Recess')
     tube('Copper tap',[(x,.97,z+1.16),(x,.97,z+1.28),(x,.88,z+1.28)],.03,'Iron')
 # Large timber vat with an opaque open top; it remains decorative and non-climbable.
 f=furniture('timber-vat');x,z=f['x'],f['z']
-lathe('Timber vat',x,0,z,[(0,0),(.72,0),(.80,.25),(.80,2.5),(.75,2.55),(.72,2.48),(.72,.15),(0,.15)],'Timber')
+staves('Vat individual staves',x,0,z,[(.72,0),(.8,.25),(.8,2.5),(.75,2.55),(.72,2.48),(.72,.15)],28)
 for yy in [.12,.72,1.55,2.42]:lathe('Vat hoop',x,yy,z,[(.795,0),(.825,.02),(.825,.1),(.795,.12)],'Iron')
 cylinder('Vat dark interior',x,2.30,z,.70,.02,'Recess')
 # Two tiers of horizontal casks, enclosed by one simple rack collision footprint.
@@ -112,27 +143,45 @@ for y in [.18,1.25]:
         # Author upright, then rotate around its center so its axis faces the aisle.
         before=set(bpy.context.scene.objects)
         profile=[(0,-.40),(.38,-.40),(.44,-.28),(.46,0),(.44,.28),(.38,.40),(0,.40)]
-        lathe('Cask staves',0,0,0,profile,'Timber',24)
+        staves('Cask individual staves',0,0,0,profile[1:-1])
+        for end in [-.385,.385]:
+            # Recessed heads, with a rim and four visible board joints.
+            cylinder('Recessed cask head',0,end,0,.365,.025,'Timber')
+            for offset in [-.22,-.07,.08,.23]:
+                span=2*math.sqrt(.355**2-offset**2)
+                box('Cask head joint',offset,end+(.014 if end>0 else -.014),0,.003,.002,span,'Recess')
+            cylinder('Head bung',.10,end+(.021 if end>0 else -.021),0,.033,.016,'Timber')
         for yy in [-.33,0,.33]:lathe('Cask hoop',0,yy,0,[(.44,0),(.465,.015),(.465,.05),(.44,.065)],'Iron',24)
         from mathutils import Matrix,Vector
         transform=Matrix.Translation(Vector((x,-(z+zz),y+.46))) @ Matrix.Rotation(math.pi/2,4,'Y')
         for ob in set(bpy.context.scene.objects)-before:ob.matrix_world=transform @ ob.matrix_world
 # Interview table and two low stools; no new action on vessels or barrels.
 f=furniture('owners-table');x,z=f['x'],f['z']
-box('Owners table top',x,.795,z,2,.09,.95,'Timber',.025)
+for dz in [-.354,-.118,.118,.354]:
+    box('Table top board',x,.795,z+dz,2,.09,.232,'Timber',.008)
+for dx in [-.86,.86]:
+    for dz in [-.35,.35]:cylinder('Table pegged joint',x+dx,.842,z+dz,.013,.004,'Timber')
 for dx in [-.86,.86]:
     for dz in [-.35,.35]:box('Table leg',x+dx,.37,z+dz,.09,.74,.09,'Timber',.01)
 for dz in [-.36,.36]:box('Table apron',x,.65,z+dz,1.8,.18,.06,'Timber')
 box('Closed account book',x-.55,.885,z-.10,.42,.075,.55,'Paint',.008)
 box('Book pages',x-.55,.887,z-.083,.38,.045,.52,'Paper')
-for xx in [.1,.53]:lathe('Drinking mug',x+xx,.84,z+.05,[(0,0),(.08,0),(.09,.15),(.075,.15),(.065,.025),(0,.025)],'Pottery',20)
+for xx in [.1,.53]:
+    lathe('Drinking mug',x+xx,.84,z+.05,[(0,0),(.08,0),(.09,.15),(.083,.16),(.075,.15),(.065,.025),(0,.025)],'Pottery',24)
+    points=[(x+xx+.078+.043*math.sin(a),.92+.052*math.cos(a),z+.05) for a in [i*math.pi/8 for i in range(9)]]
+    tube('Mug handle',points,.012,'Pottery')
 for id in ['west-stool','east-stool']:
     f=furniture(id);x,z=f['x'],f['z'];cylinder('Stool seat',x,.555,z,.25,.09,'Timber')
     for dx,dz in [(-.15,-.15),(.15,-.15),(0,.18)]:box('Stool leg',x+dx,.26,z+dz,.065,.52,.065,'Timber')
 f=furniture('sacks');x,z=f['x'],f['z']
 box('Sack pallet',x,.06,z,1,.12,1.8,'Timber')
 for dz in [-.52,.3]:
-    lathe('Grain sack',x,.12,z+dz,[(0,0),(.32,0),(.41,.22),(.35,.65),(.20,.83),(.08,.87),(0,.87)],'Sacking',16)
+    sack=lathe('Soft grain sack',x,.12,z+dz,[(0,0),(.25,0),(.35,.045),(.40,.16),(.39,.34),(.35,.56),(.28,.72),(.15,.81),(.07,.86),(0,.87)],'Sacking',32)
+    for vertex in sack.data.vertices:
+        local=vertex.co;angle=math.atan2(local.y+z+dz,local.x-x);height=local.z-.12
+        crease=1+.045*math.sin(angle*7+height*3)+.025*math.sin(angle*13)
+        local.x=x+(local.x-x)*crease;local.y=-(z+dz)+(local.y+z+dz)*crease
+    tube('Sack stitched seam',[(x+.04,.16,z+dz-.35),(x+.03,.38,z+dz-.40),(x+.02,.68,z+dz-.31),(x+.01,.90,z+dz-.10)],.004,'Sacking')
     lathe('Sack tie',x,.94,z+dz,[(.08,0),(.09,.02),(.09,.05),(.08,.06)],'Iron',12)
 f=furniture('bench');x,z=f['x'],f['z']
 box('Waiting bench',x,.475,z,1.9,.09,.5,'Timber',.015)
@@ -143,8 +192,10 @@ box('Floor drain',0,.002,-4.8,.6,.006,.42,'Recess')
 for dx in [-.24,-.16,-.08,0,.08,.16,.24]:box('Drain bar',dx,.008,-4.8,.025,.008,.40,'Iron')
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
+from brewery_finish import apply_finishes
+apply_finishes(M,ROOT)
 from bake_scene_lighting import bake_lighting
-lighting_report=bake_lighting(M,ROOT,asset='brewery-room',lights=[('Brewhouse window '+str(z),(4.76,2.8,z),(0,.8,z),240,1.3,(.91,.96,1)) for z in [-3.5,0,3.4]] + [('Rear window '+str(x),(x,2.7,-5.78),(x,1,0),160,1.2,(.91,.96,1)) for x in [-.65,.65]] + [('Brewhouse bounce',(0,4,0),(0,0,0),100,5,(1,.90,.76))])
+lighting_report=bake_lighting(M,ROOT,asset='brewery-room',exterior={o for o in bpy.context.scene.objects if o.type=='MESH' and o.name.startswith(('Copper rivet','Copper sheet lap','Mug handle','Table pegged joint','Sack stitched seam'))},neutral_value=.7,lights=[('Brewhouse window '+str(z),(4.76,2.8,z),(0,.8,z),240,1.3,(.91,.96,1)) for z in [-3.5,0,3.4]] + [('Rear window '+str(x),(x,2.7,-5.78),(x,1,0),160,1.2,(.91,.96,1)) for x in [-.65,.65]] + [('Brewhouse bounce',(0,4,0),(0,0,0),100,5,(1,.90,.76))])
 asset=ROOT/'assets/brewery-room';asset.mkdir(exist_ok=True)
 bpy.context.scene.unit_settings.system='METRIC';bpy.context.preferences.filepaths.save_version=0
 bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(asset/'brewery-room.blend'))
