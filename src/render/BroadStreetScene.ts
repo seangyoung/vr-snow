@@ -307,7 +307,7 @@ export class BroadStreetScene {
   private dragging = false;
   private previousPointer = { x: 0, y: 0 };
   // Undefined uses keyboard aim; null means the mouse has left the canvas.
-  private snowHoverPointer?: { x: number; y: number } | null;
+  private characterHoverPointer?: { x: number; y: number } | null;
   private motionLookEnabled = false;
   private motionLookStatus: MotionLookStatus = "unavailable";
   private motionReferenceYaw?: number;
@@ -389,9 +389,12 @@ export class BroadStreetScene {
       this.updateWorldTravelZones();
       this.updateHotspots(timeSeconds);
       if(this.office.group.visible)this.office.character.update(timeSeconds,this.reducedCharacterMotion.matches);
+      for(const room of [this.registrar,this.household,this.workhouse,this.brewery,this.courtyard]) {
+        if(room.group.visible)room.characters?.update(timeSeconds,this.reducedCharacterMotion.matches);
+      }
       this.updateVrControls(timeSeconds);
       this.updateFocusFromCenter();
-      this.updateSnowHoverLabel();
+      this.updateCharacterHoverLabels();
       if(this.sound) {
         this.sound.setLocation(this.gameState.getCurrentLocation().id);
         this.camera.getWorldPosition(this.soundPosition);this.camera.getWorldDirection(this.soundForward);
@@ -430,6 +433,9 @@ export class BroadStreetScene {
     this.panoramaLighting.visible = !this.walkable;
     this.scene.background = new THREE.Color(this.courtyard.group.visible || this.workhouse.group.visible ? "#abb0ac" : "#111619");
     this.scene.fog = (this.office.group.visible || this.registrar.group.visible || this.household.group.visible || this.workhouse.group.visible || this.brewery.group.visible) ? null : new THREE.FogExp2(this.courtyard.group.visible ? "#abb0ac" : "#111619", this.courtyard.group.visible ? 0.014 : 0.043);
+    for(const room of [this.registrar,this.household,this.workhouse,this.brewery,this.courtyard]) {
+      if(room?.group.visible)void room.characters?.loadVisuals(import.meta.env?.BASE_URL || "/");
+    }
     if (this.panoramaSky) this.panoramaSky.visible = !this.walkable;
     this.playerRig.position.set(0, 0, 0);
     this.applyPanorama(location.id);
@@ -456,7 +462,7 @@ export class BroadStreetScene {
       const active = activeHotspotIds.has(mesh.userData.hotspot.id);
       const inspected = this.gameState.hasInspected(mesh.userData.hotspot.id);
       mesh.visible = active && !["broad-street-pump", "john-snow", "registrar-ledger", "broad-street-household", "poland-workhouse", "broad-street-brewery"].includes(mesh.userData.hotspot.id);
-      label.visible = active && mesh.userData.hotspot.id !== "john-snow";
+      label.visible = active && !["john-snow","registrar-ledger","broad-street-household","poland-workhouse","broad-street-brewery"].includes(mesh.userData.hotspot.id);
       mesh.material.color.set(inspected ? "#89d6ba" : "#f3d37a");
       mesh.material.emissive.set(inspected ? "#1b7e62" : "#8b621a");
     });
@@ -671,7 +677,7 @@ export class BroadStreetScene {
       const mesh = createHotspotMesh(hotspot);
       this.scene.add(mesh);
 
-      const label = createSpriteLabel(hotspot.id === "poland-workhouse" ? "Steward" : hotspot.id === "broad-street-brewery" ? "Brewery owners" : hotspot.shortLabel, "#f4d891");
+      const label = createSpriteLabel(hotspot.id === "registrar-ledger" ? "Registrar" : hotspot.id === "broad-street-household" ? "Household survivor" : hotspot.id === "poland-workhouse" ? "Steward" : hotspot.id === "broad-street-brewery" ? "Brewery owners" : hotspot.shortLabel, "#f4d891");
       label.position.set(hotspot.position[0], hotspot.position[1] + 0.33, hotspot.position[2]);
       if (hotspot.id === "broad-street-pump") label.position.y = 2.45;
       if (hotspot.id === "john-snow") {
@@ -679,10 +685,18 @@ export class BroadStreetScene {
         label.scale.set(.65, .22, 1);
         label.visible = false;
       }
-      if (hotspot.id === "registrar-ledger") label.position.copy(registrarLedgerTarget).add(new THREE.Vector3(0,.35,0));
-      if (hotspot.id === "broad-street-household") label.position.copy(householdInterviewTarget).add(new THREE.Vector3(0,.35,0));
-      if (hotspot.id === "poland-workhouse") label.position.copy(workhouseStewardTarget).add(new THREE.Vector3(0,.35,0));
-      if (hotspot.id === "broad-street-brewery") label.position.copy(breweryOwnersTarget).add(new THREE.Vector3(0,.35,0));
+      if (hotspot.id === "registrar-ledger" && this.registrar.characters) {
+        label.position.copy(this.registrar.characters!.labelPosition);label.scale.set(.95,.32,1);label.visible=false;
+      }
+      if (hotspot.id === "broad-street-household" && this.household.characters) {
+        label.position.copy(this.household.characters!.labelPosition);label.scale.set(.95,.32,1);label.visible=false;
+      }
+      if (hotspot.id === "poland-workhouse" && this.workhouse.characters) {
+        label.position.copy(this.workhouse.characters!.labelPosition);label.scale.set(.95,.32,1);label.visible=false;
+      }
+      if (hotspot.id === "broad-street-brewery" && this.brewery.characters) {
+        label.position.copy(this.brewery.characters!.labelPosition);label.scale.set(.95,.32,1);label.visible=false;
+      }
       this.scene.add(label);
       this.hotspotVisuals.set(hotspot.id, { mesh, label });
     });
@@ -793,7 +807,7 @@ export class BroadStreetScene {
       this.canvas.setPointerCapture(event.pointerId);
     });
     this.canvas.addEventListener("pointermove", (event) => {
-      this.snowHoverPointer = event.pointerType === "mouse" ? { x: event.clientX, y: event.clientY } : undefined;
+      this.characterHoverPointer = event.pointerType === "mouse" ? { x: event.clientX, y: event.clientY } : undefined;
       if (!this.dragging) {
         return;
       }
@@ -839,8 +853,8 @@ export class BroadStreetScene {
         if (hit && this.walkable.canTeleport(hit)) teleportViewer(this.playerRig, this.camera, hit.point);
       }
     });
-    this.canvas.addEventListener("pointerleave", () => { this.snowHoverPointer = null; });
-    this.canvas.addEventListener("pointercancel", () => { this.dragging = false; this.pointerTravel = Infinity; this.snowHoverPointer = null; });
+    this.canvas.addEventListener("pointerleave", () => { this.characterHoverPointer = null; });
+    this.canvas.addEventListener("pointercancel", () => { this.dragging = false; this.pointerTravel = Infinity; this.characterHoverPointer = null; });
     window.addEventListener("keydown", (event) => {
       if (event.defaultPrevented) return;
       if (event.altKey || event.ctrlKey || event.metaKey) {
@@ -848,14 +862,14 @@ export class BroadStreetScene {
         return;
       }
       if (this.canUseDesktopMovement() && this.desktopMovement.press(event.key, event.repeat)) {
-        this.snowHoverPointer = undefined;
+        this.characterHoverPointer = undefined;
         event.preventDefault();
         return;
       }
       if (this.renderer.xr.isPresenting || document.body.dataset.overlayOpen === "true"
         || (event.target instanceof HTMLElement && event.target.closest("button, input, textarea, select, [contenteditable]"))) return;
       if (event.key === "Enter" || event.key === " ") {
-        this.snowHoverPointer = undefined;
+        this.characterHoverPointer = undefined;
         event.preventDefault();
         if (event.repeat) return;
         if (this.focusedTravel) {
@@ -2140,32 +2154,39 @@ export class BroadStreetScene {
     });
   }
 
-  private updateSnowHoverLabel(): void {
-    const label = this.hotspotVisuals.get("john-snow")?.label;
-    if (!label) return;
-    label.visible = false;
-    if (!this.office.group.visible || this.office.character.group.userData.characterStatus !== "ready"
-      || !this.gameState.getHotspots().some(hotspot => hotspot.id === "john-snow")) return;
-
-    const target = this.office.character.target;
-    if (this.renderer.xr.isPresenting) {
-      if (this.vrPanelVisible) return;
-      label.visible = this.vrControllers.some(controller => this.vrInputSources.has(controller)
-        && this.pickVrPointerHit(controller)?.object === target);
-      return;
-    }
-    if (document.body.dataset.overlayOpen === "true" || this.dragging || this.snowHoverPointer === null) return;
-    if (this.snowHoverPointer) {
-      const rect = this.canvas.getBoundingClientRect();
-      this.pointer.set(((this.snowHoverPointer.x - rect.left) / rect.width) * 2 - 1,
-        -((this.snowHoverPointer.y - rect.top) / rect.height) * 2 + 1);
-      this.raycaster.setFromCamera(this.pointer, this.camera);
+  private updateCharacterHoverLabels(): void {
+    const entries = [
+      {id:"john-snow", visible:this.office.group.visible, ready:this.office.character.group.userData.characterStatus==="ready", targets:[this.office.character.target]},
+      ...([["registrar-ledger",this.registrar],["broad-street-household",this.household],
+        ["poland-workhouse",this.workhouse],["broad-street-brewery",this.brewery]] as const)
+        .filter(([,room])=>!!room?.characters).map(([id,room])=>({id,visible:room!.group.visible,ready:room!.characters!.ready,targets:room!.characters!.targets})),
+    ];
+    for(const entry of entries){const label=this.hotspotVisuals.get(entry.id)?.label;if(label)label.visible=false;}
+    const activeIds=new Set(this.gameState.getHotspots().map(hotspot=>hotspot.id));
+    const active=entries.filter(entry=>entry.visible&&entry.ready&&activeIds.has(entry.id));
+    if(!active.length)return;
+    const hits: THREE.Object3D[]=[];
+    if(this.renderer.xr.isPresenting) {
+      if(this.vrPanelVisible)return;
+      for(const controller of this.vrControllers)if(this.vrInputSources.has(controller)) {
+        const hit=this.pickVrPointerHit(controller);if(hit)hits.push(hit.object);
+      }
     } else {
-      this.camera.getWorldPosition(this.cameraWorldPosition);
-      this.camera.getWorldDirection(this.cameraDirection);
-      this.raycaster.set(this.cameraWorldPosition, this.cameraDirection);
+      if(document.body.dataset.overlayOpen==="true"||this.dragging||this.characterHoverPointer===null)return;
+      if(this.characterHoverPointer) {
+        const rect=this.canvas.getBoundingClientRect();
+        this.pointer.set(((this.characterHoverPointer.x-rect.left)/rect.width)*2-1,-((this.characterHoverPointer.y-rect.top)/rect.height)*2+1);
+        this.raycaster.setFromCamera(this.pointer,this.camera);
+      } else {
+        this.camera.getWorldPosition(this.cameraWorldPosition);this.camera.getWorldDirection(this.cameraDirection);
+        this.raycaster.set(this.cameraWorldPosition,this.cameraDirection);
+      }
+      const hit=this.pickWorldTravelHit(this.raycaster);if(hit)hits.push(hit.object);
     }
-    label.visible = this.pickWorldTravelHit(this.raycaster)?.object === target;
+    for(const entry of active) {
+      const label=this.hotspotVisuals.get(entry.id)?.label;
+      if(label)label.visible=hits.some(hit=>entry.targets.some(target=>target===hit));
+    }
   }
 
   private updateFocusFromCenter(): void {

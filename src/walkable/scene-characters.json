@@ -1,0 +1,156 @@
+{
+  "registrar": {
+    "asset": "registrar-characters",
+    "room": "registrar-room",
+    "label": "Registrar",
+    "hotspot": "registrar-ledger",
+    "actors": [
+      {
+        "id": "registrar",
+        "position": [
+          0,
+          0,
+          -0.12
+        ],
+        "pose": "standing",
+        "coat": "49413a",
+        "vest": "827b68",
+        "hair": "777066",
+        "faceWidth": 0.96,
+        "faceHeight": 1.02,
+        "labelHeight": 1.97,
+        "height": 1.8
+      }
+    ]
+  },
+  "household": {
+    "asset": "household-characters",
+    "room": "household-room",
+    "label": "Household survivor",
+    "hotspot": "broad-street-household",
+    "actors": [
+      {
+        "id": "survivor",
+        "position": [
+          0.25,
+          0,
+          -0.55
+        ],
+        "pose": "lap",
+        "dress": true,
+        "coat": "49454b",
+        "vest": "696159",
+        "hair": "49392e",
+        "faceWidth": 0.91,
+        "faceHeight": 0.97,
+        "labelHeight": 1.72,
+        "height": 1.52
+      }
+    ]
+  },
+  "workhouse": {
+    "asset": "workhouse-characters",
+    "room": "workhouse-courtyard",
+    "label": "Steward",
+    "hotspot": "poland-workhouse",
+    "actors": [
+      {
+        "id": "steward",
+        "position": [
+          -2.2,
+          0,
+          -2.6
+        ],
+        "pose": "lap",
+        "coat": "3c4651",
+        "vest": "6c685b",
+        "hair": "8e887f",
+        "faceWidth": 1.1,
+        "faceHeight": 0.98,
+        "labelHeight": 1.74,
+        "height": 1.54
+      }
+    ]
+  },
+  "brewery": {
+    "asset": "brewery-characters",
+    "room": "brewery-room",
+    "label": "Brewery owners",
+    "hotspot": "broad-street-brewery",
+    "actors": [
+      {
+        "id": "edward",
+        "position": [
+          -0.6,
+          0.1,
+          0.05
+        ],
+        "pose": "table",
+        "coat": "59483b",
+        "vest": "827a66",
+        "hair": "6c5b49",
+        "faceWidth": 1.1,
+        "faceHeight": 1.0,
+        "labelHeight": 1.8,
+        "height": 1.56
+      },
+      {
+        "id": "john",
+        "position": [
+          0.6,
+          0.1,
+          0.05
+        ],
+        "pose": "table",
+        "coat": "414b43",
+        "vest": "81715d",
+        "hair": "45382c",
+        "faceWidth": 0.94,
+        "faceHeight": 0.96,
+        "labelHeight": 1.8,
+        "height": 1.53
+      }
+    ]
+  },
+  "street": {
+    "asset": "street-characters",
+    "room": "broad-street",
+    "label": "",
+    "actors": [
+      {
+        "id": "resident-west",
+        "position": [
+          -10,
+          -0.135,
+          -7.0
+        ],
+        "pose": "standing",
+        "coat": "665447",
+        "vest": "8a7b64",
+        "hair": "554439",
+        "faceWidth": 1.04,
+        "faceHeight": 0.98,
+        "labelHeight": 1.95,
+        "height": 1.78,
+        "yaw": 0.45
+      },
+      {
+        "id": "resident-east",
+        "position": [
+          11,
+          -0.135,
+          -7.0
+        ],
+        "pose": "standing",
+        "coat": "4a5358",
+        "vest": "787062",
+        "hair": "84766a",
+        "faceWidth": 0.94,
+        "faceHeight": 1.0,
+        "labelHeight": 1.95,
+        "height": 1.8,
+        "yaw": -0.5
+      }
+    ]
+  }
+}

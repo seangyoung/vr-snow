@@ -1,0 +1,33 @@
+{
+  "scene": "registrar",
+  "actors": [
+    {
+      "id": "registrar",
+      "position": [
+        0,
+        0,
+        -0.12
+      ],
+      "pose": "standing",
+      "coat": "49413a",
+      "vest": "827b68",
+      "hair": "777066",
+      "faceWidth": 0.96,
+      "faceHeight": 1.02,
+      "labelHeight": 1.97,
+      "height": 1.8
+    }
+  ],
+  "triangles": 19677,
+  "materialBatches": 12,
+  "bakedLighting": {
+    "size": 1024,
+    "normalization": 4,
+    "diffusePeak999": 2.3266,
+    "environmentSize": [
+      256,
+      128
+    ]
+  },
+  "interpretive": true
+}

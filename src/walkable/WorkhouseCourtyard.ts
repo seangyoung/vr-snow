@@ -10,7 +10,7 @@ export const workhouseStewardTarget = new THREE.Vector3(...layout.deskTarget);
 export class WorkhouseCourtyard extends FurnishedRoom {
   private courtyardVisuals?: Promise<void>;
   constructor() {
-    super({name: "St. James Workhouse courtyard", asset: "workhouse-courtyard.glb", layout, area: workhouseArea,
+    super({characters: "workhouse", name: "St. James Workhouse courtyard", asset: "workhouse-courtyard.glb", layout, area: workhouseArea,
       bakedLighting: {lightMap: "workhouse-courtyard-lightmap.png", environment: "workhouse-courtyard-environment.png"},
       interactionFurniture: "steward-table", hotspot: "poland-workhouse", daylight: "#e1e9e7", fill: 0});
   }

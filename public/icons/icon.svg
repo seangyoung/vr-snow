@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>The Broad Street Inquiry</title>
+  <desc>A brass street pump over a street map on a deep green background.</desc>
+  <rect width="512" height="512" fill="#172e2b"/>
+  <!-- Decorative map can be cropped; the entire pump stays within the maskable safe circle. -->
+  <g fill="none" stroke="#36504a" stroke-width="18">
+    <path d="M-20 140 150 140 385 375 532 375 M85-20V110L360 385V532 M-20 355 165 355 410 110H532 M400-20V95L120 375V532"/>
+  </g>
+  <circle cx="256" cy="256" r="174" fill="#172e2b" stroke="#b69b61" stroke-width="4"/>
+  <g stroke="#151f1c" stroke-width="5" stroke-linejoin="round">
+    <path d="M230 164H282V354H230Z" fill="#b99850"/>
+    <path d="M242 175H253V346H242Z" fill="#e7ce8b" stroke="none"/>
+    <path d="M222 155H290V177H222Z M220 346H292V362H220Z M207 362H305V380H207Z" fill="#d5b96e"/>
+    <path d="M224 154Q225 130 247 125V113H265V125Q287 130 288 154Z" fill="#d5b96e"/>
+    <path d="M282 203H308Q328 203 328 223V239H306V230Q306 224 299 224H282Z" fill="#d5b96e"/>
+    <path d="M227 192C186 193 191 234 190 261L181 291" fill="none" stroke="#d5b96e" stroke-width="13" stroke-linecap="round"/>
+    <circle cx="233" cy="193" r="9" fill="#e7ce8b"/>
+  </g>
+  <path d="M317 254C311 264 306 270 306 277A11 11 0 0 0 328 277C328 270 323 264 317 254Z" fill="#8bc4bc"/>
+</svg>

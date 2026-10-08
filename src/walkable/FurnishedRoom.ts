@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { WalkableArea, type WalkableEnvironment } from "./WalkableArea";
+import { SceneCharacters, type CharacterScene } from "./SceneCharacters";
 import { loadBakedRoomLighting } from "./BakedRoomLighting";
 
 export interface RoomLayout {
@@ -12,6 +13,7 @@ export interface RoomOptions {
   name: string; asset: string; layout: RoomLayout; area: WalkableArea;
   interactionFurniture: string; hotspot: string;
   daylight?: string; fill?: number;
+  characters?: CharacterScene;
   bakedLighting?: { lightMap: string; environment: string };
 }
 export function roomArea(layout: RoomLayout): WalkableArea {
@@ -28,6 +30,7 @@ export function roomArea(layout: RoomLayout): WalkableArea {
 export class FurnishedRoom implements WalkableEnvironment {
   readonly group = new THREE.Group();
   readonly spawn: THREE.Vector3;
+  readonly characters?: SceneCharacters;
   readonly floor: THREE.Mesh;
   readonly canWalkBetween: WalkableArea["canWalkBetween"];
   private readonly solids: THREE.Object3D[] = [];
@@ -40,7 +43,8 @@ export class FurnishedRoom implements WalkableEnvironment {
   constructor(private readonly options: RoomOptions) {
     const { layout } = options;
     this.spawn = new THREE.Vector3(...layout.spawn);
-    this.canWalkBetween = options.area.canWalkBetween;
+    this.canWalkBetween = (from,to) => options.area.canWalkBetween(from,to) && !this.characters?.blocksPath(from,to);
+    if(options.characters){this.characters=new SceneCharacters(options.characters);this.group.add(this.characters.group);}
     this.group.name = options.name;
     const rayOnly = new THREE.MeshBasicMaterial({ visible: false });
     const timber = new THREE.MeshStandardMaterial({ color: "#69513a", roughness: 0.9 });
@@ -108,12 +112,15 @@ export class FurnishedRoom implements WalkableEnvironment {
   pick(raycaster: THREE.Raycaster): THREE.Intersection | undefined {
     if (!this.group.visible) return undefined;
     this.group.updateMatrixWorld(true);
-    return raycaster.intersectObjects([this.floor,...this.solids],false)[0];
+    if(this.characters)this.deskPrompt.layers.mask=this.characters.ready?0:1;
+    const furniture=raycaster.intersectObjects([this.floor,...this.solids],false)[0];
+    const person=this.characters?.pick(raycaster);
+    return person && (!furniture || person.distance<furniture.distance) ? person : furniture;
   }
   hotspotFor(object: THREE.Object3D): string | undefined {
-    return (object === this.desk || object === this.deskPrompt) ? this.options.hotspot : undefined;
+    return (object === this.desk || object === this.deskPrompt || this.characters?.owns(object)) ? this.options.hotspot : undefined;
   }
   canTeleport(hit: THREE.Intersection): boolean {
-    return hit.object === this.floor && this.options.area.isValidDestination(hit.point);
+    return hit.object === this.floor && this.options.area.isValidDestination(hit.point) && !this.characters?.blocks(hit.point);
   }
 }

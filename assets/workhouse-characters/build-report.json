@@ -1,0 +1,33 @@
+{
+  "scene": "workhouse",
+  "actors": [
+    {
+      "id": "steward",
+      "position": [
+        -2.2,
+        0,
+        -2.6
+      ],
+      "pose": "lap",
+      "coat": "3c4651",
+      "vest": "6c685b",
+      "hair": "8e887f",
+      "faceWidth": 1.1,
+      "faceHeight": 0.98,
+      "labelHeight": 1.74,
+      "height": 1.54
+    }
+  ],
+  "triangles": 19983,
+  "materialBatches": 12,
+  "bakedLighting": {
+    "size": 1024,
+    "normalization": 4,
+    "diffusePeak999": 0.5825,
+    "environmentSize": [
+      256,
+      128
+    ]
+  },
+  "interpretive": true
+}

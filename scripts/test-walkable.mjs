@@ -8,14 +8,14 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "audio/Soundscape", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
   await mkdir(resolve(output, name, ".."), { recursive: true });
   await writeFile(resolve(output, `${name}.js`), compiled);
 }
-for (const name of ["office-layout", "registrar-layout", "household-layout", "workhouse-layout", "brewery-layout"]) await copyFile(`src/walkable/${name}.json`, resolve(output, `walkable/${name}.json`));
+for (const name of ["scene-characters", "office-layout", "registrar-layout", "household-layout", "workhouse-layout", "brewery-layout"]) await copyFile(`src/walkable/${name}.json`, resolve(output, `walkable/${name}.json`));
 await writeFile(resolve(output, "package.json"), '{"type":"module"}');
 const load = (name) => import(pathToFileURL(resolve(output, `${name}.js`)).href);
 const { teleportViewer, turnViewer, standardTurnAxis } = await load("walkable/locomotion");
@@ -463,6 +463,7 @@ test('office/street/panorama lifecycle restores scene geometry, lighting and arr
   assert.ok(game.prepareBoardArgument().prepared);
   const rig=new THREE.Group(),camera=new THREE.PerspectiveCamera();camera.position.y=1.62;rig.add(camera);
   const courtyard=new PumpCourtyard(),office=new SnowOffice(),registrar=new RegistrarRoom(),household=new HouseholdRoom(),workhouse=new WorkhouseCourtyard(),brewery=new BreweryRoom();
+  for(const room of [courtyard,registrar,household,workhouse,brewery])room.characters.loadVisuals=async()=>{};
   Object.assign(scene,{gameState:game,playerRig:rig,camera,courtyard,office,registrar,household,workhouse,brewery,desktopMovement:new DesktopMovement(),
     travelZones:new TravelZoneTracker(),scene:new THREE.Scene(),panoramaLighting:new THREE.Group(),panoramaSky:new THREE.Group(),
     renderer:{xr:{isPresenting:false}},primeMotionLookReference:()=>{},applyPanorama:()=>{},refreshLocationObjects:()=>{},
@@ -1043,19 +1044,19 @@ test('Snow label follows mouse or keyboard aim at the figure, not the desk, and 
   try {
     const {scene,office,camera,label}=snowHoverScene();
     scene.refreshHotspots();assert.equal(label.visible,false,'no persistent nameplate');
-    scene.updateSnowHoverLabel();assert.equal(label.visible,true,'keyboard reticle on figure');
+    scene.updateCharacterHoverLabels();assert.equal(label.visible,true,'keyboard reticle on figure');
     camera.position.y=.7;camera.updateMatrixWorld(true);
-    scene.updateSnowHoverLabel();assert.equal(label.visible,false,'desk action does not show figure label');
+    scene.updateCharacterHoverLabels();assert.equal(label.visible,false,'desk action does not show figure label');
     camera.position.y=1.5;camera.updateMatrixWorld(true);
-    scene.snowHoverPointer={x:400,y:400};scene.updateSnowHoverLabel();assert.equal(label.visible,true);
-    scene.snowHoverPointer={x:790,y:400};scene.updateSnowHoverLabel();assert.equal(label.visible,false,'mouse takes precedence over center aim');
-    scene.snowHoverPointer=null;scene.updateSnowHoverLabel();assert.equal(label.visible,false,'mouse left canvas');
-    scene.snowHoverPointer=undefined;scene.updateSnowHoverLabel();assert.equal(label.visible,true);
-    document.body.dataset.overlayOpen='true';scene.updateSnowHoverLabel();assert.equal(label.visible,false);
-    document.body.dataset.overlayOpen='false';scene.updateSnowHoverLabel();assert.equal(label.visible,true);
-    office.group.visible=false;scene.updateSnowHoverLabel();assert.equal(label.visible,false);
+    scene.characterHoverPointer={x:400,y:400};scene.updateCharacterHoverLabels();assert.equal(label.visible,true);
+    scene.characterHoverPointer={x:790,y:400};scene.updateCharacterHoverLabels();assert.equal(label.visible,false,'mouse takes precedence over center aim');
+    scene.characterHoverPointer=null;scene.updateCharacterHoverLabels();assert.equal(label.visible,false,'mouse left canvas');
+    scene.characterHoverPointer=undefined;scene.updateCharacterHoverLabels();assert.equal(label.visible,true);
+    document.body.dataset.overlayOpen='true';scene.updateCharacterHoverLabels();assert.equal(label.visible,false);
+    document.body.dataset.overlayOpen='false';scene.updateCharacterHoverLabels();assert.equal(label.visible,true);
+    office.group.visible=false;scene.updateCharacterHoverLabels();assert.equal(label.visible,false);
     office.group.visible=true;office.character.group.userData.characterStatus='unavailable';
-    scene.updateSnowHoverLabel();assert.equal(label.visible,false,'missing actor has no floating label');
+    scene.updateCharacterHoverLabels();assert.equal(label.visible,false,'missing actor has no floating label');
   } finally {
     if(originalDocument===undefined)delete globalThis.document;else globalThis.document=originalDocument;
   }
@@ -1065,10 +1066,10 @@ test('Snow hover accepts either connected controller and hides behind the VR pan
   const {scene,label}=snowHoverScene();scene.renderer.xr.isPresenting=true;
   const aim=new THREE.Group(),miss=new THREE.Group();aim.position.set(-.65,1.5,1);miss.position.set(2,1.5,1);
   scene.vrControllers=[aim,miss];scene.vrInputSources.set(miss,{});
-  scene.updateSnowHoverLabel();assert.equal(label.visible,false,'disconnected controller cannot show label');
-  scene.vrInputSources.set(aim,{});scene.updateSnowHoverLabel();assert.equal(label.visible,true,'other hand missing does not hide label');
-  scene.vrPanelVisible=true;scene.updateSnowHoverLabel();assert.equal(label.visible,false);
-  scene.vrPanelVisible=false;aim.position.y=.7;scene.updateSnowHoverLabel();assert.equal(label.visible,false,'desk occludes controller aim');
+  scene.updateCharacterHoverLabels();assert.equal(label.visible,false,'disconnected controller cannot show label');
+  scene.vrInputSources.set(aim,{});scene.updateCharacterHoverLabels();assert.equal(label.visible,true,'other hand missing does not hide label');
+  scene.vrPanelVisible=true;scene.updateCharacterHoverLabels();assert.equal(label.visible,false);
+  scene.vrPanelVisible=false;aim.position.y=.7;scene.updateCharacterHoverLabels();assert.equal(label.visible,false,'desk occludes controller aim');
 });
 
 test('Snow idle motion is small, bounded and disabled for reduced motion',async()=>{
@@ -1230,4 +1231,90 @@ test('XR system-menu visibility stays muted when document visibility returns',as
   sound.setHidden(true,'xr');sound.setHidden(true,'document');sound.setHidden(false,'document');
   await Promise.resolve();assert.equal(sound.hidden,true);assert.equal(sound.master.gain.value,0);
   sound.setHidden(false,'xr');await Promise.resolve();assert.equal(sound.hidden,false);assert.equal(c.state,'running');sound.dispose();
+});
+
+const {SceneCharacters,characterDefinitions}=await load('walkable/SceneCharacters');
+const witnessRooms={registrar:RegistrarRoom,household:HouseholdRoom,workhouse:WorkhouseCourtyard,brewery:BreweryRoom};
+for(const [key,Room] of Object.entries(witnessRooms))test(`${key} figures select existing interviews, respect furniture, and block walking`,()=>{
+  const room=new Room();room.group.visible=true;room.characters.group.userData.characterStatus='ready';
+  for(const target of room.characters.targets) {
+    const origin=target.position.clone();origin.y+=target.geometry.parameters.height/2-.08;origin.z+=1.6;
+    const hit=room.pick(new THREE.Raycaster(origin,new THREE.Vector3(0,0,-1)));
+    assert.equal(hit?.object,target);assert.equal(room.hotspotFor(hit.object),characterDefinitions[key].hotspot);
+    const feet=target.position.clone();feet.y=0;
+    assert.equal(room.canTeleport({object:room.floor,point:feet}),false);
+    assert.equal(room.canWalkBetween(room.spawn,feet),false);
+  }
+  room.characters.group.userData.characterStatus='unavailable';
+  assert.equal(room.characters.pick(new THREE.Raycaster()),undefined);
+  assert.equal(room.hotspotFor(room.deskPrompt),characterDefinitions[key].hotspot,'furniture remains a usable fallback');
+  room.group.visible=false;assert.equal(room.pick(new THREE.Raycaster()),undefined);
+});
+
+test('background residents block teleport and walking without opening an interview',()=>{
+  const street=new PumpCourtyard();street.group.visible=true;street.characters.group.userData.characterStatus='ready';
+  const target=street.characters.targets[0],feet=target.position.clone();feet.y=0;
+  assert.equal(isValidDestination(feet),true,'resident is on accessible pavement');
+  assert.equal(street.canTeleport({object:street.floor,point:feet}),false);
+  assert.equal(street.canWalkBetween(feet.clone().add(new THREE.Vector3(0,0,2)),feet),false);
+  assert.equal(street.hotspotFor(target),undefined);
+  assert.equal(street.characters.blocksPath(feet,feet.clone().add(new THREE.Vector3(0,0,1))),false,'late appearance cannot trap an overlapping visitor');
+});
+
+test('scene figure assets load once, preserve albedo, and fail without leaving invisible blockers',async(t)=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const root=new THREE.Group(),geometry=new THREE.BoxGeometry();geometry.setAttribute('uv1',geometry.getAttribute('uv').clone());
+  const material=new THREE.MeshStandardMaterial({vertexColors:true});root.add(new THREE.Mesh(geometry,material));
+  let count=0;t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>{count++;return {scene:root};});
+  t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async()=>new THREE.Texture());
+  const actors=new SceneCharacters('brewery');await Promise.all([actors.loadVisuals('/'),actors.loadVisuals('/')]);
+  assert.equal(count,1);assert.equal(actors.ready,true);assert.equal(material.vertexColors,true);
+  t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async()=>{throw Error('missing lighting');});t.mock.method(console,'warn',()=>{});
+  const failed=new SceneCharacters('household');await failed.loadVisuals('/');assert.equal(failed.ready,false);
+  assert.equal(failed.pick(new THREE.Raycaster()),undefined);assert.equal(failed.blocks(new THREE.Vector3(.25,0,-.55)),false);
+});
+
+for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} exported figures have solid torsos, independent head pivots and bounded assets`,async()=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const bytes=await readFile(`public/models/${definition.asset}.glb`);
+  const gltf=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
+  assert.ok(bytes.length<definition.actors.length*3*1024*1024);
+  let triangles=0;
+  for(const mesh of gltf.meshes)for(const primitive of mesh.primitives){
+    assert.notEqual(primitive.attributes.TEXCOORD_1,undefined);assert.notEqual(primitive.attributes.COLOR_0,undefined);
+    triangles+=gltf.accessors[primitive.indices].count/3;
+  }
+  assert.ok(triangles<definition.actors.length*24000);assert.ok(gltf.meshes.length<=definition.actors.length*12);
+  assert.ok(gltf.nodes.filter(node=>node.mesh!==undefined).every(node=>definition.actors.some(actor=>node.name.startsWith(actor.id+'_'))),'room reference geometry is excluded');
+  const {scene}=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');scene.updateMatrixWorld(true);
+  for(const actor of definition.actors){
+    const root=scene.getObjectByName(actor.id+'_root'),coat=scene.getObjectByName(actor.id+'_upper_Coat');
+    assert.ok(root&&coat&&scene.getObjectByName(actor.id+'_head'));
+    for(const y of [.80,.95,1.05])for(const x of [-.1,0,.1]) {
+      const origin=new THREE.Vector3(x,y+(actor.pose==='standing'?.25:0),1).applyMatrix4(root.matrixWorld);
+      const direction=new THREE.Vector3(0,0,-1).transformDirection(root.matrixWorld);
+      assert.ok(new THREE.Raycaster(origin,direction).intersectObject(coat,false)[0],`${actor.id} torso hole at ${x}, ${y}`);
+    }
+  }
+  const atlas=await readFile(`public/models/${definition.asset}-lightmap.png`);assert.equal(atlas.readUInt32BE(16),1024);assert.equal(atlas.readUInt32BE(20),1024);
+});
+
+for(const [key,Room] of Object.entries(witnessRooms))test(`${key} witness nameplate follows aim and stays hidden during a panel`,()=>{
+  const original=globalThis.document;globalThis.document={body:{dataset:{}}};
+  try {
+    const scene=Object.create(BroadStreetScene.prototype),room=new Room(),game=fieldGame(true);game.travelToLocation(key);
+    room.group.visible=true;room.characters.group.userData.characterStatus='ready';
+    const camera=new THREE.PerspectiveCamera(60,1,.1,100),target=room.characters.targets[0];
+    camera.position.copy(target.position);camera.position.y+=target.geometry.parameters.height/2-.08;camera.position.z+=1.6;camera.updateMatrixWorld(true);
+    const label=new THREE.Sprite(),id=characterDefinitions[key].hotspot;
+    const office=new SnowOffice();office.group.visible=false;
+    Object.assign(scene,{office,[key]:room,gameState:game,camera,hotspotVisuals:new Map([[id,{label}]]),
+      renderer:{xr:{isPresenting:false}},raycaster:new THREE.Raycaster(),pointer:new THREE.Vector2(),
+      cameraWorldPosition:new THREE.Vector3(),cameraDirection:new THREE.Vector3()});
+    Object.defineProperty(scene,'walkable',{get:()=>room});
+    scene.updateCharacterHoverLabels();assert.equal(label.visible,true);
+    document.body.dataset.overlayOpen='true';scene.updateCharacterHoverLabels();assert.equal(label.visible,false);
+    document.body.dataset.overlayOpen='false';camera.rotation.y=Math.PI;camera.updateMatrixWorld(true);
+    scene.updateCharacterHoverLabels();assert.equal(label.visible,false);
+  } finally {if(original===undefined)delete globalThis.document;else globalThis.document=original;}
 });

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { SceneCharacters } from "./SceneCharacters";
 import { loadBakedRoomLighting } from "./BakedRoomLighting";
 import { inRectangle, crossesRectangle } from "./WalkableArea";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -34,6 +35,7 @@ export function canWalkBetween(from: THREE.Vector3, to: THREE.Vector3): boolean 
 /** Historical reconstruction with lightweight selection proxies independent of art meshes. */
 export class PumpCourtyard {
   readonly group = new THREE.Group();
+  readonly characters = new SceneCharacters("street");
   readonly floor: THREE.Mesh;
   readonly pump = new THREE.Group();
   readonly spawn = streetSpawn.clone();
@@ -44,6 +46,7 @@ export class PumpCourtyard {
 
   constructor() {
     this.group.name = "Broad Street reconstruction";
+    this.group.add(this.characters.group);
     const stone = new THREE.MeshStandardMaterial({ color: "#777b73", roughness: 1 });
     // This ray-only plane is at the shared locomotion datum. The visual road is 13 cm lower.
     const rayOnly = new THREE.MeshBasicMaterial({ visible: false });
@@ -177,7 +180,9 @@ export class PumpCourtyard {
   pick(raycaster: THREE.Raycaster): THREE.Intersection | undefined {
     if (!this.group.visible) return undefined;
     this.group.updateMatrixWorld(true);
-    return raycaster.intersectObjects([this.floor, ...this.solids], true)[0];
+    const sceneHit=raycaster.intersectObjects([this.floor, ...this.solids], true)[0];
+    const person=this.characters.pick(raycaster);
+    return person && (!sceneHit || person.distance<sceneHit.distance) ? person : sceneHit;
   }
 
   isPump(object: THREE.Object3D): boolean {
@@ -185,12 +190,12 @@ export class PumpCourtyard {
     return false;
   }
 
-  readonly canWalkBetween = canWalkBetween;
+  readonly canWalkBetween = (from: THREE.Vector3,to: THREE.Vector3): boolean => canWalkBetween(from,to) && !this.characters.blocksPath(from,to);
   hotspotFor(object: THREE.Object3D): string | undefined {
     return this.isPump(object) ? "broad-street-pump" : undefined;
   }
 
   canTeleport(hit: THREE.Intersection): boolean {
-    return hit.object === this.floor && isValidDestination(hit.point);
+    return hit.object === this.floor && isValidDestination(hit.point) && !this.characters.blocks(hit.point);
   }
 }

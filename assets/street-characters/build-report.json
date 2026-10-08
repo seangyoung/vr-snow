@@ -1,0 +1,51 @@
+{
+  "scene": "street",
+  "actors": [
+    {
+      "id": "resident-west",
+      "position": [
+        -10,
+        -0.135,
+        -7.0
+      ],
+      "pose": "standing",
+      "coat": "665447",
+      "vest": "8a7b64",
+      "hair": "554439",
+      "faceWidth": 1.04,
+      "faceHeight": 0.98,
+      "labelHeight": 1.95,
+      "height": 1.78,
+      "yaw": 0.45
+    },
+    {
+      "id": "resident-east",
+      "position": [
+        11,
+        -0.135,
+        -7.0
+      ],
+      "pose": "standing",
+      "coat": "4a5358",
+      "vest": "787062",
+      "hair": "84766a",
+      "faceWidth": 0.94,
+      "faceHeight": 1.0,
+      "labelHeight": 1.95,
+      "height": 1.8,
+      "yaw": -0.5
+    }
+  ],
+  "triangles": 39354,
+  "materialBatches": 24,
+  "bakedLighting": {
+    "size": 1024,
+    "normalization": 4,
+    "diffusePeak999": 0.7039,
+    "environmentSize": [
+      256,
+      128
+    ]
+  },
+  "interpretive": true
+}

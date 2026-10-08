@@ -1,0 +1,49 @@
+{
+  "scene": "brewery",
+  "actors": [
+    {
+      "id": "edward",
+      "position": [
+        -0.6,
+        0.1,
+        0.05
+      ],
+      "pose": "table",
+      "coat": "59483b",
+      "vest": "827a66",
+      "hair": "6c5b49",
+      "faceWidth": 1.1,
+      "faceHeight": 1.0,
+      "labelHeight": 1.8,
+      "height": 1.56
+    },
+    {
+      "id": "john",
+      "position": [
+        0.6,
+        0.1,
+        0.05
+      ],
+      "pose": "table",
+      "coat": "414b43",
+      "vest": "81715d",
+      "hair": "45382c",
+      "faceWidth": 0.94,
+      "faceHeight": 0.96,
+      "labelHeight": 1.8,
+      "height": 1.53
+    }
+  ],
+  "triangles": 41035,
+  "materialBatches": 24,
+  "bakedLighting": {
+    "size": 1024,
+    "normalization": 4,
+    "diffusePeak999": 1.8364,
+    "environmentSize": [
+      256,
+      128
+    ]
+  },
+  "interpretive": true
+}
