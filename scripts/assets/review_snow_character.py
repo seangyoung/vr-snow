@@ -16,8 +16,10 @@ for ob in bpy.context.scene.objects:
   ns=mat.node_tree.nodes;ls=mat.node_tree.links;bs=ns.get('Principled BSDF')
   uv=ns.new('ShaderNodeUVMap');uv.uv_map='Lightmap';tex=ns.new('ShaderNodeTexImage');tex.image=im;ls.new(uv.outputs['UV'],tex.inputs['Vector'])
   mul=ns.new('ShaderNodeMixRGB');mul.blend_type='MULTIPLY';mul.inputs[0].default_value=1;mul.inputs[2].default_value=bs.inputs['Base Color'].default_value
+
+  if bs.inputs['Base Color'].is_linked:ls.new(bs.inputs['Base Color'].links[0].from_socket,mul.inputs[2])
   ls.new(tex.outputs['Color'],mul.inputs[1]);em=ns.new('ShaderNodeEmission');em.inputs['Strength'].default_value=4;ls.new(mul.outputs[0],em.inputs['Color']);ls.new(em.outputs[0],ns.get('Material Output').inputs['Surface'])
 camdata=bpy.data.cameras.new('Review');cam=bpy.data.objects.new('Review',camdata);s.collection.objects.link(cam);s.camera=cam
-for name,pos,target,lens in [('room',(1.65,1.62,1.65),(-.65,1.1,-2),32),('face',(-.05,1.48,-.55),(-.65,1.40,-2.28),65)]:
+for name,pos,target,lens in [('room',(1.65,1.62,1.65),(-.65,1.1,-2),32),('face',(-.05,1.48,-.55),(-.65,1.40,-2.28),65),('torso',(-.05,1.25,-.50),(-.65,.99,-2.20),55),('hands',(-.55,1.42,-1.22),(-.65,.835,-1.66),55)]:
  cam.location=(pos[0],-pos[2],pos[1]);cam.rotation_euler=(Vector((target[0],-target[2],target[1]))-cam.location).to_track_quat('-Z','Y').to_euler();camdata.lens=lens
  s.render.filepath=str(output/f'snow-character-{name}.png');bpy.ops.render.render(write_still=True)

@@ -1020,6 +1020,57 @@ test('Snow figure is independently selectable and remains behind the desk collis
   assert.notEqual(room.pick(ray)?.object,room.character.target,'no invisible person target when its art fails');
 });
 
+function snowHoverScene() {
+  const scene=Object.create(BroadStreetScene.prototype),office=new SnowOffice();
+  office.group.visible=true;office.character.group.userData.characterStatus='ready';
+  const camera=new THREE.PerspectiveCamera(60,1,.1,100);camera.position.set(-.65,1.5,1);camera.updateMatrixWorld(true);
+  const label=new THREE.Sprite(),mesh=new THREE.Mesh(new THREE.SphereGeometry(),new THREE.MeshStandardMaterial());
+  mesh.userData.hotspot={id:'john-snow'};
+  Object.assign(scene,{office,camera,hotspotVisuals:new Map([['john-snow',{label,mesh}]]),
+    gameState:new GameState(),renderer:{xr:{isPresenting:false}},pointer:new THREE.Vector2(),
+    raycaster:new THREE.Raycaster(),cameraWorldPosition:new THREE.Vector3(),cameraDirection:new THREE.Vector3(),
+    canvas:{getBoundingClientRect:()=>({left:0,top:0,width:800,height:800})},
+    vrControllers:[],vrInputSources:new Map(),controllerRaycaster:new THREE.Raycaster(),
+    controllerWorldPosition:new THREE.Vector3(),controllerWorldQuaternion:new THREE.Quaternion(),controllerWorldDirection:new THREE.Vector3(),
+    markVrPanelDirty(){}});
+  Object.defineProperty(scene,'walkable',{get:()=>office.group.visible?office:undefined});
+  return {scene,office,camera,label};
+}
+
+test('Snow label follows mouse or keyboard aim at the figure, not the desk, and hides for panels and travel',()=>{
+  const originalDocument=globalThis.document;
+  globalThis.document={body:{dataset:{}}};
+  try {
+    const {scene,office,camera,label}=snowHoverScene();
+    scene.refreshHotspots();assert.equal(label.visible,false,'no persistent nameplate');
+    scene.updateSnowHoverLabel();assert.equal(label.visible,true,'keyboard reticle on figure');
+    camera.position.y=.7;camera.updateMatrixWorld(true);
+    scene.updateSnowHoverLabel();assert.equal(label.visible,false,'desk action does not show figure label');
+    camera.position.y=1.5;camera.updateMatrixWorld(true);
+    scene.snowHoverPointer={x:400,y:400};scene.updateSnowHoverLabel();assert.equal(label.visible,true);
+    scene.snowHoverPointer={x:790,y:400};scene.updateSnowHoverLabel();assert.equal(label.visible,false,'mouse takes precedence over center aim');
+    scene.snowHoverPointer=null;scene.updateSnowHoverLabel();assert.equal(label.visible,false,'mouse left canvas');
+    scene.snowHoverPointer=undefined;scene.updateSnowHoverLabel();assert.equal(label.visible,true);
+    document.body.dataset.overlayOpen='true';scene.updateSnowHoverLabel();assert.equal(label.visible,false);
+    document.body.dataset.overlayOpen='false';scene.updateSnowHoverLabel();assert.equal(label.visible,true);
+    office.group.visible=false;scene.updateSnowHoverLabel();assert.equal(label.visible,false);
+    office.group.visible=true;office.character.group.userData.characterStatus='unavailable';
+    scene.updateSnowHoverLabel();assert.equal(label.visible,false,'missing actor has no floating label');
+  } finally {
+    if(originalDocument===undefined)delete globalThis.document;else globalThis.document=originalDocument;
+  }
+});
+
+test('Snow hover accepts either connected controller and hides behind the VR panel',()=>{
+  const {scene,label}=snowHoverScene();scene.renderer.xr.isPresenting=true;
+  const aim=new THREE.Group(),miss=new THREE.Group();aim.position.set(-.65,1.5,1);miss.position.set(2,1.5,1);
+  scene.vrControllers=[aim,miss];scene.vrInputSources.set(miss,{});
+  scene.updateSnowHoverLabel();assert.equal(label.visible,false,'disconnected controller cannot show label');
+  scene.vrInputSources.set(aim,{});scene.updateSnowHoverLabel();assert.equal(label.visible,true,'other hand missing does not hide label');
+  scene.vrPanelVisible=true;scene.updateSnowHoverLabel();assert.equal(label.visible,false);
+  scene.vrPanelVisible=false;aim.position.y=.7;scene.updateSnowHoverLabel();assert.equal(label.visible,false,'desk occludes controller aim');
+});
+
 test('Snow idle motion is small, bounded and disabled for reduced motion',async()=>{
   const {SnowCharacter}=await load('walkable/SnowCharacter');const person=new SnowCharacter();
   person.head=new THREE.Group();person.upper=new THREE.Group();person.upperY=.69;person.headYaw=0;
@@ -1032,13 +1083,66 @@ test('seated Snow exports only its own meshes with lightmap UVs and a compact as
   const gltf=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
   const names=gltf.nodes.map(n=>n.name);assert.ok(names.includes('Snow_head'));assert.ok(names.includes('Snow_upper'));
   assert.ok(gltf.nodes.filter(n=>n.mesh!==undefined).every(n=>n.name.startsWith('Snow_')),'reference office is not exported with actor');
-  assert.ok(bytes.length<1.5*1024*1024);
+  assert.ok(bytes.length<3*1024*1024);
   let triangles=0;
-  for(const mesh of gltf.meshes)for(const p of mesh.primitives){assert.notEqual(p.attributes.TEXCOORD_1,undefined);triangles+=gltf.accessors[p.indices].count/3;}
-  assert.ok(triangles<12000);assert.ok(gltf.meshes.length<=12);
-  for(const [type,width,height] of [['lightmap',512,512],['environment',256,128]]) {
+  for(const mesh of gltf.meshes)for(const p of mesh.primitives){assert.notEqual(p.attributes.TEXCOORD_1,undefined);assert.notEqual(p.attributes.COLOR_0,undefined,'authored skin and cloth albedo survives export');triangles+=gltf.accessors[p.indices].count/3;}
+  assert.ok(triangles<30000);assert.ok(gltf.meshes.length<=12);
+  for(const [type,width,height] of [['lightmap',1024,1024],['environment',256,128]]) {
     const png=await readFile(`public/models/snow-character-${type}.png`);assert.equal(png.readUInt32BE(16),width);assert.equal(png.readUInt32BE(20),height);
   }
+});
+
+
+async function exportedSnow() {
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const bytes=await readFile('public/models/snow-character.glb');
+  const {scene}=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
+  scene.updateMatrixWorld(true);return scene;
+}
+
+test('exported Snow has a solid coat across chest and abdomen from front and back',async()=>{
+  const root=await exportedSnow(),coat=root.getObjectByName('Snow_upper_Coat');
+  assert.ok(coat?.isMesh);
+  for(const height of [.75,.9,1.02,1.10])for(const offset of [-.13,0,.13]) {
+    const front=new THREE.Raycaster(new THREE.Vector3(-.65+offset,height,-1.5),new THREE.Vector3(0,0,-1)).intersectObject(coat,false)[0];
+    const back=new THREE.Raycaster(new THREE.Vector3(-.65+offset,height,-2.8),new THREE.Vector3(0,0,1)).intersectObject(coat,false)[0];
+    assert.ok(front,`missing torso front at ${offset}, ${height}`);
+    assert.ok(back,`missing torso back at ${offset}, ${height}`);
+    assert.ok(front.point.z-back.point.z>.10,'torso has real depth, not just a front sheet');
+  }
+});
+
+test('exported Snow palms are flattened and fingers rest just above the desk',async()=>{
+  const root=await exportedSnow(),skin=root.getObjectByName('Snow_upper_Skin');
+  assert.ok(skin?.isMesh);
+  for(const side of [-1,1]) {
+    const cx=-.65+side*.20,z=-2.28+.571;
+    const top=new THREE.Raycaster(new THREE.Vector3(cx,1,z),new THREE.Vector3(0,-1,0)).intersectObject(skin,false)[0];
+    const bottom=new THREE.Raycaster(new THREE.Vector3(cx,.7,z),new THREE.Vector3(0,1,0)).intersectObject(skin,false)[0];
+    assert.ok(top&&bottom,'palm has top and bottom surfaces');
+    const thickness=top.point.y-bottom.point.y;
+    assert.ok(thickness>.018&&thickness<.033,'palm is anatomically flattened rather than a ball');
+    for(let i=0;i<4;i++) {
+      const x=cx+side*(-.025+i*.017)+side*(i-1.3)*.0015;
+      const hit=new THREE.Raycaster(new THREE.Vector3(x,1,-2.28+.631),new THREE.Vector3(0,-1,0)).intersectObject(skin,false)[0];
+      assert.ok(hit,`finger ${i} is present`);
+      assert.ok(hit.point.y>.82&&hit.point.y<.851,'fingers rest at tabletop height');
+    }
+  }
+});
+
+test('Snow keeps authored skin and cloth colors when baked lighting loads',async(t)=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const {SnowCharacter}=await load('walkable/SnowCharacter');
+  const root=new THREE.Group(),geometry=new THREE.BoxGeometry();
+  geometry.setAttribute('uv1',geometry.getAttribute('uv').clone());
+  geometry.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(geometry.attributes.position.count*3).fill(.5),3));
+  const material=new THREE.MeshStandardMaterial({vertexColors:true});root.add(new THREE.Mesh(geometry,material));
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>({scene:root}));
+  t.mock.method(THREE.TextureLoader.prototype,'loadAsync',async()=>new THREE.Texture());
+  const actor=new SnowCharacter();await actor.loadVisuals('/');
+  assert.equal(actor.group.userData.characterStatus,'ready');assert.equal(material.vertexColors,true);
+  assert.equal(material.lightMap.channel,1);assert.ok(actor.group.children.includes(root));
 });
 
 test('failed character lighting does not remove the office or its desk interaction',async(t)=>{

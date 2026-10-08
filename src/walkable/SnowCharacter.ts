@@ -25,7 +25,7 @@ export class SnowCharacter {
       // Do not display an unlit figure over the room if its lighting is unavailable.
       try {
         await loadBakedRoomLighting(gltf.scene,basePath,{
-          lightMap:"snow-character-lightmap.png",environment:"snow-character-environment.png",
+          lightMap:"snow-character-lightmap.png",environment:"snow-character-environment.png", preserveVertexColors:true,
         });
       } catch(error) {
         gltf.scene.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose();}});
