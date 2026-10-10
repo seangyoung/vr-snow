@@ -42,6 +42,8 @@ The [interior visual pass](docs/interior-visual-pass.md) adds textured plaster, 
 
 Run `npm run test:walkable` for movement, obstruction, input mapping, and evidence regression checks. The walkable validation workflow runs these checks before deployment eligibility.
 
+Scene instructions identify selectable people and the pump. Snow's review shows only the strongest collected support and challenge for each theory; the Field Notebook retains the full evidence. Choose a theory, prepare the argument, then present it—there is no confidence-level selection. The desktop and VR reviews share the same evidence summaries and progression rules.
+
 ## Save as a web app
 
 The walkable build includes a web app manifest, install icons, maskable icon and Apple touch icon. Supporting browsers can save it as **The Broad Street Inquiry**, launching directly into the walkable URL. See [installation details and icon workflow](docs/web-app-installation.md). Network access is still required; Quest library installation and relaunch should be checked on device after deployment.

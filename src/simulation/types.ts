@@ -1,7 +1,6 @@
 export type EvidenceConfidence = "observed" | "reported" | "inferred";
 export type ChapterStage = "briefing" | "field" | "synthesis" | "board" | "complete";
 export type HypothesisId = "waterborne" | "miasma" | "person-to-person" | "crowding";
-export type SynthesisConfidence = "tentative" | "proportionate" | "overstated";
 export type LocationId =
   | "snow-desk"
   | "broad-street"
@@ -72,15 +71,20 @@ export interface DialogueNode {
   questions: DialogueQuestion[];
 }
 
+export interface EvidenceArgument {
+  evidenceIds: string[];
+  text: string;
+}
+
 export interface HypothesisDefinition {
   id: HypothesisId;
   title: string;
   shortTitle: string;
   summary: string;
   boardAction: string;
-  supportingEvidenceIds: string[];
-  complicatingEvidenceIds: string[];
-  snowChallenge: string;
+  // Ordered strongest first; display only the first point supported by collected evidence.
+  supportingEvidence: EvidenceArgument[];
+  complicatingEvidence: EvidenceArgument[];
 }
 
 export interface InvestigationSnapshot {
@@ -88,7 +92,6 @@ export interface InvestigationSnapshot {
   collectedEvidence: Set<string>;
   askedQuestions: Set<string>;
   selectedHypothesisId?: HypothesisId;
-  synthesisConfidence?: SynthesisConfidence;
   preparedForBoard: boolean;
   stage: ChapterStage;
   currentLocationId: LocationId;

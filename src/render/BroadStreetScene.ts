@@ -14,7 +14,7 @@ import { standardTurnAxis, teleportViewer, turnViewer } from "../walkable/locomo
 import { VRButton } from "three/addons/webxr/VRButton.js";
 import { boardThreshold, fieldStudyGoal, noDialogueActionsText } from "../simulation/content";
 import type { GameState } from "../simulation/gameState";
-import type { Hotspot, HypothesisId, InvestigationLocation, LocationId, SynthesisConfidence } from "../simulation/types";
+import type { Hotspot, HypothesisId, InvestigationLocation, LocationId } from "../simulation/types";
 
 type HotspotMesh = THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial> & {
   userData: { hotspot: Hotspot };
@@ -40,7 +40,6 @@ type VrButtonAction =
   | { type: "page-text"; pageKey: string; direction: -1 | 1 }
   | { type: "page-questions"; pageKey: string; direction: -1 | 1 }
   | { type: "select-hypothesis"; hypothesisId: HypothesisId }
-  | { type: "set-confidence"; confidence: SynthesisConfidence }
   | { type: "prepare-board" }
   | { type: "present-board" }
   | { type: "finish-board" }
@@ -298,7 +297,7 @@ export class BroadStreetScene {
   private vrPanelMode: VrPanelMode = "home";
   private vrPanelDirty = true;
   private vrPanelVisible = false;
-  private vrStatus = "Aim the controller beam at a marker or panel. Trigger selects. Squeeze toggles the panel.";
+  private vrStatus = "Aim at a person, the pump or a panel. Trigger selects. Squeeze toggles the panel.";
   private vrFocusedButton?: VrButtonMesh;
   private vrMapNeedsAttention = false;
   private vrActivePageKey?: string;
@@ -1167,12 +1166,6 @@ export class BroadStreetScene {
         this.vrStatus = result.message;
         break;
       }
-      case "set-confidence": {
-        const result = this.gameState.setSynthesisConfidence(action.confidence);
-        this.vrPanelMode = "synthesis";
-        this.vrStatus = result.message;
-        break;
-      }
       case "prepare-board": {
         const result = this.gameState.prepareBoardArgument();
         this.vrPanelMode = "synthesis";
@@ -1233,11 +1226,11 @@ export class BroadStreetScene {
     }
 
     if (this.vrPanelMode === "synthesis") {
-      return "Choose a theory, state our confidence, and decide what we should tell the Board.";
+      return "Compare the strongest evidence, choose a theory and prepare the Board argument.";
     }
 
     if (this.walkable) {
-      return "Close this panel; select clear ground to teleport, the desk, ledger or pump to investigate, or a marked exit to travel. Squeeze toggles the panel. Thumbstick turns.";
+      return "Close this panel to explore. Trigger selects people or the pump, clear ground teleports, and marked exits lead onward. Squeeze opens the panel.";
     }
     return "Aim with the controller beam. Trigger selects. Squeeze toggles the panel. Thumbstick turns.";
   }
@@ -1430,7 +1423,7 @@ export class BroadStreetScene {
       return;
     }
 
-    this.addVrText("Point at a gold marker in the scene and pull the trigger to inspect it.", 0, 0.12, vrPanelContentWidth, 0.36, {
+    this.addVrText(this.gameState.getInteractionHint(), 0, 0.12, vrPanelContentWidth, 0.36, {
       color: "#e7ece8",
       fontSize: 36,
     });
@@ -1596,7 +1589,7 @@ export class BroadStreetScene {
   private buildVrSynthesisPanel(): void {
     const stage = this.gameState.getStage();
     if (stage === "board" || stage === "complete") {
-      this.addPaginatedVrText(`synthesis:${stage}`, this.gameState.getCurrentSceneBody().join(" "), 0, 0.1, vrPanelContentWidth, 0.7, {
+      this.addPaginatedVrText(`synthesis:${stage}`, [...this.gameState.getCurrentSceneBody(), ...(stage === "board" ? this.gameState.getBoardFindings() : [])].join(" "), 0, 0.1, vrPanelContentWidth, 0.7, {
         color: "#e7ece8",
         fontSize: 30,
       }, -0.42);
@@ -1607,64 +1600,44 @@ export class BroadStreetScene {
     }
 
     const selected = this.gameState.getSelectedHypothesis();
-    const confidence = this.gameState.synthesisConfidence;
-    const boardPrepared = this.gameState.preparedForBoard && this.gameState.getStage() === "synthesis";
-    const mappedFindings = this.gameState.getMappedEvidenceFindings();
-    const findingsText = mappedFindings.length
-      ? mappedFindings.join(" ")
-      : "Map evidence appears as you collect addresses, returns, and exceptions.";
-    const selectedEvidence = selected ? this.gameState.getHypothesisEvidence(selected) : undefined;
-    const supportsText = selectedEvidence?.supporting.length
-      ? selectedEvidence.supporting.map((card) => card.title).join("; ")
-      : "No recorded evidence selected yet.";
-    const complicatesText = selectedEvidence?.complicating.length
-      ? selectedEvidence.complicating.map((card) => card.title).join("; ")
-      : "No major conflict recorded.";
-    const reviewText = selected
-      ? `${this.gameState.getSnowSynthesisFeedback()} Map evidence: ${findingsText} Evidence fit for ${selected.title}. Supports: ${supportsText} Complicates: ${complicatesText}`
-      : `${this.gameState.getSnowSynthesisFeedback()} Map evidence: ${findingsText} Select a theory to compare supporting and complicating evidence.`;
-
-    this.addVrText("Evidence Review", -0.54, 0.34, 1.22, 0.1, {
-      color: "#f1d79c",
-      fontSize: 28,
-      weight: "700",
-    });
-    this.addPaginatedVrText("synthesis:review", reviewText, -0.54, 0.02, 1.24, 0.58, {
-      color: "#e7ece8",
-      fontSize: 24,
-    }, -0.32);
-
-    this.addVrText("Theory", 0.76, 0.34, 0.96, 0.1, { color: "#f1d79c", fontSize: 28, weight: "700" });
-
+    const boardPrepared = this.gameState.preparedForBoard && stage === "synthesis";
+    const canPrepare = Boolean(selected && this.gameState.hasEnoughEvidenceForSynthesis() && this.gameState.getCurrentLocation().id === "snow-desk");
+    const review = selected ? this.gameState.getHypothesisReview(selected) : undefined;
     this.gameState.getHypotheses().forEach((hypothesis, index) => {
-      const label = selected?.id === hypothesis.id ? `Selected: ${hypothesis.shortTitle}` : hypothesis.shortTitle;
-      this.addVrPanelButton(label, 0.76, 0.2 - index * 0.13, 0.94, 0.11, {
-        type: "select-hypothesis",
-        hypothesisId: hypothesis.id,
-      });
+      this.addVrPanelButton(hypothesis.shortTitle, -0.96 + index * 0.64, 0.30, 0.60, 0.16, {
+        type: "select-hypothesis", hypothesisId: hypothesis.id,
+      }, { active: selected?.id === hypothesis.id });
     });
-
-    const confidenceOptions: Array<{ id: SynthesisConfidence; label: string }> = [
-      { id: "tentative", label: "Tentative" },
-      { id: "proportionate", label: "Temporary action" },
-      { id: "overstated", label: "Final proof" },
-    ];
-    confidenceOptions.forEach((option, index) => {
-      const label = confidence === option.id ? `Set: ${option.label}` : option.label;
-      this.addVrPanelButton(label, -0.64 + index * 0.64, -0.53, 0.58, 0.13, {
-        type: "set-confidence",
-        confidence: option.id,
-      });
+    this.addVrText(selected?.title ?? "Choose a theory", 0, 0.145, vrPanelContentWidth, 0.09, {
+      color: "#f1d79c", fontSize: 28, weight: "700",
     });
-
-    this.addVrPanelButton(
-      boardPrepared ? "Present Findings" : "Prepare Board Argument",
-      0,
-      -0.72,
-      1.42,
-      0.2,
-      { type: boardPrepared ? "present-board" : "prepare-board" },
-    );
+    if (selected) {
+      this.addVrText("For", -1.04, -0.075, 0.43, 0.12, { color: "#89d6ba", fontSize: 26, weight: "700" });
+      this.addVrText(review?.supporting?.text ?? "No supporting evidence recorded yet.", 0.24, -0.075, 2.04, 0.29, {
+        color: "#e7ece8", fontSize: 28,
+      });
+      this.addVrText("Against / limits", -1.04, -0.385, 0.43, 0.22, { color: "#f1d79c", fontSize: 24, weight: "700" });
+      this.addVrText(review?.complicating?.text ?? "No challenge recorded yet; this is not proof.", 0.24, -0.385, 2.04, 0.29, {
+        color: "#e7ece8", fontSize: 28,
+      });
+    } else {
+      this.addVrText("Compare the strongest supporting evidence and the main challenge. Full notes remain in the Field Notebook.", 0, -0.15, vrPanelContentWidth, 0.5, {
+        color: "#e7ece8", fontSize: 28,
+      });
+    }
+    if (selected) {
+      this.addVrText(`Proposed action: ${selected.boardAction}`, 0, -0.63, vrPanelContentWidth, 0.16, {
+        color: "#f1d79c", fontSize: 26,
+      });
+    }
+    if (canPrepare || boardPrepared) {
+      this.addVrPanelButton(boardPrepared ? "Present Findings" : "Prepare Board Argument", 0, -0.85, 1.42, 0.2,
+        { type: boardPrepared ? "present-board" : "prepare-board" });
+    } else {
+      this.addVrText(selected ? "Collect more evidence and return to Snow's desk." : "Select a theory to prepare your argument.", 0, -0.85, vrPanelContentWidth, 0.16, {
+        color: "#b9c9c4", fontSize: 26,
+      });
+    }
   }
 
   private addVrText(text: string, x: number, y: number, width: number, height: number, options: VrTextOptions = {}): void {
@@ -1767,7 +1740,7 @@ export class BroadStreetScene {
     }
   }
 
-  private addVrPanelButton(label: string, x: number, y: number, width: number, height: number, action: VrButtonAction): void {
+  private addVrPanelButton(label: string, x: number, y: number, width: number, height: number, action: VrButtonAction, options: { active?: boolean } = {}): void {
     this.vrPanelDrawCommands.push({
       kind: "button",
       label,
@@ -1775,6 +1748,7 @@ export class BroadStreetScene {
       y,
       width,
       height,
+      active: options.active,
     });
 
     const button = createVrButtonHitbox(width, height, action);
@@ -4254,7 +4228,7 @@ function createVrIdleHintSprite(): THREE.Sprite {
   ctx.font = "700 44px Arial, Helvetica, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("Squeeze for the panel, or select a gold sphere.", canvas.width / 2, canvas.height / 2);
+  ctx.fillText("Aim at a person or the pump. Trigger selects.", canvas.width / 2, canvas.height / 2);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;

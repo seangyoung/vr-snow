@@ -41,69 +41,86 @@ export const chapterScenes: ChapterScene[] = [
   },
 ];
 
+// Concise arguments are conditional on the source notes the player has collected.
+// Limits are not necessarily counterevidence: a clear sample cannot establish safety.
 export const hypothesisDefinitions: HypothesisDefinition[] = [
   {
     id: "waterborne",
     title: "Broad Street pump water",
     shortTitle: "Water",
-    summary:
-      "A common-source exposure centered on drinking water from the Broad Street pump or water carried from it.",
-    boardAction: "Remove the Broad Street pump handle temporarily while inquiry continues.",
-    supportingEvidenceIds: [
-      "pump-cluster",
-      "household-exposure",
-      "household-water-pattern",
-      "attack-timeline",
-      "workhouse-exception",
-      "brewery-exception",
+    summary: "A shared drinking-water source spreads cholera.",
+    boardAction: "Close the pump temporarily while inquiry continues.",
+    supportingEvidence: [
+      { evidenceIds: ["household-water-pattern", "workhouse-exception"], text: "68 of 75 known histories involved pump use; the workhouse had few deaths and a separate supply." },
+      { evidenceIds: ["household-water-pattern"], text: "68 of 75 early deaths with known water histories involved Broad Street pump use." },
+      { evidenceIds: ["workhouse-exception"], text: "The nearby workhouse had few deaths and used a separate water supply." },
+      { evidenceIds: ["brewery-exception"], text: "No brewery workers died; they did not regularly drink from the street pump." },
+      { evidenceIds: ["household-exposure"], text: "The bereaved household reports using Broad Street pump water." },
+      { evidenceIds: ["pump-cluster"], text: "Deaths cluster around the pump, consistent with a shared local water source." },
     ],
-    complicatingEvidenceIds: ["pump-water-inspection"],
-    snowChallenge:
-      "Strongest case. Snow wants us to state the uncertainty plainly: a clean-looking sample does not give final proof, but a mapped pattern and exposure histories may justify temporary action.",
+    complicatingEvidence: [
+      { evidenceIds: ["household-water-pattern", "pump-water-inspection"], text: "Six known histories reported no pump use; inspecting the water gave no decisive proof." },
+      { evidenceIds: ["household-water-pattern"], text: "Six of the 75 known histories reported no pump use; exposure histories need checking." },
+      { evidenceIds: ["pump-water-inspection"], text: "The water sample gave no decisive visible proof. Clear-looking water does not establish safety." },
+    ],
   },
   {
     id: "miasma",
     title: "Miasma or bad air",
     shortTitle: "Miasma",
-    summary:
-      "Poisonous air from smells, drains, sewers, weather, or street conditions is driving illness near Broad Street.",
-    boardAction: "Prioritize street cleansing, drainage, and odor abatement around the affected streets.",
-    supportingEvidenceIds: ["pump-cluster", "pump-water-inspection"],
-    complicatingEvidenceIds: ["household-exposure", "household-water-pattern", "workhouse-exception", "brewery-exception"],
-    snowChallenge:
-      "Snow asks us why nearby institutions and workplaces exposed to the same street air were not devastated in the same way.",
+    summary: "An unhealthy local atmosphere spreads cholera.",
+    boardAction: "Prioritize street cleansing, drains and odor control.",
+    supportingEvidence: [
+      { evidenceIds: ["pump-cluster"], text: "Deaths cluster in one neighborhood, consistent with a local influence but not specific evidence of bad air." },
+    ],
+    complicatingEvidence: [
+      { evidenceIds: ["workhouse-exception", "brewery-exception"], text: "Workhouse residents and brewery workers shared the neighborhood air but largely escaped deaths, using other drinks or water." },
+      { evidenceIds: ["workhouse-exception"], text: "The workhouse shared the neighborhood air, yet had few deaths and a separate water supply." },
+      { evidenceIds: ["brewery-exception"], text: "Brewery workers shared the neighborhood air, yet none died and they avoided regular pump use." },
+      { evidenceIds: ["household-water-pattern"], text: "Household interviews point to pump-water use, a more specific exposure than neighborhood air." },
+    ],
   },
   {
     id: "person-to-person",
     title: "Household transmission",
     shortTitle: "Household",
-    summary:
-      "Cholera is spreading mainly through nursing, shared rooms, and direct contact between sick people and families.",
-    boardAction: "Emphasize household isolation and care precautions while collecting more case histories.",
-    supportingEvidenceIds: ["household-exposure"],
-    complicatingEvidenceIds: ["attack-timeline", "pump-cluster", "pump-water-inspection", "household-water-pattern"],
-    snowChallenge:
-      "Snow asks us whether a slow chain of household spread predicts the abrupt surge and dense pump-centered geography.",
+    summary: "Close contact with sick people drives the outbreak.",
+    boardAction: "Prioritize household precautions and further interviews.",
+    supportingEvidence: [
+      { evidenceIds: ["household-exposure"], text: "The survivor describes close nursing contact, making household spread a possibility to investigate." },
+    ],
+    complicatingEvidence: [
+      { evidenceIds: ["attack-timeline"], text: "The abrupt surge in fatal attacks fits a shared exposure better than a slow chain of household spread." },
+      { evidenceIds: ["household-water-pattern"], text: "Many affected households report the same pump-water exposure." },
+      { evidenceIds: ["pump-cluster"], text: "Deaths center on the pump rather than establishing a chain of nursing contacts." },
+    ],
   },
   {
     id: "crowding",
-    title: "Crowding, poverty, or occupation",
+    title: "Crowding or occupation",
     shortTitle: "Crowding",
-    summary:
-      "The pattern follows class, occupation, crowded lodging, or institutional living more than a shared water exposure.",
-    boardAction: "Target inspections and relief at crowded homes and affected occupations.",
-    supportingEvidenceIds: ["pump-cluster"],
-    complicatingEvidenceIds: [
-      "household-exposure",
-      "household-water-pattern",
-      "pump-water-inspection",
-      "workhouse-exception",
-      "brewery-exception",
+    summary: "Living or working conditions drive the pattern.",
+    boardAction: "Target relief and inspections at crowded homes and workplaces.",
+    supportingEvidence: [
+      { evidenceIds: ["pump-cluster"], text: "Deaths are concentrated locally, leaving shared living conditions possible; the map alone cannot establish them as the cause." },
     ],
-    snowChallenge:
-      "Snow asks us why the St. James Workhouse and Lion Brewery complicate a simple social or occupational explanation.",
+    complicatingEvidence: [
+      { evidenceIds: ["workhouse-exception"], text: "Over 500 people lived in the nearby workhouse, yet very few died; their water supply was separate." },
+      { evidenceIds: ["brewery-exception"], text: "No brewery workers died despite working near the outbreak; they did not regularly use the street pump." },
+      { evidenceIds: ["household-water-pattern"], text: "Interview histories point to a shared water source rather than establishing a class or occupational cause." },
+    ],
   },
 ];
+
+export const locationInteractionHints: Record<LocationId, string> = {
+  "snow-desk": "Select John Snow at his desk to speak with him.",
+  "broad-street": "Select the pump to investigate the water. Street residents are background figures.",
+  household: "Select the seated household survivor to interview her.",
+  registrar: "Select the registrar or the open ledger to review the death returns.",
+  workhouse: "Select the steward to ask about the workhouse water supply.",
+  brewery: "Select either brewery owner to ask about the workers' drinking water.",
+  "board-room": "Use the panel to continue after the meeting.",
+};
 
 export const evidenceCards: EvidenceCard[] = [
   {

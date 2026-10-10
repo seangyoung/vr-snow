@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["ui/createUi", "ui/DesktopKeyboard", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
@@ -459,7 +459,7 @@ test('office/street/panorama lifecycle restores scene geometry, lighting and arr
   ]) {
     game.travelToLocation(location);game.inspectHotspot(hotspot);for(const question of questions) game.askQuestion(question);
   }
-  game.travelToLocation('snow-desk');game.selectHypothesis('waterborne');game.setSynthesisConfidence('proportionate');
+  game.travelToLocation('snow-desk');game.selectHypothesis('waterborne');
   assert.ok(game.prepareBoardArgument().prepared);
   const rig=new THREE.Group(),camera=new THREE.PerspectiveCamera();camera.position.y=1.62;rig.add(camera);
   const courtyard=new PumpCourtyard(),office=new SnowOffice(),registrar=new RegistrarRoom(),household=new HouseholdRoom(),workhouse=new WorkhouseCourtyard(),brewery=new BreweryRoom();
@@ -1317,4 +1317,118 @@ for(const [key,Room] of Object.entries(witnessRooms))test(`${key} witness namepl
     document.body.dataset.overlayOpen='false';camera.rotation.y=Math.PI;camera.updateMatrixWorld(true);
     scene.updateCharacterHoverLabels();assert.equal(label.visible,false);
   } finally {if(original===undefined)delete globalThis.document;else globalThis.document=original;}
+});
+
+const { renderSynthesisPanel, renderChapterPanel } = await load('ui/createUi');
+function reviewGame() {
+  const game=fieldGame(true);
+  for (const [location,hotspot,questions] of [
+    ['broad-street','broad-street-pump',['pump-caution-question']],
+    ['household','broad-street-household',['household-water-question','household-pattern-question']],
+    ['workhouse','poland-workhouse',['workhouse-water-question']],
+    ['brewery','broad-street-brewery',['brewery-drink-question']],
+  ]) {
+    game.travelToLocation(location);game.inspectHotspot(hotspot);
+    for(const question of questions)game.askQuestion(question);
+  }
+  game.travelToLocation('snow-desk');
+  return game;
+}
+
+test('each theory can be prepared and presented without a confidence step; other gates remain',()=>{
+  const early=new GameState();early.selectHypothesis('waterborne');
+  assert.equal(early.prepareBoardArgument().prepared,false);
+  assert.equal(early.presentToBoard().accepted,false);
+  for (const theory of early.getHypotheses()) {
+    const game=reviewGame();
+    assert.equal(game.prepareBoardArgument().prepared,false,'a theory must be selected');
+    game.selectHypothesis(theory.id);
+    game.travelToLocation('broad-street');
+    assert.equal(game.prepareBoardArgument().prepared,false,'prepare at Snow\'s desk');
+    game.travelToLocation('snow-desk');
+    assert.ok(game.prepareBoardArgument().prepared);
+    const next=game.getHypotheses().find(h=>h.id!==theory.id);
+    game.selectHypothesis(next.id);
+    assert.equal(game.preparedForBoard,false,'changing theory requires preparing again');
+    assert.equal(game.presentToBoard().accepted,false);
+    game.selectHypothesis(theory.id);assert.ok(game.prepareBoardArgument().prepared);
+    assert.ok(game.presentToBoard().accepted);
+    assert.equal(game.getBoardFindings().length,2);
+    assert.ok(game.getCurrentSceneBody().join(' ').includes(theory.boardAction));
+    game.finishBoard();assert.equal(game.getStage(),'complete');
+    game.reset();assert.equal(game.selectedHypothesisId,undefined);assert.equal(game.preparedForBoard,false);
+  }
+});
+
+test('concise theory comparisons never reveal uncollected evidence, for every collection subset',()=>{
+  const all=new GameState().getAllEvidence();
+  for(let mask=0;mask<2**all.length;mask++) {
+    const game=new GameState();
+    game.collectedEvidence=new Set(all.filter((_,i)=>mask&(1<<i)).map(card=>card.id));
+    for(const theory of game.getHypotheses()) {
+      const review=game.getHypothesisReview(theory);
+      for(const point of [review.supporting,review.complicating].filter(Boolean)) {
+        assert.ok(point.evidenceIds.length>0);
+        assert.ok(point.evidenceIds.every(id=>game.hasEvidence(id)),`${theory.id}: uncollected source`);
+        assert.ok(point.text.split(/\s+/).length<=25,'each point stays concise');
+      }
+    }
+  }
+  const game=reviewGame();
+  assert.equal(game.getCollectedEvidence().length,7,'full inquiry fixture');
+  const water=game.getHypothesisReview(game.getHypothesis('waterborne'));
+  assert.match(water.supporting.text,/68 of 75/);
+  assert.match(water.complicating.text,/Six/);
+});
+
+test('desktop review shows two points per theory, full-note links and no confidence controls or repeated map list',()=>{
+  const game=reviewGame();
+  assert.match(renderSynthesisPanel(game),/data-action="prepare-board"\s+disabled/);
+  game.selectHypothesis('waterborne');
+  const html=renderSynthesisPanel(game);
+  assert.equal((html.match(/class="fit-list /g)||[]).length,8);
+  assert.equal((html.match(/data-action="select-hypothesis"/g)||[]).length,4);
+  assert.match(html,/data-action="notebook"/);assert.match(html,/data-action="map"/);
+  assert.doesNotMatch(html,/confidence|synthesis-map-strip/i);
+  assert.doesNotMatch(html,/data-action="prepare-board"\s+disabled/);
+  assert.ok(game.prepareBoardArgument().prepared);
+  assert.match(renderSynthesisPanel(game),/data-action="present"/);
+  game.presentToBoard();
+  const board=renderChapterPanel(game.getCurrentScene(),'board',game);
+  assert.equal((board.match(/<li>/g)||[]).length,2);
+  assert.equal((board.match(/Prepared theory/g)||[]).length,0);
+  game.finishBoard();
+  assert.doesNotMatch(renderChapterPanel(game.getCurrentScene(),'complete',game),/findings-list/);
+});
+
+test('VR review uses the same strongest points and offers prepare and present without confidence buttons',()=>{
+  const game=reviewGame(),scene=Object.create(BroadStreetScene.prototype);
+  let buttons=[],texts=[];
+  Object.assign(scene,{gameState:game,addVrText:(text)=>texts.push(text),
+    addPaginatedVrText:(_key,text)=>texts.push(text),
+    addVrPanelButton:(label,x,y,width,height,action)=>buttons.push({label,action}),
+    markVrPanelDirty:()=>{},showVrPanel:()=>{},refreshHotspots:()=>{}});
+  scene.buildVrSynthesisPanel();assert.ok(!buttons.some(b=>b.action.type==='prepare-board'));
+  for(const theory of game.getHypotheses()) {
+    game.selectHypothesis(theory.id);buttons=[];texts=[];
+    scene.buildVrSynthesisPanel();
+    const review=game.getHypothesisReview(theory);
+    assert.ok(texts.includes(review.supporting.text));assert.ok(texts.includes(review.complicating.text));
+    assert.equal(buttons.filter(b=>b.action.type==='select-hypothesis').length,4);
+    assert.ok(buttons.some(b=>b.action.type==='prepare-board'));
+    assert.doesNotMatch(JSON.stringify({buttons,texts}),/confidence|Map evidence:/i);
+  }
+  scene.handleVrButton({type:'prepare-board'});assert.equal(game.preparedForBoard,true);
+  buttons=[];scene.buildVrSynthesisPanel();assert.ok(buttons.some(b=>b.action.type==='present-board'));
+  scene.handleVrButton({type:'present-board'});assert.equal(game.getStage(),'board');
+});
+
+test('scene guidance names selectable figures and objects, including noninteractive street residents',()=>{
+  const game=new GameState();
+  const expected={'snow-desk':/John Snow/,registrar:/registrar.*ledger/,household:/survivor/,workhouse:/steward/,brewery:/either brewery owner/,'broad-street':/pump.*background/};
+  for(const [id,pattern] of Object.entries(expected)) {
+    game.currentLocationId=id;
+    assert.match(game.getInteractionHint(),pattern);
+    assert.doesNotMatch(game.getInteractionHint(),/gold|marker|marked (table|chair)/i);
+  }
 });

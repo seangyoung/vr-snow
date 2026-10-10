@@ -20,7 +20,7 @@ export class DesktopKeyboard {
 
   private key(element: HTMLElement): string {
     return JSON.stringify([element.dataset.action, element.dataset.questionId, element.dataset.locationId,
-      element.dataset.hypothesisId, element.dataset.confidence]);
+      element.dataset.hypothesisId]);
   }
 
   beforeRender(): void {

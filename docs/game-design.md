@@ -72,11 +72,11 @@ The player cannot:
 
 ## Current Prototype Interaction Model
 
-The vertical slice uses stationary 360-style locations with desktop and VR-friendly interaction. Each location has a marker that opens an authored interview, document, or observation panel. The player chooses questions, reads the response, and records evidence only when the answer supports a specific line of inquiry. Recorded notes carry a source label such as interview, document, observation, or inference, so the notebook teaches where knowledge came from rather than treating every clue as equal.
+The walkable prototype uses people and objects as interaction targets: Snow, the registrar, the household survivor, the workhouse steward, either brewery owner, and the Broad Street pump. Point and select to open an authored interview, document, or observation panel; small witness labels appear on aim. Street residents are background figures. The player chooses questions, reads the response, and records evidence only when the answer supports a specific line of inquiry. The Field Notebook retains the full notes and their sources. Marked exits and the map provide travel; the Board scene retains its panorama.
 
 The map is now a standard investigation tool. It supports travel between unlocked locations, reveals deaths and exceptions as evidence is collected, and sends the player back to Snow's Desk once there is enough evidence for synthesis.
 
-Snow's Desk now serves as the hypothesis board. Before approaching the Board of Guardians, the player compares the recorded evidence against competing theories, chooses the explanation that best fits the pattern, states a confidence level, and prepares a Board argument. This keeps the Board scene from being a simple evidence-count gate and makes the scientific reasoning step explicit.
+Snow's Desk serves as the hypothesis board. Each theory shows one strongest supporting point and one strongest challenge or limitation, chosen only from collected evidence. Full evidence remains in the notebook and map. The player chooses the explanation that best fits the pattern, reviews its proposed action, and prepares the Board argument; no confidence selection is required. A sample without decisive visible contamination is a limitation, not proof that the water is safe. The meeting shows only the selected theory's two key points, and the epilogue does not repeat the evidence list.
 
 The final panel jumps forward to late September. If the pump-water case is prepared and the handle is removed, the outbreak has spent itself and Snow continues checking the parish record. If the player advances a theory that leaves the pump in use, the ending becomes a clearly labeled alternate course: a renewed rise of cases forces closure later, with Whitehead's later reconstruction around 40 Broad Street revealing why the missed water route mattered.
 
@@ -92,7 +92,7 @@ The final panel jumps forward to late September. If the pump-water case is prepa
 
 - Read a short briefing on cholera symptoms and the dominant miasma theory.
 - Review Snow's existing water hypothesis.
-- Learn the field notebook and evidence confidence UI.
+- Learn to select people and objects and review source notes in the Field Notebook.
 - Practice adding an address to a map.
 
 **Historical guardrail:** The game makes clear that Snow already had a theory before Broad Street; the outbreak is a test of that theory, not a sudden inspiration.

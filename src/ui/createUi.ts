@@ -14,7 +14,6 @@ import type {
   HypothesisId,
   InvestigationLocation,
   LocationId,
-  SynthesisConfidence,
 } from "../simulation/types";
 
 type OverlayMode = "none" | "notebook" | "map" | "sound";
@@ -214,7 +213,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           gameState.clearActiveDialogueAnswer();
           snowReviewOpen = true;
           overlayMode = "none";
-          message = "Review the theories with Snow, choose a confidence level, then prepare the Board argument.";
+          message = "Compare the strongest evidence, choose a theory, then prepare the Board argument.";
           render();
           return;
         }
@@ -246,15 +245,6 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       message = result.message;
     }
 
-    if (action === "set-confidence") {
-      const confidence = actionTarget.dataset.confidence as SynthesisConfidence | undefined;
-      if (!confidence) {
-        return;
-      }
-      const result = gameState.setSynthesisConfidence(confidence);
-      message = result.message;
-    }
-
     if (action === "prepare-board") {
       const result = gameState.prepareBoardArgument();
       message = result.message;
@@ -273,7 +263,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     if (action === "begin") {
       overlayMode = "none";
       snowReviewOpen = false;
-      message = "Broad Street field inquiry opened. Inspect evidence markers around the street.";
+      message = "Field inquiry opened. Select people to speak with them and the pump to investigate the water.";
       gameState.beginFieldwork();
     }
     if (action === "notebook" && toolsAvailable) {
@@ -336,12 +326,8 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           <span class="objective-kicker">Broad Street Inquiry</span>
           <strong>${escapeHtml(gameState.getObjective())}</strong>
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
-          ${currentLocation.id === "snow-desk" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select Snow or his desk to speak with him<br>Select clear floor to teleport · Door leads to Broad Street</span>' : ""}
-          ${currentLocation.id === "brewery" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the marked table to speak with the brewery owners<br>Select clear floor to teleport · Door returns to Broad Street</span>' : ""}
-          ${currentLocation.id === "workhouse" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the marked table to speak with the steward<br>Select clear ground to teleport · Door returns to Broad Street</span>' : ""}
-          ${currentLocation.id === "household" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the marked chair to interview the household<br>Select clear floor to teleport · Door returns to Broad Street</span>' : ""}
-          ${currentLocation.id === "registrar" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select the open ledger for the daily returns<br>Door returns to Snow in Soho</span>' : ""}
-          ${currentLocation.id === "broad-street" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Drag to look · Click ground to teleport · Select signs or enter travel rings<br>Broad Street · London, 1854</span>' : ""}
+          <span class="location-line">${escapeHtml(gameState.getInteractionHint())}</span>
+          ${currentLocation.id !== "board-room" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select clear ground to teleport · Marked exits or map to travel</span>' : ""}
           <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Panels: Tab / arrows, Enter to choose · Esc: close<br>Page Up / Down: read more · Mouse also supported</span>
         </section>
 
@@ -513,16 +499,15 @@ function renderMotionLookToggle(controls?: MotionLookControls): string {
   `;
 }
 
-function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gameState: GameState): string {
+export function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gameState: GameState): string {
   const body = gameState.getCurrentSceneBody().map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
   const boardFindings =
-    stage === "board" || stage === "complete"
+    stage === "board"
       ? `<ol class="findings-list">${gameState
           .getBoardFindings()
           .map((finding) => `<li>${escapeHtml(finding)}</li>`)
           .join("")}</ol>`
       : "";
-  const preparedArgument = stage === "board" || stage === "complete" ? renderPreparedArgument(gameState) : "";
 
   const action =
     stage === "briefing"
@@ -548,7 +533,6 @@ function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gameState:
       </div>
       <div class="chapter-copy">
         ${body}
-        ${preparedArgument}
         ${boardFindings}
       </div>
       <div class="chapter-actions">
@@ -556,22 +540,6 @@ function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gameState:
         ${action}
       </div>
     </aside>
-  `;
-}
-
-function renderPreparedArgument(gameState: GameState): string {
-  const hypothesis = gameState.getSelectedHypothesis();
-  if (!hypothesis) {
-    return "";
-  }
-
-  return `
-    <section class="argument-summary" aria-label="Prepared argument">
-      <span>Prepared theory</span>
-      <strong>${escapeHtml(hypothesis.title)}</strong>
-      <p>${escapeHtml(gameState.synthesisConfidence ? gameState.getConfidenceLabel(gameState.synthesisConfidence) : "Confidence not stated")}</p>
-      <p>${escapeHtml(gameState.getPreparedMapSummary())}</p>
-    </section>
   `;
 }
 
@@ -671,31 +639,14 @@ function sourceIcon(sourceType: EvidenceCard["sourceType"]): string {
   return "eye";
 }
 
-function renderSynthesisPanel(gameState: GameState): string {
+export function renderSynthesisPanel(gameState: GameState): string {
   const selectedHypothesis = gameState.getSelectedHypothesis();
-  const confidenceOptions: SynthesisConfidence[] = ["tentative", "proportionate", "overstated"];
-  const canPrepare = Boolean(selectedHypothesis && gameState.synthesisConfidence);
+  const canPrepare = Boolean(selectedHypothesis && gameState.hasEnoughEvidenceForSynthesis() && gameState.getCurrentLocation().id === "snow-desk");
   const boardPrepared = gameState.preparedForBoard && gameState.getStage() === "synthesis";
   const hypothesisRows = gameState
     .getHypotheses()
     .map((hypothesis) => renderHypothesisCard(hypothesis, gameState, selectedHypothesis?.id === hypothesis.id))
     .join("");
-  const confidenceRows = confidenceOptions
-    .map((confidence) => {
-      const active = gameState.synthesisConfidence === confidence;
-      return `
-        <button
-          class="confidence-button ${active ? "is-selected" : ""}"
-          data-action="set-confidence"
-          data-confidence="${confidence}"
-          aria-pressed="${active}"
-        >
-          ${escapeHtml(gameState.getConfidenceLabel(confidence))}
-        </button>
-      `;
-    })
-    .join("");
-
   return `
     <aside class="synthesis-panel" aria-label="Snow hypothesis board">
       <div class="synthesis-header">
@@ -713,14 +664,15 @@ function renderSynthesisPanel(gameState: GameState): string {
           </button>
         </div>
       </div>
-      <p class="synthesis-copy">${escapeHtml(gameState.getSnowSynthesisFeedback())}</p>
-      ${renderSynthesisMapStrip(gameState)}
+      <p class="synthesis-copy">Choose the theory that best fits the evidence. A strong case can justify action without final proof.</p>
       <div class="hypothesis-grid">
         ${hypothesisRows}
       </div>
+      ${selectedHypothesis ? `<p class="synthesis-copy synthesis-recommendation"><strong>Proposed action:</strong> ${escapeHtml(selectedHypothesis.boardAction)}</p>` : ""}
       <div class="synthesis-controls">
-        <div class="confidence-row" aria-label="Confidence">
-          ${confidenceRows}
+        <div class="synthesis-reference-actions">
+          <button class="secondary-action" data-action="map">Open map</button>
+          <button class="secondary-action" data-action="notebook">Full evidence notes</button>
         </div>
         <div class="synthesis-actions">
           <button
@@ -737,36 +689,12 @@ function renderSynthesisPanel(gameState: GameState): string {
   `;
 }
 
-function renderSynthesisMapStrip(gameState: GameState): string {
-  const mappedFindings = gameState.getMappedEvidenceFindings();
-  const findings = mappedFindings.length
-    ? mappedFindings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")
-    : `<li class="is-empty">Map evidence appears as you collect addresses, returns, and exceptions.</li>`;
-
-  return `
-    <section class="synthesis-map-strip" aria-label="Map evidence summary">
-      <div class="map-strip-heading">
-        <i data-lucide="map-pinned"></i>
-        <div>
-          <span>Map evidence</span>
-          <strong>Broad Street</strong>
-        </div>
-      </div>
-      <ul>${findings}</ul>
-      <button class="secondary-action" data-action="map">
-        <i data-lucide="map"></i>
-        Open map table
-      </button>
-    </section>
-  `;
-}
-
 function renderHypothesisCard(
   hypothesis: HypothesisDefinition,
   gameState: GameState,
   selected: boolean,
 ): string {
-  const { supporting, complicating } = gameState.getHypothesisEvidence(hypothesis);
+  const { supporting, complicating } = gameState.getHypothesisReview(hypothesis);
   return `
     <article class="hypothesis-card ${selected ? "is-selected" : ""}">
       <button
@@ -780,22 +708,19 @@ function renderHypothesisCard(
       </button>
       <p>${escapeHtml(hypothesis.summary)}</p>
       <div class="fit-columns">
-        ${renderEvidenceFit("Supports", supporting, "supports")}
-        ${renderEvidenceFit("Complicates", complicating, "complicates")}
+        ${renderEvidenceFit("For", supporting?.text, "supports")}
+        ${renderEvidenceFit("Against / limits", complicating?.text, "complicates")}
       </div>
     </article>
   `;
 }
 
-function renderEvidenceFit(label: string, evidenceCards: EvidenceCard[], kind: "supports" | "complicates"): string {
-  const items = evidenceCards.length
-    ? evidenceCards.map((card) => `<li>${escapeHtml(card.title)}</li>`).join("")
-    : `<li class="is-empty">${kind === "supports" ? "No recorded evidence yet" : "No major conflict recorded"}</li>`;
-
+function renderEvidenceFit(label: string, text: string | undefined, kind: "supports" | "complicates"): string {
+  const empty = kind === "supports" ? "No supporting evidence recorded yet." : "No challenge recorded yet; this is not proof.";
   return `
     <div class="fit-list is-${kind}">
       <span>${escapeHtml(label)}</span>
-      <ul>${items}</ul>
+      <p class="${text ? "" : "is-empty"}">${escapeHtml(text ?? empty)}</p>
     </div>
   `;
 }

@@ -7,6 +7,7 @@ import {
   hypothesisDefinitions,
   locations,
   locationEvidenceIds,
+  locationInteractionHints,
 } from "./content";
 import type {
   ChapterScene,
@@ -20,7 +21,6 @@ import type {
   InvestigationLocation,
   InvestigationSnapshot,
   LocationId,
-  SynthesisConfidence,
 } from "./types";
 
 type ChangeHandler = () => void;
@@ -35,7 +35,6 @@ export class GameState {
   currentLocationId: LocationId = "snow-desk";
   activeDialogueId?: string;
   selectedHypothesisId?: HypothesisId;
-  synthesisConfidence?: SynthesisConfidence;
   preparedForBoard = false;
   boardPresented = false;
 
@@ -207,9 +206,7 @@ export class GameState {
     if (this.stage === "complete" && hypothesis) {
       if (hypothesis.id === "waterborne") {
         return [
-          this.synthesisConfidence === "overstated"
-            ? "Snow tempers the claim before the Board: the evidence supports temporary action, not final proof. The pump handle is removed on September 8, and by late September the Broad Street outbreak has spent itself."
-            : "The pump handle is removed on September 8. By late September the Broad Street outbreak has spent itself, leaving the parish to count its dead and argue over what the pattern means.",
+          "The pump handle is removed on September 8. By late September the Broad Street outbreak has spent itself, leaving the parish to count its dead and argue over what the pattern means.",
           "Snow keeps the notebook open. Whitehead's later inquiry will press into the households around Broad Street and the drainage near number 40.",
         ];
       }
@@ -318,13 +315,6 @@ export class GameState {
     return { selected: true, message: `${hypothesis.title} selected for Snow's review.` };
   }
 
-  setSynthesisConfidence(confidence: SynthesisConfidence): { selected: boolean; message: string } {
-    this.synthesisConfidence = confidence;
-    this.preparedForBoard = false;
-    this.emitChange();
-    return { selected: true, message: `Confidence set to ${this.getConfidenceLabel(confidence).toLowerCase()}.` };
-  }
-
   prepareBoardArgument(): { prepared: boolean; message: string } {
     if (!this.hasEnoughEvidenceForSynthesis()) {
       return { prepared: false, message: `Snow asks for ${boardThreshold} evidence cards before synthesis.` };
@@ -338,41 +328,26 @@ export class GameState {
       return { prepared: false, message: "Choose the theory that best fits the evidence." };
     }
 
-    if (!this.synthesisConfidence) {
-      return { prepared: false, message: "State our confidence before going to the Board." };
-    }
-
     this.preparedForBoard = true;
     this.stage = "synthesis";
     this.emitChange();
     return {
       prepared: true,
       message:
-        this.selectedHypothesisId === "waterborne" && this.synthesisConfidence === "proportionate"
+        this.selectedHypothesisId === "waterborne"
           ? "Snow accepts the argument: strong enough for temporary pump closure, not final proof."
           : "Snow records the argument, including the evidence it still struggles to explain.",
     };
   }
 
   getBoardFindings(): string[] {
-    const findings: string[] = [];
     const hypothesis = this.getSelectedHypothesis();
-
-    if (hypothesis) {
-      findings.push(`Prepared theory: ${hypothesis.title}.`);
-      if (this.synthesisConfidence) {
-        findings.push(`Confidence: ${this.getConfidenceLabel(this.synthesisConfidence)}.`);
-      }
-    }
-
-    findings.push(...this.getMappedEvidenceFindings());
-
-    findings.push(
-      hypothesis
-        ? `Recommended action: ${hypothesis.boardAction}`
-        : "The recommendation is a reversible intervention under uncertainty, not final proof.",
-    );
-    return findings;
+    if (!hypothesis) return [];
+    const review = this.getHypothesisReview(hypothesis);
+    return [
+      `For: ${review.supporting?.text ?? "No supporting evidence recorded yet."}`,
+      `Against / limits: ${review.complicating?.text ?? "No challenge recorded yet; this is not proof."}`,
+    ];
   }
 
   getMappedEvidenceFindings(): string[] {
@@ -407,27 +382,6 @@ export class GameState {
     }
 
     return findings;
-  }
-
-  getPreparedMapSummary(): string {
-    const hypothesis = this.getSelectedHypothesis();
-    if (!hypothesis) {
-      return "No theory has been prepared from the map.";
-    }
-
-    if (hypothesis.id === "waterborne") {
-      return "The map ties a pump-centered cluster to household pump use, an abrupt timeline, and nearby exceptions, while admitting the water sample did not visibly prove contamination.";
-    }
-
-    if (hypothesis.id === "miasma") {
-      return "The clean-looking sample gives bad-air advocates room, but the map still leaves them struggling with household water histories and nearby places that did not suffer in the same way.";
-    }
-
-    if (hypothesis.id === "person-to-person") {
-      return "The map accepts household contact and the ambiguous water sample as cautions, but leaves person-to-person spread struggling with the sudden rise and dense pump-centered geography.";
-    }
-
-    return "The map leaves crowding or occupation struggling with household water use and the St. James Workhouse and Lion Brewery exceptions, even though the water sample is not decisive on its own.";
   }
 
   getHotspots(): Hotspot[] {
@@ -500,53 +454,15 @@ export class GameState {
     return this.selectedHypothesisId ? this.getHypothesis(this.selectedHypothesisId) : undefined;
   }
 
-  getHypothesisEvidence(hypothesis: HypothesisDefinition): {
-    supporting: EvidenceCard[];
-    complicating: EvidenceCard[];
-  } {
+  getHypothesisReview(hypothesis: HypothesisDefinition) {
     return {
-      supporting: hypothesis.supportingEvidenceIds
-        .filter((evidenceId) => this.hasEvidence(evidenceId))
-        .map((evidenceId) => this.getEvidence(evidenceId))
-        .filter((evidence): evidence is EvidenceCard => Boolean(evidence)),
-      complicating: hypothesis.complicatingEvidenceIds
-        .filter((evidenceId) => this.hasEvidence(evidenceId))
-        .map((evidenceId) => this.getEvidence(evidenceId))
-        .filter((evidence): evidence is EvidenceCard => Boolean(evidence)),
+      supporting: hypothesis.supportingEvidence.find(point => point.evidenceIds.every(id => this.hasEvidence(id))),
+      complicating: hypothesis.complicatingEvidence.find(point => point.evidenceIds.every(id => this.hasEvidence(id))),
     };
   }
 
-  getConfidenceLabel(confidence: SynthesisConfidence): string {
-    if (confidence === "tentative") {
-      return "Tentative lead";
-    }
-
-    if (confidence === "overstated") {
-      return "Final proof";
-    }
-
-    return "Strong enough for temporary action";
-  }
-
-  getSnowSynthesisFeedback(): string {
-    const hypothesis = this.getSelectedHypothesis();
-    if (!hypothesis) {
-      return "Snow asks us to use the map as a test: what would each theory expect to see, and how should the clean-looking pump sample temper the argument?";
-    }
-
-    if (hypothesis.id !== "waterborne") {
-      return hypothesis.snowChallenge;
-    }
-
-    if (this.synthesisConfidence === "overstated") {
-      return "Snow agrees the water case is strongest, but the pump-water inspection is exactly why he cautions that the evidence supports temporary action rather than final proof.";
-    }
-
-    if (this.synthesisConfidence === "tentative") {
-      return "Snow asks whether a reversible intervention is justified when the mapped pattern, timing, and exceptions point in the same direction despite an inconclusive sample.";
-    }
-
-    return hypothesis.snowChallenge;
+  getInteractionHint(): string {
+    return locationInteractionHints[this.currentLocationId];
   }
 
   getCurrentLocation(): InvestigationLocation {
@@ -661,7 +577,6 @@ export class GameState {
       collectedEvidence: new Set(this.collectedEvidence),
       askedQuestions: new Set(this.askedQuestions),
       selectedHypothesisId: this.selectedHypothesisId,
-      synthesisConfidence: this.synthesisConfidence,
       preparedForBoard: this.preparedForBoard,
       stage: this.stage,
       currentLocationId: this.currentLocationId,
@@ -682,7 +597,6 @@ export class GameState {
     this.activeDialogueId = undefined;
     this.activeDialogueQuestionId = undefined;
     this.selectedHypothesisId = undefined;
-    this.synthesisConfidence = undefined;
     this.preparedForBoard = false;
     this.boardPresented = false;
     this.emitChange();

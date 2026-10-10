@@ -894,53 +894,24 @@ button {
   color: var(--brass-strong);
 }
 
-.fit-list ul {
-  display: grid;
-  gap: 5px;
-  margin: 0;
-  padding-left: 14px;
+.fit-list p {
+  color: rgba(249, 241, 219, 0.88);
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
-.fit-list li {
-  color: rgba(249, 241, 219, 0.78);
-  font-size: 0.7rem;
-  line-height: 1.35;
+.fit-list p.is-empty {
+  color: rgba(249, 241, 219, 0.6);
 }
 
-.fit-list li::marker {
-  color: rgba(240, 200, 109, 0.8);
-}
-
-.fit-list li.is-empty {
-  color: rgba(249, 241, 219, 0.48);
-}
-
-.confidence-row {
+.synthesis-reference-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  flex: 1 1 auto;
-  padding: 0;
 }
 
-.confidence-button {
-  appearance: none;
-  min-height: 36px;
-  padding: 0 11px;
-  border: 1px solid rgba(238, 216, 164, 0.2);
-  border-radius: 999px;
-  color: rgba(249, 241, 219, 0.82);
-  background: rgba(255, 255, 255, 0.035);
-  cursor: pointer;
-  font-size: 0.76rem;
-  font-weight: 800;
-}
-
-.confidence-button:hover,
-.confidence-button.is-selected {
-  color: #15120e;
-  border-color: rgba(240, 200, 109, 0.85);
-  background: var(--brass-strong);
+.synthesis-recommendation {
+  padding-top: 0;
 }
 
 .synthesis-actions {
