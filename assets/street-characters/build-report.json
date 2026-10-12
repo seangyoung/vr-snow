@@ -16,7 +16,20 @@
       "faceHeight": 0.98,
       "labelHeight": 1.95,
       "height": 1.78,
-      "yaw": 0.45
+      "yaw": 0.45,
+      "appearance": {
+        "age": 0.35,
+        "nose": 0.88,
+        "jaw": 1.18,
+        "hairline": -0.01,
+        "cheeks": 0.9,
+        "noseWidth": 1.22,
+        "eyeSpacing": 1.1,
+        "mouthWidth": 1.18,
+        "lipFullness": 1.15,
+        "browSlope": -0.002,
+        "chin": 1.25
+      }
     },
     {
       "id": "resident-east",
@@ -33,15 +46,29 @@
       "faceHeight": 1.0,
       "labelHeight": 1.95,
       "height": 1.8,
-      "yaw": -0.5
+      "yaw": -0.5,
+      "appearance": {
+        "age": 0.75,
+        "nose": 1.2,
+        "jaw": 0.86,
+        "hairline": 0.04,
+        "cheeks": 0.75,
+        "noseWidth": 0.9,
+        "eyeSpacing": 0.93,
+        "mouthWidth": 0.92,
+        "lipFullness": 0.7,
+        "browSlope": 0.004,
+        "chin": 0.8,
+        "part": 5.8
+      }
     }
   ],
-  "triangles": 39354,
+  "triangles": 46855,
   "materialBatches": 24,
   "bakedLighting": {
     "size": 1024,
     "normalization": 4,
-    "diffusePeak999": 0.7039,
+    "diffusePeak999": 0.6917,
     "environmentSize": [
       256,
       128

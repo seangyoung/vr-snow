@@ -7,20 +7,20 @@ Broad Street's panorama is replaced with a source-informed reconstruction of the
 First speak with Snow and ask where to begin. Open the map and travel to Broad Street Pump.
 
 - **Headset:** close the panel, aim at clear ground, and use the controller's primary select action to teleport. A `Move here` label identifies accepted destinations; `Blocked` identifies ground without enough clearance. Select the pump itself to open its dialogue.
-- **Turning:** move a standard thumbstick/touchpad horizontally. Turns are 45 degrees around the tracked viewer.
-- **Tools:** squeeze the controller grip to toggle the existing panel, map, and notebook. Selecting the pump also opens its dialogue panel. Movement is disabled while the panel is open.
+- **Walking/turning:** left stick walks and strafes; right stick/touchpad turns 45 degrees around the tracked viewer. Settings → Controls can disable stick walking. Release the left stick to center after closing a panel or travelling.
+- **Tools:** squeeze the controller grip to toggle the compact menu. On Quest, X opens Map, Y opens Notebook and B opens Settings; A toggles stand/crouch view. Settings also includes height adjustments and Exit VR. See [the controller guide](vr-controls.md). Selecting the pump also opens its dialogue panel. Movement is disabled while the panel is open.
 - **Desktop keyboard:** W/S walk forward/back; A/D strafe left/right; Left/Right turn; Up/Down look up/down. Hold keys for continuous movement. Diagonal movement has the same speed as straight movement. Movement stops at the pump and street boundaries, while overlays are open, or when keyboard focus leaves the scene. Release and press again to resume after a focus change.
 - **Keyboard panels:** M opens/toggles the map; N opens/toggles the notebook. Tab/Shift+Tab or arrows move between choices; Enter/Space selects. Escape closes a dismissible panel and returns focus to the scene. Page Up/Down scrolls panel content. See [keyboard test card](desktop-keyboard.md).
 - **Desktop/touch:** drag to look, click/tap clear ground to teleport, and click/tap the pump to inspect. Dragging does not also teleport. The existing map and notebook buttons remain available. Enter/Space can activate the pump when centered; keyboard shortcuts do not fire through open overlays or focused UI controls.
 
-The implementation uses WebXR `select`/`squeeze` events and the [standard gamepad mapping](https://www.w3.org/TR/webxr-gamepads-module-1/). It does not check headset brand or assume left/right controller order. Artificial turning requires the standard gamepad mapping; unknown mappings retain physical head/body turning. Quest controllers are the first intended hardware target; other WebXR controller systems remain unverified. Articulated hand interaction is outside this slice.
+The implementation uses WebXR `select`/`squeeze` events and the [standard gamepad mapping](https://www.w3.org/TR/webxr-gamepads-module-1/). It uses reported handedness without assuming controller order; optional face buttons use registered input profiles. Artificial turning requires the standard gamepad mapping; unknown mappings retain physical head/body turning. Quest controllers are the first intended hardware target; other WebXR controller systems remain unverified. Articulated hand interaction is outside this slice.
 
 ## Five-minute headset check
 
 1. Receive Snow's assignment, enter VR, travel to Broad Street, and close the panel. Confirm the pump has depth as you lean sideways.
 2. Select three ground positions, including one beside and one behind the pump. Confirm arrival is under your head, not offset by where you started in the physical room. The viewpoint should retain its height and heading.
 3. Aim near the base and building fronts and the ends of the walkable slice. Confirm `Blocked` destinations do nothing; pointing at solid geometry never teleports through it.
-4. Take a small physical step to one side, then turn in both directions using the stick. Confirm there are no persistent Tools or turn buttons following your head. Confirm there is no sideways jump. Repeat with the other controller.
+4. Take a small physical step to one side, then turn in both directions using the stick. Confirm there are no persistent Tools or turn buttons following your head. Confirm there is no sideways jump. Confirm the left controller walks instead of turning.
 5. Select the pump, ask what the water sample showed, and verify **Pump water gives no decisive visible proof** appears in the notebook. Confirm the card is collected only once.
 6. Squeeze to open the panel, travel to Snow's Desk, and return. Confirm the street spawn is restored and the evidence retained. Check the map still works.
 7. Exit/re-enter VR while on Broad Street, then reset the inquiry. Confirm height, panel placement, and the return to Snow's Desk. If possible, repeat seated and with only one controller active.

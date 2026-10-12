@@ -318,6 +318,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       overlayMode === "none" && !showChapterPanel && !isTransitioning && !activeDialogue && !showSynthesisPanel
         ? "false"
         : "true";
+    document.body.dataset.audioReading = document.body.dataset.overlayOpen === "true" && overlayMode !== "sound" ? "true" : "false";
     document.body.dataset.stage = stage;
 
     root.innerHTML = `
@@ -1091,6 +1092,7 @@ function renderSoundPanel(controls?: SoundControls): string {
       ${(["ambience","effects"] as const).map(channel=>`<div class="sound-level"><span>${channel==="ambience"?"Ambience":"Effects"}: <strong>${Math.round(settings[channel]*100)}%</strong></span>
         <button class="secondary-action" data-action="${channel}-down" aria-label="Lower ${channel}" ${settings[channel]<=0?"disabled":""}>−</button>
         <button class="secondary-action" data-action="${channel}-up" aria-label="Raise ${channel}" ${settings[channel]>=1?"disabled":""}>+</button></div>`).join("")}
-      <p>All clues and actions remain available visually. Sound starts after you interact with the app.</p>
+      <p>All clues and actions remain available visually. Ambience softens while you read. Sound starts after you interact with the app.</p>
+      <p><a href="${import.meta.env?.BASE_URL??"/"}audio/credits.html" target="_blank" rel="noopener">Audio sources and credits</a></p>
     </div></aside>`;
 }

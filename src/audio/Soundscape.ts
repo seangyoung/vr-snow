@@ -1,3 +1,4 @@
+import { ambienceProfiles, clipGroups, type AmbientEvent, type ClipGroup, type SoundPoint } from "./ambience";
 export type SoundChannel = "ambience" | "effects";
 export type SoundSettings = { muted: boolean; ambience: number; effects: number };
 export type SoundEffect = "select" | "paper" | "evidence" | "step";
@@ -30,8 +31,14 @@ export class FootstepTracker {
   }
 }
 
-type AmbientSource={source:AudioBufferSourceNode;filter:BiquadFilterNode;panner:PannerNode;gain:GainNode};
-/** Quiet original synthesized sounds. Audio never controls progression or carries unique information. */
+type AmbientSource={source:AudioBufferSourceNode;filter:BiquadFilterNode;panner:PannerNode;gain:GainNode;retiring?:boolean};
+type ClipLoader=(url:string,signal:AbortSignal)=>Promise<ArrayBuffer>;
+const fetchClip:ClipLoader=async(url,signal)=>{
+  const response=await fetch(url,{signal});
+  if(!response.ok)throw new Error(`Audio ${response.status}`);
+  return response.arrayBuffer();
+};
+/** Quiet recorded foley with synthesized fallback. Sound never carries unique evidence. */
 export class Soundscape implements SoundControls {
   private settings: SoundSettings;
   private context?: AudioContext;
@@ -42,6 +49,15 @@ export class Soundscape implements SoundControls {
   private noise?: AudioBuffer;
   private cart?: AudioBuffer;
   private active: AmbientSource[]=[];
+  private events=new Set<AmbientSource>();
+  private recordings=new Map<string,AudioBuffer>();
+  private walkingClips=new Map<AudioBuffer,AudioBuffer>();
+  private recordingLoad?:Promise<void>;
+  private loadAbort=new AbortController();
+  private reading=false;
+  private nextEvent=Infinity;
+  private lastEventKind?:ClipGroup;
+  private lastClips=new Map<ClipGroup,string>();
   private allSources=new Set<AmbientSource>();
   private oneShots=new Set<AudioBufferSourceNode>();
   private location="snow-desk";
@@ -51,7 +67,7 @@ export class Soundscape implements SoundControls {
   private hiddenSources=new Set<"document"|"xr">();
   private disposed=false;
   private failed=false;
-  constructor(private readonly createContext=()=>new AudioContext()) {
+  constructor(private readonly createContext=()=>new AudioContext(), private readonly loadClip:ClipLoader=fetchClip, private readonly random:()=>number=Math.random) {
     try {this.settings=sanitizeSoundSettings(JSON.parse(localStorage.getItem(storageKey)??"null"));}
     catch {this.settings={...defaultSoundSettings};}
   }
@@ -62,13 +78,13 @@ export class Soundscape implements SoundControls {
   }
   private save(): void {
     try {localStorage.setItem(storageKey,JSON.stringify(this.settings));}catch {/* Private browsing can deny storage. */}
-    this.applyLevels();
+    this.deferEvent();this.applyLevels();
   }
   private applyLevels(): void {
     if(!this.context)return;
     const time=this.context.currentTime;
     this.master?.gain.setTargetAtTime(this.settings.muted||this.hidden?0:.65,time,.04);
-    this.ambience?.gain.setTargetAtTime(this.settings.ambience,time,.08);
+    this.ambience?.gain.setTargetAtTime(this.settings.ambience*(this.reading?.22:1),time,this.reading?.12:.45);
     this.effects?.gain.setTargetAtTime(this.settings.effects,time,.04);
   }
   /** Invoke directly from a pointer, keyboard or XR select gesture, never on page load. */
@@ -81,9 +97,10 @@ export class Soundscape implements SoundControls {
         this.ambience=c.createGain();this.ambience.connect(this.master);
         this.effects=c.createGain();this.effects.connect(this.master);
         this.master.gain.value=0;this.applyLevels();
-        // Seeded and bounded, with a gentle seam taper. No recordings or voice synthesis.
+        // Original, bounded fallback buffers are ready before recordings finish loading.
         this.air=this.makeNoise(8,true);this.noise=this.makeNoise(.3,false);this.cart=this.makeCart();
         this.configureAmbient();
+        this.recordingLoad=this.loadRecordings();
       }
       if(this.context.state==="suspended")await this.context.resume().catch(()=>{});
     } catch {this.failed=true;this.dispose();}
@@ -117,34 +134,130 @@ export class Soundscape implements SoundControls {
     if(location===this.location)return;
     this.location=location;this.steps.reset();this.configureAmbient();
   }
+  /** Reduce distractions while reading without changing the saved volume. */
+  setReading(reading:boolean):void {
+    if(this.reading===reading)return;
+    this.reading=reading;this.deferEvent();this.applyLevels();
+  }
+  private deferEvent():void {
+    this.nextEvent=(this.context?.currentTime??0)+4+this.random()*5;
+  }
+  private async loadRecordings():Promise<void> {
+    const c=this.context!;
+    const queue=[...new Set(Object.values(clipGroups).flat())];
+    // Two small downloads/decodes at a time, only after a user gesture. Failures
+    // retain procedural sounds; late completion never starts a scene or source.
+    const timer=setTimeout(()=>this.loadAbort.abort(),20000);
+    const worker=async()=>{
+      while(queue.length&&!this.disposed&&!this.loadAbort.signal.aborted) {
+        const name=queue.shift()!;
+        try {
+          const base=import.meta.env?.BASE_URL??"/";
+          const bytes=await this.loadClip(`${base}audio/${name}.wav`,this.loadAbort.signal);
+          if(this.disposed||this.loadAbort.signal.aborted)break;
+          const decoded=await c.decodeAudioData(bytes);
+          if(!this.disposed&&!this.loadAbort.signal.aborted)this.recordings.set(name,decoded);
+        } catch { /* Optional foley must never prevent playing the game. */ }
+      }
+    };
+    try {await Promise.all([worker(),worker()]);} finally {clearTimeout(timer);}
+  }
+  private pickClip(kind:ClipGroup):AudioBuffer|undefined {
+    const available=clipGroups[kind].filter(name=>this.recordings.has(name));
+    const alternatives=available.filter(name=>name!==this.lastClips.get(kind));
+    const choices=alternatives.length?alternatives:available;
+    if(!choices.length)return undefined;
+    const name=choices[Math.floor(this.random()*choices.length)];
+    this.lastClips.set(kind,name);return this.recordings.get(name);
+  }
+  private retire(node:AmbientSource):void {
+    if(node.retiring)return;
+    node.retiring=true;
+    const now=this.context!.currentTime;
+    node.gain.gain.cancelScheduledValues(now);
+    node.gain.gain.setTargetAtTime(0,now,.08);
+    try {node.source.stop(now+.4);} catch { /* Already ended. */ }
+  }
+  private spatial(buffer:AudioBuffer,at:SoundPoint,volume:number,cutoff:number,
+      rate:number,loop=false,end?:SoundPoint):AmbientSource {
+    const c=this.context!,now=c.currentTime;
+    const source=c.createBufferSource();source.buffer=buffer;source.loop=loop;source.playbackRate.value=rate;
+    const filter=c.createBiquadFilter();filter.type="lowpass";filter.frequency.value=cutoff;
+    const panner=c.createPanner();panner.panningModel="HRTF";panner.distanceModel="inverse";
+    panner.refDistance=5;panner.rolloffFactor=.65;
+    const duration=buffer.duration/rate;
+    [panner.positionX,panner.positionY,panner.positionZ].forEach((param,i)=>{
+      param.setValueAtTime(at[i],now);
+      if(end)param.linearRampToValueAtTime(end[i],now+duration);
+    });
+    const gain=c.createGain();gain.gain.value=0;
+    if(loop)gain.gain.setTargetAtTime(volume,now,.3);
+    else {
+      const fade=duration>5?duration*.3:Math.min(.025,duration*.15);
+      gain.gain.setValueAtTime(0,now);
+      gain.gain.linearRampToValueAtTime(volume,now+fade);
+      gain.gain.setValueAtTime(volume,now+duration-fade);
+      gain.gain.linearRampToValueAtTime(0,now+duration);
+    }
+    source.connect(filter);filter.connect(panner);panner.connect(gain);gain.connect(this.ambience!);
+    const node={source,filter,panner,gain};this.allSources.add(node);
+    source.onended=()=>{
+      source.disconnect();filter.disconnect();panner.disconnect();gain.disconnect();
+      this.allSources.delete(node);this.events.delete(node);
+    };
+    source.start();if(!loop)source.stop(now+duration+.02);
+    return node;
+  }
   private configureAmbient(): void {
     const c=this.context;if(!c||!this.air||!this.ambience||this.disposed)return;
-    for(const node of this.active) {
-      node.gain.gain.cancelScheduledValues(c.currentTime);
-      node.gain.gain.setTargetAtTime(0,c.currentTime,.08);node.source.stop(c.currentTime+.4);
+    for(const node of this.allSources)this.retire(node);
+    this.active=[];this.events.clear();this.lastEventKind=undefined;this.deferEvent();
+    // Bound overlap even when travelling repeatedly before a fade has finished.
+    for(const node of [...this.allSources].slice(0,Math.max(0,this.allSources.size-3))) {
+      try {node.source.stop();}catch { /* Ended. */ }
+      node.source.onended?.(new Event("ended"));
     }
-    this.active=[];
-    // Interior sound enters from a window/door; courtyard/street air is more open.
-    const outside=this.location==="broad-street"||this.location==="workhouse";
-    const origin=this.location==="snow-desk"?[3.4,2,-.3]:this.location==="registrar"?[4,2,-1.7]:this.location==="household"?[2.7,2,-1.62]:this.location==="brewery"?[4.8,2.8,0]:[-9,2,-6];
-    const addSource=(buffer:AudioBuffer,position:number[],volume:number,cutoff:number,rate:number)=>{
-      const source=c.createBufferSource();source.buffer=buffer;source.loop=true;source.playbackRate.value=rate;
-      const filter=c.createBiquadFilter();filter.type="lowpass";filter.frequency.value=cutoff;
-      const panner=c.createPanner();panner.panningModel="HRTF";panner.distanceModel="inverse";panner.refDistance=5;panner.rolloffFactor=.5;
-      panner.positionX.value=position[0];panner.positionY.value=position[1];panner.positionZ.value=position[2];
-      const gain=c.createGain();gain.gain.value=0;gain.gain.setTargetAtTime(volume,c.currentTime,.3);
-      source.connect(filter);filter.connect(panner);panner.connect(gain);gain.connect(this.ambience!);
-      const node={source,filter,panner,gain};this.active.push(node);this.allSources.add(node);
-      source.onended=()=>{source.disconnect();filter.disconnect();panner.disconnect();gain.disconnect();this.allSources.delete(node);};source.start();
-    };
-    addSource(this.air,origin,outside?.32:.12,outside?650:310,outside?.8:.65);
-    if(outside && this.cart)addSource(this.cart,[-12,1,-8],.24,850,1);
+    const profile=ambienceProfiles[this.location];
+    if(profile)this.active.push(this.spatial(this.air,profile.origin,profile.air,profile.cutoff,.65,true));
+  }
+  private ambientEvent():void {
+    const c=this.context!,profile=ambienceProfiles[this.location];
+    if(!profile||c.currentTime<this.nextEvent)return;
+    if(this.reading||this.settings.muted||!this.settings.ambience) {this.deferEvent();return;}
+    const [low,high]=profile.interval;
+    this.nextEvent=c.currentTime+low+this.random()*(high-low);
+    if(this.events.size>=2)return;
+    const choices=profile.events.filter(event=>event.kind!==this.lastEventKind);
+    const pool=choices.length?choices:profile.events;
+    let pick=this.random()*pool.reduce((sum,event)=>sum+(event.weight??1),0);
+    const event=pool.find(event=>(pick-=event.weight??1)<0)??pool[pool.length-1];
+    this.lastEventKind=event.kind;this.playAmbientEvent(event);
+  }
+  private playAmbientEvent(event:AmbientEvent):void {
+    let buffer=this.pickClip(event.kind)??(event.kind==="wagon"?this.cart:undefined);
+    if(!buffer)return;
+    if(event.kind==="stoneStep") {
+      let walk=this.walkingClips.get(buffer);
+      if(!walk) {
+        const rate=buffer.sampleRate,gap=Math.round(rate*.52);
+        walk=this.context!.createBuffer(1,gap*3+buffer.length,rate);
+        const samples=walk.getChannelData(0),step=buffer.getChannelData(0);
+        for(let n=0;n<4;n++)for(let i=0;i<step.length;i++)samples[n*gap+i]+=step[i]*(n%2?.86:1);
+        this.walkingClips.set(buffer,walk);
+      }
+      buffer=walk;
+    }
+    const rate=.94+this.random()*.12;
+    let at=event.at,end=event.end;
+    if(end&&this.random()<.5)[at,end]=[end,at];
+    this.events.add(this.spatial(buffer,at,event.gain*(.85+this.random()*.3),event.cutoff,rate,false,end));
   }
 
   update(position: Point,forward: Point,up: Point,walking: boolean): void {
     if(this.disposed)return;
     if(this.steps.update(position,walking&&!this.hidden))this.effect("step");
     const c=this.context;if(!c||c.state!=="running"||this.hidden)return;
+    this.ambientEvent();
     const listener=c.listener;
     if(listener.positionX) {
       for(const [param,value] of [[listener.positionX,position.x],[listener.positionY,position.y],[listener.positionZ,position.z],
@@ -155,13 +268,17 @@ export class Soundscape implements SoundControls {
   effect(kind: SoundEffect): void {
     const c=this.context;if(!c||!this.noise||!this.effects||c.state!=="running"||this.hidden||this.settings.muted||!this.settings.effects)return;
     const now=c.currentTime;if(kind!=="evidence"&&now-this.lastEffect<.07)return;this.lastEffect=now;
-    const source=c.createBufferSource();source.buffer=this.noise;
+    const indoor=["snow-desk","household","registrar"].includes(this.location);
+    const recorded=kind==="step"?this.pickClip(indoor?"woodStep":"stoneStep"):
+      kind==="paper"||kind==="evidence"?this.pickClip("paper"):undefined;
+    const source=c.createBufferSource();source.buffer=recorded??this.noise;
+    source.playbackRate.value=.96+this.random()*.08;
     const filter=c.createBiquadFilter();filter.type="bandpass";
     const paper=kind==="paper"||kind==="evidence";
     filter.frequency.value=paper?1450:kind==="step"?(this.location==="snow-desk"||this.location==="household"||this.location==="registrar"?310:620):900;
     filter.Q.value=paper?.5:.8;
-    const gain=c.createGain(),duration=paper?.23:kind==="step"?.12:.045;
-    gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(paper?.24:kind==="step"?.5:.28,now+.008);
+    const gain=c.createGain(),duration=recorded?recorded.duration/source.playbackRate.value:paper?.23:kind==="step"?.12:.045;
+    gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(paper?.24:kind==="step"?(recorded?.32:.5):.28,now+.008);
     gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
     source.connect(filter);filter.connect(gain);gain.connect(this.effects);this.oneShots.add(source);
     source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();this.oneShots.delete(source);};
@@ -169,15 +286,15 @@ export class Soundscape implements SoundControls {
   }
   setHidden(hidden: boolean,source: "document"|"xr"="document"): void {
     if(hidden)this.hiddenSources.add(source);else this.hiddenSources.delete(source);
-    this.hidden=this.hiddenSources.size>0;this.steps.reset();this.applyLevels();
+    this.hidden=this.hiddenSources.size>0;this.steps.reset();this.deferEvent();this.applyLevels();
     if(this.hidden)void this.context?.suspend().then(()=>{if(!this.hidden)void this.unlock();}).catch(()=>{});
     else if(this.context)void this.unlock();
   }
   dispose(): void {
-    this.disposed=true;
+    this.disposed=true;this.loadAbort.abort();this.recordings.clear();this.walkingClips.clear();
     for(const node of this.allSources) {try{node.source.stop();}catch{}node.source.disconnect();node.filter.disconnect();node.panner.disconnect();node.gain.disconnect();}
     for(const source of this.oneShots){try{source.stop();}catch{}source.disconnect();}
-    this.active=[];this.allSources.clear();this.oneShots.clear();this.steps.reset();
+    this.active=[];this.events.clear();this.allSources.clear();this.oneShots.clear();this.steps.reset();
     this.master?.disconnect();this.ambience?.disconnect();this.effects?.disconnect();
     void this.context?.close().catch(()=>{});
   }

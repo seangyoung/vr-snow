@@ -1,0 +1,253 @@
+{
+  "oculus-touch": {
+    "left": {
+      "primary": {
+        "index": 4,
+        "label": "X"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "Y"
+      }
+    },
+    "right": {
+      "primary": {
+        "index": 4,
+        "label": "A"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "B"
+      }
+    }
+  },
+  "oculus-touch-v2": {
+    "left": {
+      "primary": {
+        "index": 4,
+        "label": "X"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "Y"
+      }
+    },
+    "right": {
+      "primary": {
+        "index": 4,
+        "label": "A"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "B"
+      }
+    }
+  },
+  "oculus-touch-v3": {
+    "left": {
+      "primary": {
+        "index": 4,
+        "label": "X"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "Y"
+      }
+    },
+    "right": {
+      "primary": {
+        "index": 4,
+        "label": "A"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "B"
+      }
+    }
+  },
+  "meta-quest-touch-plus": {
+    "left": {
+      "primary": {
+        "index": 4,
+        "label": "X"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "Y"
+      }
+    },
+    "right": {
+      "primary": {
+        "index": 4,
+        "label": "A"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "B"
+      }
+    }
+  },
+  "meta-quest-touch-plus-v2": {
+    "left": {
+      "primary": {
+        "index": 4,
+        "label": "X"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "Y"
+      }
+    },
+    "right": {
+      "primary": {
+        "index": 4,
+        "label": "A"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "B"
+      }
+    }
+  },
+  "meta-quest-touch-pro": {
+    "left": {
+      "primary": {
+        "index": 4,
+        "label": "X"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "Y"
+      }
+    },
+    "right": {
+      "primary": {
+        "index": 4,
+        "label": "A"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "B"
+      }
+    }
+  },
+  "pico-4": {
+    "left": {
+      "primary": {
+        "index": 4,
+        "label": "X"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "Y"
+      }
+    },
+    "right": {
+      "primary": {
+        "index": 4,
+        "label": "A"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "B"
+      }
+    }
+  },
+  "pico-4u": {
+    "left": {
+      "primary": {
+        "index": 4,
+        "label": "X"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "Y"
+      }
+    },
+    "right": {
+      "primary": {
+        "index": 4,
+        "label": "A"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "B"
+      }
+    }
+  },
+  "pico-neo2": {
+    "left": {
+      "primary": {
+        "index": 4,
+        "label": "X"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "Y"
+      }
+    },
+    "right": {
+      "primary": {
+        "index": 4,
+        "label": "A"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "B"
+      }
+    }
+  },
+  "pico-neo3": {
+    "left": {
+      "primary": {
+        "index": 4,
+        "label": "X"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "Y"
+      }
+    },
+    "right": {
+      "primary": {
+        "index": 4,
+        "label": "A"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "B"
+      }
+    }
+  },
+  "valve-index": {
+    "left-right": {
+      "primary": {
+        "index": 4,
+        "label": "A"
+      }
+    }
+  },
+  "hp-mixed-reality": {
+    "left": {
+      "primary": {
+        "index": 4,
+        "label": "X"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "Y"
+      }
+    },
+    "right": {
+      "primary": {
+        "index": 4,
+        "label": "A"
+      },
+      "secondary": {
+        "index": 5,
+        "label": "B"
+      }
+    }
+  },
+  "microsoft-mixed-reality": {}
+}

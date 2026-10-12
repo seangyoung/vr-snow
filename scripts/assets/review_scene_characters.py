@@ -22,12 +22,26 @@ for ob in s.objects:
   ls.new(tex.outputs['Color'],mul.inputs[1]);em=ns.new('ShaderNodeEmission');em.inputs['Strength'].default_value=4;ls.new(mul.outputs[0],em.inputs['Color']);ls.new(em.outputs[0],ns.get('Material Output').inputs['Surface'])
 camdata=bpy.data.cameras.new('Review');cam=bpy.data.objects.new('Review',camdata);s.collection.objects.link(cam);s.camera=cam
 actor=config['actors'][0];x,y,z=actor['position'];height=actor['height']
-views=[('portrait',(x+.65,y+height-.05,z+1.9),(x,y+height*.62,z+.1),48)]
+views=[('portrait',(x+.65,y+height-.05,z+1.9),(x,y+height*.62,z+.1),48),('face',(x+.20,y+height-.05,z+1.35),(x,y+height-.13,z),72)]
 if key!='street':
  layout=json.loads((root/f'src/walkable/{key if key!="registrar" else "registrar"}-layout.json').read_text())
  sx,_,sz=layout['spawn'];views.insert(0,('room',(sx,1.62,sz),(x,y+1.1,z),32))
 else:views.insert(0,('room',(-6,1.62,-1),(-10,1,-7),32))
 if key=='brewery':views.append(('both',(0,1.62,3.7),(0,1.0,.1),42))
-for name,pos,target,lens in views:
+for name,pos,target,lens in ([] if '--anatomy-only' in sys.argv else views):
  cam.location=(pos[0],-pos[2],pos[1]);cam.rotation_euler=(Vector((target[0],-target[2],target[1]))-cam.location).to_track_quat('-Z','Y').to_euler();camdata.lens=lens
  s.render.filepath=str(out/f'{name}.png');bpy.ops.render.render(write_still=True)
+
+# Furniture can conceal anatomy defects. Inspect each exported actor separately
+# with the actual baked material, including both residents and both owners.
+for actor in config['actors']:
+ root_ob=bpy.data.objects.get(actor['id']+'_root');bpy.context.view_layer.update()
+ meshes=[ob for ob in s.objects if ob.type=='MESH' and ob.name.startswith(actor['id']+'_')]
+ for ob in s.objects:
+  if ob.type=='MESH':ob.hide_render=ob not in meshes
+ def local(x,y,z):return root_ob.matrix_world@Vector((x,-z,y))
+ for name,pos,target,scale in [('front',local(.15,.87,3),local(0,.87,.12),1.98),('side',local(3,.87,.9),local(0,.87,.12),1.98),('face',local(.035,1.39+(.25 if actor['pose']=='standing' else 0),1),local(0,1.39+(.25 if actor['pose']=='standing' else 0),0),.36)]:
+  camdata.type='ORTHO';camdata.ortho_scale=scale
+  cam.location=pos;cam.rotation_euler=(target-pos).to_track_quat('-Z','Y').to_euler()
+  s.render.resolution_x=720;s.render.resolution_y=720 if name=='face' else 1000
+  s.render.filepath=str(out/(actor['id']+'-'+name+'.png'));bpy.ops.render.render(write_still=True)

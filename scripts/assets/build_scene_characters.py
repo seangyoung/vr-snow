@@ -6,7 +6,7 @@ from pathlib import Path
 from mathutils import Vector
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-from character_geometry import create_geometry,paint_albedo
+from character_geometry import create_geometry,paint_albedo,stabilize_head_lighting,facial_details
 from bake_scene_lighting import bake_lighting
 key=sys.argv[sys.argv.index('--')+1]
 config=json.loads((ROOT/'src/walkable/scene-characters.json').read_text())[key]
@@ -25,14 +25,14 @@ def warp(ob,fn):
  ob.data.update()
 
 for spec in config['actors']:
- g=create_geometry();M,parts,root,upper,head=[g[n] for n in ('M','parts','root','upper','head')]
+ g=create_geometry(spec.get("appearance"),spec["pose"]);M,parts,root,upper,head=[g[n] for n in ('M','parts','root','upper','head')]
  def remove(prefixes):
   for ob in list(parts):
    if ob.name.startswith(prefixes):parts.pop(ob);bpy.data.objects.remove(ob,do_unlink=True)
  color(M['Coat'],spec['coat']);color(M['Waistcoat'],spec['vest']);color(M['Hair'],spec['hair'])
  # Individual face proportions and hair tones distinguish these interpretive adults.
  for ob in parts:
-  if ob.parent==head:warp(ob,lambda x,y,z:(x*spec['faceWidth'],1.37+(y-1.37)*spec['faceHeight'],z))
+  if ob.parent==head:warp(ob,lambda x,y,z:(x*spec['faceWidth'],(1.62 if spec['pose']=='standing' else 1.37)+(y-(1.62 if spec['pose']=='standing' else 1.37))*spec['faceHeight'],z))
  if spec.get('dress'):
   remove(('Coat lapel','Waistcoat','Cravat','Shirt collar','Standing shirt collar','Sideburn','Trouser','Coat seated skirt'))
   g['ellipsoid']('Hair bun',(0,1.399,-.089),(.035,.036,.025),'Hair',head)
@@ -40,47 +40,15 @@ for spec in config['actors']:
   skirt=g['rings']('Gathered skirt',[(.07,.24,.42,.14),(.20,.25,.43,.14),(.43,.24,.43,.15),(.57,.18,.27,.14),(.73,.15,.125,.13)],'Coat',root)
   for v in skirt.data.vertices:
    angle=math.atan2(v.co.x,-v.co.y);v.co.x*=1+.018*math.sin(angle*18);v.co.y*=1+.018*math.sin(angle*18)
-  g['patch']('Plain neck kerchief',[(-.125,1.18,.10),(0,1.22,.07),(.125,1.18,.10),(0,1.12,.14)],'Shirt',upper)
- if spec['pose']=='standing':
-  # Replace bent seated legs with full-length standing trousers.
-  for ob in list(parts):
-   if ob.parent==root:parts.pop(ob);bpy.data.objects.remove(ob,do_unlink=True)
-  for ob in parts:warp(ob,lambda x,y,z:(x,y+.25,z))
-  for side in (-1,1):
-   x=side*.10
-   g['limb']('Standing thigh',(x,.83,0),(x,.47,.015),.105,.075,'Coat',root)
-   g['limb']('Standing shin',(x,.47,.015),(x,.12,.025),.075,.055,'Coat',root)
-   g['ellipsoid']('Standing boot',(x,.065,.08),(.07,.06,.14),'Boot',root)
-  if key=='street':
-   # Residents hold their hands low in front instead of an unsupported desk pose.
-   for ob in parts:
-    if ob.parent==upper and ob.name.startswith(('Frock coat torso','Hand','Tailored shirt cuff')):
-     warp(ob,lambda x,y,z:(x,y-.31*min(1,max(0,(z-.13)/.36)),z-.29*min(1,max(0,(z-.13)/.36))))
- elif spec['pose']=='lap':
-  for ob in parts:
-   if ob.parent==upper and ob.name.startswith(('Frock coat torso','Hand','Tailored shirt cuff')):
-    warp(ob,lambda x,y,z:(x,y-.205*min(1,max(0,(z-.13)/.36)),z-.27*min(1,max(0,(z-.13)/.36))))
- elif spec['pose']=='table':
-  for ob in parts:
-   if ob.parent==upper and ob.name.startswith(('Frock coat torso','Hand','Tailored shirt cuff')):warp(ob,lambda x,y,z:(x,y-.10*min(1,max(0,(z-.13)/.36)),z))
- # Rebuild the bent sleeve surface after the lap pose so folded triangles do
- # not overlap and create black/bright speckling in the baked lighting.
- if spec['pose']=='lap':
-  for ob in parts:
-   if ob.name.startswith('Frock coat torso'):
-    bpy.context.view_layer.objects.active=ob
-    remesh=ob.modifiers.new('Relax posed cloth','REMESH');remesh.mode='VOXEL';remesh.voxel_size=.009
-    bpy.ops.object.modifier_apply(modifier=remesh.name)
-    smooth=ob.modifiers.new('Soften posed cloth','SMOOTH');smooth.factor=.6;smooth.iterations=3
-    bpy.ops.object.modifier_apply(modifier=smooth.name)
-    dec=ob.modifiers.new('Posed cloth budget','DECIMATE');dec.ratio=.20
-    bpy.ops.object.modifier_apply(modifier=dec.name)
-    for poly in ob.data.polygons:poly.use_smooth=True
+  # Small neckcloth follows the shoulders, with dress fastenings and a waist seam.
+  g['patch']('Plain neck kerchief',[(-.098,1.187,.09),(0,1.219,.070),(.098,1.187,.09),(.045,1.151,.112),(0,1.139,.123),(-.045,1.151,.112)],'Shirt',upper)
+  for yy in [.79,.85,.91,.97,1.03,1.09]:g['ellipsoid']('Dress fastening',(0,yy,.129),(.004,.004,.003),'Button',segments=8,rings=4)
+  g['limb']('Dress waist seam',(-.12,.733,.108),(.12,.733,.108),.003,.003,'Coat')
  # Retain facial contour detail, reducing otherwise invisible small cross-sections.
  for ob in parts:
   if len(ob.data.polygons)>80:
    bpy.context.view_layer.objects.active=ob
-   dec=ob.modifiers.new('Witness geometry budget','DECIMATE');dec.ratio=.63
+   dec=ob.modifiers.new('Witness geometry budget','DECIMATE');dec.ratio=.85 if ob.name.startswith(('Continuous face','Swept hair')) else .63
    bpy.ops.object.modifier_apply(modifier=dec.name)
  paint_albedo(M,parts)
  for ob in parts:
@@ -91,9 +59,17 @@ for spec in config['actors']:
  bpy.context.view_layer.update()
  actors.append((spec,root,upper,head,M,parts));all_parts.update(parts)
  all_materials.update({spec['id']+'_'+n:m for n,m in M.items()})
+if '--draft' in sys.argv:
+ from review_character_anatomy import review_anatomy
+ review_anatomy(actors,key)
+ sys.exit(0)
 probe=config['actors'][0]['position'];probe=(probe[0],1.45,probe[2]+.4)
-report=bake_lighting(all_materials,ROOT,asset=asset,size=1024,environment_width=256,
+# Do not let overlay eyes/lips cast shadows into the face atlas they will sample.
+details=facial_details(all_parts)
+for detail in details:detail.hide_render=True
+report=bake_lighting(all_materials,ROOT,asset=asset,size=1024,environment_width=256,character_charts=True,
  lights=[],exterior=neutral,neutral_value=.16 if key in ('workhouse','street') else .85,occluders={o for o in room if o.type=='MESH'},probe=probe,island_margin=.01)
+for detail in details:detail.hide_render=False
 for spec,root,upper,head,M,parts in actors:
  for group in (root,upper,head):
   for name,material in M.items():
@@ -104,6 +80,7 @@ for spec,root,upper,head,M,parts in actors:
    bpy.context.view_layer.objects.active=obs[0]
    if len(obs)>1:bpy.ops.object.join()
    obs[0].name=group.name+'_'+name
+for _,_,_,head,_,_ in actors:stabilize_head_lighting(head)
 objects=[o for o in bpy.context.scene.objects if o not in room and o.type in {'MESH','EMPTY'}]
 folder=ROOT/f'assets/{asset}';folder.mkdir(exist_ok=True)
 bpy.context.preferences.filepaths.save_version=0;bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(folder/(asset+'.blend')))

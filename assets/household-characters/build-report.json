@@ -16,15 +16,29 @@
       "faceWidth": 0.91,
       "faceHeight": 0.97,
       "labelHeight": 1.72,
-      "height": 1.52
+      "height": 1.52,
+      "appearance": {
+        "age": 0.28,
+        "nose": 0.8,
+        "jaw": 0.9,
+        "hairline": 0.002,
+        "hairStyle": "center-part",
+        "cheeks": 1.15,
+        "noseWidth": 0.92,
+        "eyeSpacing": 1.08,
+        "mouthWidth": 1.02,
+        "lipFullness": 1.2,
+        "browSlope": 0.001,
+        "chin": 0.75
+      }
     }
   ],
-  "triangles": 18031,
-  "materialBatches": 10,
+  "triangles": 20137,
+  "materialBatches": 11,
   "bakedLighting": {
     "size": 1024,
     "normalization": 4,
-    "diffusePeak999": 2.1388,
+    "diffusePeak999": 2.0882,
     "environmentSize": [
       256,
       128

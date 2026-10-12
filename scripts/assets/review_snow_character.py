@@ -20,6 +20,16 @@ for ob in bpy.context.scene.objects:
   if bs.inputs['Base Color'].is_linked:ls.new(bs.inputs['Base Color'].links[0].from_socket,mul.inputs[2])
   ls.new(tex.outputs['Color'],mul.inputs[1]);em=ns.new('ShaderNodeEmission');em.inputs['Strength'].default_value=4;ls.new(mul.outputs[0],em.inputs['Color']);ls.new(em.outputs[0],ns.get('Material Output').inputs['Surface'])
 camdata=bpy.data.cameras.new('Review');cam=bpy.data.objects.new('Review',camdata);s.collection.objects.link(cam);s.camera=cam
-for name,pos,target,lens in [('room',(1.65,1.62,1.65),(-.65,1.1,-2),32),('face',(-.05,1.48,-.55),(-.65,1.40,-2.28),65),('torso',(-.05,1.25,-.50),(-.65,.99,-2.20),55),('hands',(-.55,1.42,-1.22),(-.65,.835,-1.66),55)]:
+for name,pos,target,lens in ([] if '--anatomy-only' in sys.argv else [('room',(1.65,1.62,1.65),(-.65,1.1,-2),32),('face',(-.05,1.48,-.55),(-.65,1.40,-2.28),65),('torso',(-.05,1.25,-.50),(-.65,.99,-2.20),55),('hands',(-.55,1.42,-1.22),(-.65,.835,-1.66),55)]):
  cam.location=(pos[0],-pos[2],pos[1]);cam.rotation_euler=(Vector((target[0],-target[2],target[1]))-cam.location).to_track_quat('-Z','Y').to_euler();camdata.lens=lens
+ s.render.filepath=str(output/f'snow-character-{name}.png');bpy.ops.render.render(write_still=True)
+for ob in s.objects:
+ if ob.type=='MESH':ob.hide_render=not ob.name.startswith('Snow_')
+camdata.type='ORTHO';camdata.ortho_scale=1.8
+s.render.resolution_x=720;s.render.resolution_y=1000
+for name,pos in [('front',(-.5,.8,1)),('side',(2.3,.8,-1.4)),('face',(-.61,1.39,-1.28))]:
+ cam.location=(pos[0],-pos[2],pos[1]);target=Vector((-.65,2.12,.8))
+ if name=='face':
+  target=Vector((-.65,2.28,1.39));camdata.ortho_scale=.36;s.render.resolution_y=720
+ cam.rotation_euler=(target-cam.location).to_track_quat('-Z','Y').to_euler()
  s.render.filepath=str(output/f'snow-character-{name}.png');bpy.ops.render.render(write_still=True)

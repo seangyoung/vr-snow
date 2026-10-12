@@ -1,0 +1,18 @@
+WebXR Input Profiles Registry — controller button assignments
+
+Source: https://github.com/immersive-web/webxr-input-profiles
+Revision: f4992299601614adbfefd398dc8e281556bb7444
+Retrieved: 2026-10-10
+Paths: packages/registry/profiles/{oculus,meta,pico,valve,hp,microsoft}/*.json
+
+The compact table in src/walkable/controller-buttons.json selects the primary
+and secondary face-button indices and labels from the listed registry profiles.
+It omits model assets and other components. It is modified for this application.
+
+Registry license notice:
+All documents in this Repository are licensed by contributors under the
+W3C Software and Document License:
+https://www.w3.org/Consortium/Legal/copyright-software
+
+Upstream notice:
+https://github.com/immersive-web/webxr-input-profiles/blob/f4992299601614adbfefd398dc8e281556bb7444/packages/registry/LICENSE.md

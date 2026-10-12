@@ -1,11 +1,11 @@
 {
-  "version": 3,
-  "triangles": 29422,
+  "version": 4,
+  "triangles": 29466,
   "materialBatches": 12,
   "bakedLighting": {
     "size": 1024,
     "normalization": 4,
-    "diffusePeak999": 1.1264,
+    "diffusePeak999": 1.1101,
     "environmentSize": [
       256,
       128

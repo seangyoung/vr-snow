@@ -2,7 +2,7 @@
 import bpy, math, bmesh
 
 
-def build_hands(finish, upper):
+def build_hands(finish, upper, pose='desk', wrists=None):
     def tube(name, sections, material, sides=12):
         # Each section: x, height, forward position, half-width, half-thickness.
         verts=[];faces=[]
@@ -14,7 +14,26 @@ def build_hands(finish, upper):
         for j in range(len(sections)-1):
             for i in range(sides):faces.append((j*sides+i,j*sides+(i+1)%sides,(j+1)*sides+(i+1)%sides,(j+1)*sides+i))
         faces.extend([tuple(reversed(range(sides))),tuple((len(sections)-1)*sides+i for i in range(sides))])
-        mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
+        # Pose the entire hand in one orthonormal frame. Bending individual
+        # vertices with the sleeve used to flatten/twist standing wrists.
+        from mathutils import Vector
+        origin=Vector((side*.20,.850,.515))
+        target=Vector(wrists[side]) if wrists else origin
+        if pose=='standing':
+            across=Vector((0,-side*.20,-side*.979796))
+            back=Vector((side,0,0));forward=Vector((0,-.979796,.20))
+        else:
+            across=Vector((1,0,0));back=Vector((0,1,0));forward=Vector((0,0,1))
+        posed=[]
+        for x,zneg,y in verts:
+            p=Vector((x,y,-zneg))-origin
+            if pose=='standing' and name.startswith('Hand'):
+                # A relaxed partial curl, increasing after the knuckles.
+                bend=max(0,p.z-.080)
+                p.y-=.32*bend; p.z-=.07*bend
+            p=target+across*p.x+back*p.y+forward*p.z
+            posed.append((p.x,-p.z,p.y))
+        mesh=bpy.data.meshes.new(name);mesh.from_pydata(posed,[],faces);mesh.update()
         bm=bmesh.new();bm.from_mesh(mesh);bmesh.ops.recalc_face_normals(bm,faces=bm.faces);bm.to_mesh(mesh);bm.free()
         ob=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(ob)
         return finish(ob,name,material,upper)

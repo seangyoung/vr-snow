@@ -8,14 +8,14 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["ui/createUi", "ui/DesktopKeyboard", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["ui/createUi", "ui/DesktopKeyboard", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
   await mkdir(resolve(output, name, ".."), { recursive: true });
   await writeFile(resolve(output, `${name}.js`), compiled);
 }
-for (const name of ["scene-characters", "office-layout", "registrar-layout", "household-layout", "workhouse-layout", "brewery-layout"]) await copyFile(`src/walkable/${name}.json`, resolve(output, `walkable/${name}.json`));
+for (const name of ["controller-buttons", "scene-characters", "office-layout", "registrar-layout", "household-layout", "workhouse-layout", "brewery-layout"]) await copyFile(`src/walkable/${name}.json`, resolve(output, `walkable/${name}.json`));
 await writeFile(resolve(output, "package.json"), '{"type":"module"}');
 const load = (name) => import(pathToFileURL(resolve(output, `${name}.js`)).href);
 const { teleportViewer, turnViewer, standardTurnAxis } = await load("walkable/locomotion");
@@ -477,6 +477,9 @@ test('office/street/panorama lifecycle restores scene geometry, lighting and arr
     const spawn=id==='snow-desk'?officeSpawn:id==='broad-street'?streetSpawn:id==='registrar'?registrarSpawn:id==='household'?householdSpawn:id==='workhouse'?workhouseSpawn:id==='brewery'?brewerySpawn:new THREE.Vector3();
     const viewer=camera.getWorldPosition(new THREE.Vector3());assert.ok(Math.hypot(viewer.x-spawn.x,viewer.z-spawn.z)<1e-10);
     assert.equal(scene.worldTravelPending,false);
+    scene.renderer.xr.isPresenting=true;scene.vrHeightOffset=.47;
+    scene.applyCurrentLocation();assert.equal(rig.position.y,.47,`${id}: retain the seated height correction`);
+    scene.renderer.xr.isPresenting=false;scene.applyCurrentLocation();assert.equal(rig.position.y,0);
     if(id==='board-room') game.finishBoard();
   }
 });
@@ -764,7 +767,7 @@ test("VR modal panels overlay scenery and keep controller actions modal", () => 
   // Exercise the real panel factory; no browser/GPU is needed to paint an empty
   // background. The browser regression fixture verifies the rendered result.
   const originalDocument = globalThis.document;
-  const context = { createLinearGradient: () => ({ addColorStop() {} }), fillRect() {}, strokeRect() {} };
+  const context = { createLinearGradient: () => ({ addColorStop() {} }), fillRect() {}, strokeRect() {}, translate() {} };
   globalThis.document = { createElement: () => ({ width: 0, height: 0, getContext: () => context }) };
   const scene = Object.create(BroadStreetScene.prototype);
   const camera = new THREE.PerspectiveCamera();
@@ -1160,14 +1163,14 @@ test('failed character lighting does not remove the office or its desk interacti
 
 const {Soundscape,FootstepTracker,sanitizeSoundSettings}=await load('audio/Soundscape');
 function fakeAudioContext() {
-  const param=(value=0)=>({value,setTargetAtTime(v){this.value=v;},setValueAtTime(v){this.value=v;},linearRampToValueAtTime(v){this.value=v;},exponentialRampToValueAtTime(v){this.value=v;},cancelScheduledValues(){}});
+  const param=(value=0)=>({value,automation:[],setTargetAtTime(v){this.value=v;},setValueAtTime(v){this.value=v;this.automation.push(v);},linearRampToValueAtTime(v){this.value=v;this.automation.push(v);},exponentialRampToValueAtTime(v){this.value=v;},cancelScheduledValues(){}});
   const node=()=>({connections:[],connect(other){this.connections.push(other);return other;},disconnect(){this.connections=[];}});
   const c={state:'suspended',currentTime:1,destination:node(),sources:[],buffers:[],gains:[],resumeCount:0,suspendCount:0,
     async resume(){this.resumeCount++;this.state='running';},async suspend(){this.suspendCount++;this.state='suspended';},async close(){this.state='closed';},
     createGain(){const n={...node(),gain:param()};this.gains.push(n);return n;},
     createBiquadFilter:()=>({...node(),frequency:param(),Q:param()}),
     createPanner:()=>({...node(),positionX:param(),positionY:param(),positionZ:param()}),
-    createBuffer(channels,length,rate){const data=new Float32Array(length);const b={length,sampleRate:rate,getChannelData:()=>data};this.buffers.push(b);return b;},
+    createBuffer(channels,length,rate){const data=new Float32Array(length);const b={length,sampleRate:rate,duration:length/rate,getChannelData:()=>data};this.buffers.push(b);return b;},
     createBufferSource(){const source={...node(),playbackRate:param(1),started:false,stopped:false,start(){this.started=true;},stop(time){this.stopped=true;this.stopAt=time;}};this.sources.push(source);return source;},
     listener:Object.fromEntries(['positionX','positionY','positionZ','forwardX','forwardY','forwardZ','upX','upY','upZ'].map(name=>[name,param()]))};return c;
 }
@@ -1192,7 +1195,7 @@ test('audio is gesture-started, generated samples are finite, and location loops
   await Promise.all([audio.unlock(),audio.unlock()]);assert.equal(created,1);assert.equal(c.state,'running');
   assert.equal(audio.active.length,1);
   for(const b of c.buffers){let peak=0;for(const v of b.getChannelData(0)){assert.ok(Number.isFinite(v));peak=Math.max(peak,Math.abs(v));}assert.ok(peak>0&&peak<=1);}
-  const old=audio.active[0];audio.setLocation('broad-street');assert.equal(audio.active.length,2);assert.ok(old.source.stopped);assert.equal(old.source.stopAt,c.currentTime+.4);
+  const old=audio.active[0];audio.setLocation('broad-street');assert.equal(audio.active.length,1);assert.ok(old.source.stopped);assert.equal(old.source.stopAt,c.currentTime+.4);
   audio.update({x:1,y:2,z:3},{x:0,y:0,z:-1},{x:0,y:1,z:0},false);assert.equal(c.listener.positionX.value,1);assert.equal(c.listener.forwardZ.value,-1);
   audio.dispose();assert.equal(c.state,'closed');assert.ok(c.sources.every(s=>s.stopped));assert.equal(audio.allSources.size,0);
   const count=c.sources.length;audio.setLocation('household');await audio.unlock();assert.equal(c.sources.length,count);
@@ -1297,6 +1300,44 @@ for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} 
     }
   }
   const atlas=await readFile(`public/models/${definition.asset}-lightmap.png`);assert.equal(atlas.readUInt32BE(16),1024);assert.equal(atlas.readUInt32BE(20),1024);
+});
+
+// Check exported geometry in actor coordinates, including rotated street residents.
+for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} figures have continuous lower bodies and relaxed standing wrists`,async()=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const bytes=await readFile(`public/models/${definition.asset}.glb`);
+  const {scene}=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
+  scene.updateMatrixWorld(true);
+  for(const actor of definition.actors) {
+    const root=scene.getObjectByName(actor.id+'_root'),lower=scene.getObjectByName(actor.id+'_root_Coat');
+    assert.ok(lower,'hips and legs or skirt remain a real lower-body mesh');
+    const cast=(x,y,z,dir,mesh=lower)=>new THREE.Raycaster(new THREE.Vector3(x,y,z).applyMatrix4(root.matrixWorld),new THREE.Vector3(...dir).transformDirection(root.matrixWorld)).intersectObject(mesh,false)[0];
+    if(!actor.dress) {
+      const standing=actor.pose==='standing';
+      // Waist and crotch must connect across the centerline; two separate capped
+      // cones would pass individual leg checks but leave a missing pelvis.
+      for(const y of standing?[.82,.87,.92]:[.53,.57,.62])assert.ok(cast(0,y,1,[0,0,-1]),`${actor.id}: pelvis gap at ${y}`);
+      for(const side of [-1,1])for(let y=.16;y< (standing?.85:.49);y+=.025)
+        assert.ok(cast(side*.11,y,1,[0,0,-1]),`${actor.id}: leg gap at ${y}`);
+    }
+    if(actor.pose==='standing') {
+      const skin=scene.getObjectByName(actor.id+'_upper_Skin');
+      const matrix=new THREE.Matrix4().multiplyMatrices(root.matrixWorld.clone().invert(),skin.matrixWorld);
+      const positions=skin.geometry.getAttribute('position');
+      for(const side of [-1,1]) {
+        const hand=[];
+        for(let i=0;i<positions.count;i++) {
+          const p=new THREE.Vector3().fromBufferAttribute(positions,i).applyMatrix4(matrix);
+          if(p.y<1.05&&p.x*side>.20)hand.push(p);
+        }
+        assert.ok(hand.length>50,'complete hand is present');
+        const bounds=new THREE.Box3().setFromPoints(hand),size=bounds.getSize(new THREE.Vector3());
+        assert.ok(bounds.min.y>.68&&bounds.max.y<.91,'hand rests beside thigh below wrist');
+        assert.ok(size.y>.12&&size.x<.060&&size.z<.12,'hand points down with the palm facing the thigh');
+        assert.ok(cast(side*.40,.82,.05,[-side,0,0],skin),'wrist-to-palm surface remains connected');
+      }
+    }
+  }
 });
 
 for(const [key,Room] of Object.entries(witnessRooms))test(`${key} witness nameplate follows aim and stays hidden during a panel`,()=>{
@@ -1431,4 +1472,289 @@ test('scene guidance names selectable figures and objects, including noninteract
     assert.match(game.getInteractionHint(),pattern);
     assert.doesNotMatch(game.getInteractionHint(),/gold|marker|marked (table|chair)/i);
   }
+});
+
+test('all character eye overlays inherit varied face lighting instead of a glowing neutral patch',async()=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  for(const asset of ['snow-character',...Object.values(characterDefinitions).map(definition=>definition.asset)]) {
+    const bytes=await readFile(`public/models/${asset}.glb`);
+    const {scene}=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
+    const eyes=[];scene.traverse(ob=>{if(ob.isMesh&&ob.name.includes('_head_Eye'))eyes.push(ob);});
+    assert.ok(eyes.length>=2,`${asset}: expected iris and sclera meshes`);
+    for(const eye of eyes) {
+      const uv=eye.geometry.getAttribute('uv1');assert.ok(uv);
+      const values=Array.from(uv.array);
+      assert.ok(values.every(value=>Number.isFinite(value)&&value>=0&&value<.98),`${asset}: facial UVs must sample the baked surface`);
+      assert.ok(Math.max(...values)-Math.min(...values)>.01,`${asset}: facial lighting must not collapse to a constant patch`);
+    }
+    // Interpolating between unrelated atlas islands makes black streaks even
+    // when every individual UV coordinate points at a valid baked texel.
+    scene.traverse(ob=>{
+      if(!ob.isMesh||!/_head_(Hair|Eye|Eye_white|Lip)$/.test(ob.name))return;
+      const uv=ob.geometry.getAttribute('uv1'),indices=ob.geometry.index;
+      const count=indices?indices.count:uv.count;
+      for(let i=0;i<count;i+=3) {
+        const a=indices?indices.getX(i):i;
+        for(let corner=1;corner<3;corner++) {
+          const b=indices?indices.getX(i+corner):i+corner;
+          assert.equal(uv.getX(a),uv.getX(b),`${asset}/${ob.name}: triangle crosses atlas islands`);
+          assert.equal(uv.getY(a),uv.getY(b),`${asset}/${ob.name}: triangle crosses atlas islands`);
+        }
+      }
+    });
+  }
+});
+
+const {ambienceProfiles,clipGroups}=await load('audio/ambience');
+const silentClipLoader=async()=>{throw new Error('optional sound unavailable');};
+const audioPosition={x:0,y:1.62,z:0},audioForward={x:0,y:0,z:-1},audioUp={x:0,y:1,z:0};
+function tickAudio(sound){sound.update(audioPosition,audioForward,audioUp,false);}
+function seedClips(sound,c) {
+  for(const name of Object.values(clipGroups).flat()) {
+    const buffer=c.createBuffer(1,22050*(name==='wagon'?12:1),22050);
+    buffer.getChannelData(0).fill(.1);sound.recordings.set(name,buffer);
+  }
+}
+
+test('reading ducks ambience smoothly without overwriting preferences or effects, then restores it',async()=>{
+  const c=fakeAudioContext(),sound=new Soundscape(()=>c,silentClipLoader,()=>.5);
+  sound.setReading(true);await sound.unlock();sound.setLevel('ambience',.6);
+  assert.equal(sound.getSettings().ambience,.6);assert.equal(sound.ambience.gain.value,.6*.22);
+  assert.equal(sound.effects.gain.value,.35);seedClips(sound,c);
+  c.currentTime=100;const count=c.sources.length;tickAudio(sound);assert.equal(c.sources.length,count);
+  sound.setReading(false);assert.equal(sound.ambience.gain.value,.6);
+  tickAudio(sound);assert.equal(c.sources.length,count,'no queued burst when a panel closes');
+  c.currentTime=sound.nextEvent+.1;tickAudio(sound);assert.equal(sound.events.size,1);
+  sound.dispose();
+});
+
+test('spatial events use irregular intervals, alternate kinds and clips, and move street traffic',async()=>{
+  const c=fakeAudioContext();let randomValue=.1;
+  const sound=new Soundscape(()=>c,silentClipLoader,()=>randomValue);sound.setLocation('broad-street');
+  await sound.unlock();seedClips(sound,c);
+  c.currentTime=sound.nextEvent;tickAudio(sound);
+  const first=[...sound.events][0];assert.ok(first);assert.equal(first.source.loop,false);
+  assert.equal(sound.lastEventKind,'wagon');assert.equal(first.panner.positionX.automation.length,2);assert.notEqual(...first.panner.positionX.automation);
+  const firstDelay=sound.nextEvent-c.currentTime;first.source.onended();assert.equal(sound.events.size,0);
+  randomValue=.8;c.currentTime=sound.nextEvent;tickAudio(sound);
+  assert.notEqual(sound.lastEventKind,'wagon');assert.notEqual(sound.nextEvent-c.currentTime,firstDelay);
+  assert.notEqual(sound.pickClip('paper'),sound.pickClip('paper'));
+  sound.dispose();
+});
+
+test('every location has bounded sparse foley, and travel retires old events without accumulating loops',async()=>{
+  const c=fakeAudioContext(),sound=new Soundscape(()=>c,silentClipLoader,()=>.2);
+  await sound.unlock();seedClips(sound,c);
+  for(const location of Object.keys(ambienceProfiles)) {
+    sound.setLocation(location);assert.equal(sound.active.length,1);
+    assert.ok(sound.allSources.size<=4);
+    c.currentTime=sound.nextEvent;tickAudio(sound);
+    assert.equal(sound.events.size,1,location);
+    const event=[...sound.events][0];sound.setLocation('unknown');assert.equal(sound.active.length,0);
+    assert.equal(event.retiring,true);assert.equal(event.source.stopAt,c.currentTime+.4);
+    assert.equal(sound.events.size,0);tickAudio(sound);
+  }
+  sound.dispose();assert.equal(sound.allSources.size,0);
+});
+
+test('muting, zero ambience, and XR suspension never create new ambient events or resume in a burst',async()=>{
+  const c=fakeAudioContext(),sound=new Soundscape(()=>c,silentClipLoader,()=>.2);
+  await sound.unlock();seedClips(sound,c);
+  for(const quiet of ['mute','zero','xr']) {
+    if(quiet==='mute')sound.toggleMuted();
+    if(quiet==='zero')sound.setLevel('ambience',0);
+    if(quiet==='xr')sound.setHidden(true,'xr');
+    const count=c.sources.length;c.currentTime+=200;tickAudio(sound);assert.equal(c.sources.length,count);
+    if(quiet==='mute')sound.toggleMuted();
+    if(quiet==='zero')sound.setLevel('ambience',.2);
+    if(quiet==='xr'){sound.setHidden(false,'xr');await Promise.resolve();}
+    tickAudio(sound);assert.equal(c.sources.length,count);
+  }
+  sound.dispose();
+});
+
+test('recordings load once after a gesture, with two workers; failed clips leave fallback available',async()=>{
+  const c=fakeAudioContext();let requests=0,inFlight=0,peak=0;
+  c.decodeAudioData=async()=>c.createBuffer(1,22050,22050);
+  const sound=new Soundscape(()=>c,async(url)=>{
+    requests++;peak=Math.max(peak,++inFlight);await Promise.resolve();inFlight--;
+    assert.match(url,/^\/audio\/[\w-]+\.wav$/);
+    if(url.includes('wagon'))throw new Error('missing');return new ArrayBuffer(8);
+  });
+  assert.equal(requests,0);await Promise.all([sound.unlock(),sound.unlock()]);await sound.recordingLoad;
+  assert.equal(peak,2);assert.equal(requests,15);assert.equal(sound.recordings.size,14);
+  assert.ok(sound.cart);sound.setLocation('registrar');await sound.unlock();assert.equal(requests,15);
+  sound.dispose();
+});
+
+test('disposing while a recording is loading aborts and cannot repopulate buffers or start sounds',async()=>{
+  const c=fakeAudioContext();let finish;const pending=new Promise(resolve=>finish=resolve);let signal;
+  c.decodeAudioData=async()=>c.createBuffer(1,22050,22050);
+  const sound=new Soundscape(()=>c,async(_,s)=>{signal=s;await pending;return new ArrayBuffer(8);});
+  await sound.unlock();const count=c.sources.length;sound.dispose();finish();await sound.recordingLoad;
+  assert.equal(signal.aborted,true);assert.equal(sound.recordings.size,0);assert.equal(c.sources.length,count);
+});
+
+test('desktop and XR panels duck audio while sound settings remain at the actual selected level',()=>{
+  const old=globalThis.document;globalThis.document={body:{dataset:{audioReading:'true'}}};
+  try {
+    const reading=[],scene=Object.create(BroadStreetScene.prototype);
+    Object.assign(scene,{sound:{setLocation(){},setReading(v){reading.push(v);},update(){}},
+      gameState:{getCurrentLocation:()=>({id:'snow-desk'})},renderer:{xr:{isPresenting:false}},
+      camera:new THREE.PerspectiveCamera(),soundPosition:new THREE.Vector3(),soundForward:new THREE.Vector3(),
+      soundUp:new THREE.Vector3(),controllerWorldQuaternion:new THREE.Quaternion(),courtyard:{group:{visible:true}},canUseDesktopMovement:()=>false});
+    scene.updateSound();assert.equal(reading.at(-1),true);
+    document.body.dataset.audioReading='false';scene.updateSound();assert.equal(reading.at(-1),false);
+    scene.renderer.xr.isPresenting=true;scene.vrPanelVisible=true;scene.vrPanelMode='notebook';scene.updateSound();assert.equal(reading.at(-1),true);
+    scene.vrPanelMode='sound';scene.updateSound();assert.equal(reading.at(-1),false);
+    scene.vrPanelVisible=false;scene.updateSound();assert.equal(reading.at(-1),false);
+  } finally {globalThis.document=old;}
+});
+
+test('shipped recordings have source credits, verified checksums and a bounded mono PCM budget',async()=>{
+  const {createHash}=await import('node:crypto');
+  const manifest=JSON.parse(await readFile('public/audio/sources.json','utf8'));
+  assert.deepEqual(new Set(manifest.map(x=>x.file)),new Set(Object.values(clipGroups).flat().map(x=>x+'.wav')));
+  let bytes=0,seconds=0;
+  for(const item of manifest) {
+    const data=await readFile('public/audio/'+item.file);bytes+=data.length;seconds+=item.seconds;
+    assert.equal(createHash('sha256').update(data).digest('hex'),item.sha256);
+    assert.match(item.source,/^https:\/\/(kenney.nl|commons.wikimedia.org)\//);assert.ok(item.author&&item.changes);
+    assert.ok(['CC0-1.0','CC-BY-4.0'].includes(item.license));
+    assert.equal(data.toString('ascii',0,4),'RIFF');assert.equal(data.toString('ascii',8,12),'WAVE');
+    assert.equal(data.readUInt16LE(20),1);assert.equal(data.readUInt16LE(22),1);assert.equal(data.readUInt32LE(24),22050);
+    assert.equal(data.readUInt16LE(34),16);
+    let peak=0;for(let i=44;i<data.length;i+=2)peak=Math.max(peak,Math.abs(data.readInt16LE(i)));
+    assert.ok(peak>0&&peak<32768);
+  }
+  assert.ok(bytes<1024*1024);assert.ok(seconds<24);
+  const credits=await readFile('public/audio/credits.html','utf8');
+  assert.match(credits,/Monika Widzicka/);assert.match(credits,/creativecommons.org\/licenses\/by\/4.0/);
+});
+
+const {VrShortcutTracker,VrWalking,leftStick,controllerButtons,adjustViewerHeight,setViewerEyeHeight}=await load('walkable/VrInput');
+function xrController(hand='left',profile='oculus-touch-v3') {
+  return {handedness:hand,profiles:[profile],gamepad:{mapping:'xr-standard',axes:[0,0,0,0],
+    buttons:Array.from({length:7},()=>({pressed:false,value:0,touched:false}))}};
+}
+test('controller face shortcuts follow known profiles and do not assume two extra buttons',()=>{
+  const source=xrController();assert.equal(controllerButtons(source).primary.index,4);
+  assert.equal(controllerButtons(source).secondary.label,'Y');
+  source.gamepad.buttons.length=5;assert.equal(controllerButtons(source).secondary,undefined);
+  source.profiles=['unknown'];assert.deepEqual(controllerButtons(source),{});
+  source.profiles=['microsoft-mixed-reality'];assert.deepEqual(controllerButtons(source),{});
+  source.profiles=['valve-index'];assert.equal(controllerButtons(source).primary.index,4);assert.equal(controllerButtons(source).secondary,undefined);
+  source.gamepad.mapping='';assert.deepEqual(controllerButtons(source),{});
+  source.gamepad.mapping='xr-standard';source.hand={};assert.deepEqual(controllerButtons(source),{});
+});
+test('controller shortcuts fire once per press, preserve handedness and ignore held reconnect/resume buttons',()=>{
+  const tracker=new VrShortcutTracker(),left=xrController(),right=xrController('right');
+  tracker.update(left,true);tracker.update(right,true);
+  left.gamepad.buttons[4].pressed=true;assert.deepEqual(tracker.update(left,true),['map']);
+  assert.deepEqual(tracker.update(left,true),[]);left.gamepad.buttons[4].pressed=false;tracker.update(left,true);
+  left.gamepad.buttons[5].pressed=true;assert.deepEqual(tracker.update(left,true),['notebook']);
+  right.gamepad.buttons[4].pressed=true;assert.deepEqual(tracker.update(right,true),['height']);
+  right.gamepad.buttons[5].pressed=true;assert.deepEqual(tracker.update(right,true),['settings']);
+  tracker.forget(right);assert.deepEqual(tracker.update(right,true),[]);
+  tracker.clear();assert.deepEqual(tracker.update(left,false),[]);assert.deepEqual(tracker.update(left,true),[]);
+});
+test('left-stick walking has a deadzone, rejects nonstandard/nonfinite input and caps diagonal speed',()=>{
+  const left=xrController();left.gamepad.axes=[0,0,.1,.1];assert.equal(leftStick(left).length(),0);
+  left.gamepad.axes=[0,0,1,-1];assert.ok(Math.abs(leftStick(left).length()-1)<1e-10);
+  left.gamepad.axes[2]=NaN;assert.equal(leftStick(left).length(),0);
+  left.gamepad.axes=[0,0,0,-1];left.handedness='right';assert.equal(leftStick(left).length(),0);
+  left.handedness='left';left.gamepad.mapping='';assert.equal(leftStick(left).length(),0);
+});
+test('VR walking is head-relative and horizontal, clamps paused frames and waits for center after menus',()=>{
+  const walking=new VrWalking(),pos=new THREE.Vector3(0,1.1,0),forward=new THREE.Vector3(1,.5,0);
+  const stick=new THREE.Vector2(0,-1),zero=new THREE.Vector2();
+  assert.deepEqual(walking.update(pos,forward,stick,1,true,()=>true),pos);
+  walking.update(pos,forward,zero,.016,true,()=>true);
+  const moved=walking.update(pos,forward,stick,10,true,()=>true);
+  assert.ok(Math.abs(moved.x-.0675)<1e-10);assert.equal(moved.y,1.1);assert.equal(moved.z,0);
+  assert.deepEqual(walking.update(pos,forward,stick,.016,false,()=>true),pos);
+  assert.deepEqual(walking.update(pos,forward,stick,.016,true,()=>true),pos);
+  walking.update(pos,forward,zero,.016,true,()=>true);
+  assert.ok(walking.update(pos,forward,stick,.016,true,()=>true).x>0);
+  assert.deepEqual(walking.update(pos,forward,stick,NaN,true,()=>true),pos);
+});
+test('VR movement respects swept furniture collision and slides along clear axes',async()=>{
+  const {WalkableArea}=await load('walkable/WalkableArea');
+  const area=new WalkableArea({minX:-2,maxX:2,minZ:-2,maxZ:2},[{minX:.02,maxX:1,minZ:-.5,maxZ:.5}]);
+  const walking=new VrWalking(),pos=new THREE.Vector3(0,1.62,0),forward=new THREE.Vector3(0,0,-1);
+  walking.update(pos,forward,new THREE.Vector2(),0,true,area.canWalkBetween);
+  const next=walking.update(pos,forward,new THREE.Vector2(1,-1).normalize(),.05,true,area.canWalkBetween);
+  assert.equal(next.x,0);assert.ok(next.z<0);assert.equal(next.y,1.62);
+});
+test('height changes calibrate a seated viewer, preserve tracking and controller alignment, and remain bounded',()=>{
+  const rig=new THREE.Group(),camera=new THREE.PerspectiveCamera(),controller=new THREE.Group();
+  camera.position.set(.4,1.05,.2);controller.position.set(.6,.7,0);rig.add(camera,controller);
+  const separation=camera.getWorldPosition(new THREE.Vector3()).sub(controller.getWorldPosition(new THREE.Vector3()));
+  setViewerEyeHeight(rig,camera,1.62);assert.ok(Math.abs(camera.getWorldPosition(new THREE.Vector3()).y-1.62)<1e-10);
+  assert.ok(camera.getWorldPosition(new THREE.Vector3()).sub(controller.getWorldPosition(new THREE.Vector3())).distanceTo(separation)<1e-10);
+  camera.position.y+=.12;rig.updateMatrixWorld(true);assert.ok(Math.abs(camera.getWorldPosition(new THREE.Vector3()).y-1.74)<1e-10);
+  const offset=rig.position.y;teleportViewer(rig,camera,new THREE.Vector3(4,0,5));turnViewer(rig,camera,.6);assert.equal(rig.position.y,offset);
+  setViewerEyeHeight(rig,camera,1.15);assert.ok(Math.abs(camera.getWorldPosition(new THREE.Vector3()).y-1.15)<1e-10);
+  assert.equal(adjustViewerHeight(rig,100),1.4);assert.equal(adjustViewerHeight(rig,-100),-.8);
+  assert.equal(adjustViewerHeight(rig,NaN),-.8);assert.equal(adjustViewerHeight(rig,.8),0);
+});
+test('left stick cannot snap-turn, right stick turns once until released',()=>{
+  const scene=Object.create(BroadStreetScene.prototype),left=xrController(),right=xrController('right');
+  const lc=new THREE.Group(),rc=new THREE.Group();let turns=0;
+  Object.assign(scene,{vrControllers:[lc,rc],vrInputSources:new Map([[lc,left],[rc,right]]),snapTurnLocked:false,
+    courtyard:{group:{visible:true}},turnWalkableView(){turns++;}});
+  left.gamepad.axes[2]=1;scene.updateSnapTurn();assert.equal(turns,0);
+  right.gamepad.axes[2]=1;scene.updateSnapTurn();scene.updateSnapTurn();assert.equal(turns,1);
+  right.gamepad.axes[2]=0;scene.updateSnapTurn();right.gamepad.axes[2]=-1;scene.updateSnapTurn();assert.equal(turns,2);
+});
+test('face shortcuts open/close utilities without clearing the current conversation answer',()=>{
+  const game=fieldGame(true);game.travelToLocation('brewery');game.inspectHotspot('broad-street-brewery');game.askQuestion('brewery-drink-question');
+  const answer=game.getActiveDialogueAnswer(),scene=Object.create(BroadStreetScene.prototype);
+  Object.assign(scene,{gameState:game,vrPanelVisible:false,vrPanelMode:'home',getDefaultVrStatus:()=>'',
+    showVrPanel(){this.vrPanelVisible=true;},hideVrPanel(timer,preserve){assert.equal(preserve,true);this.vrPanelVisible=false;}});
+  for(const mode of ['map','notebook','settings']) {
+    scene.openVrShortcut(mode);assert.equal(scene.vrPanelMode,mode);assert.equal(scene.vrPanelVisible,true);
+    scene.openVrShortcut(mode);assert.equal(scene.vrPanelVisible,false);assert.deepEqual(game.getActiveDialogueAnswer(),answer);
+  }
+  const source=xrController('right');source.gamepad.buttons[4].pressed=true;
+  assert.deepEqual(scene.getVrPaginationButtonState(source),{nextPagePressed:false,previousPagePressed:false});
+  source.gamepad.buttons[3].pressed=true;assert.equal(scene.getVrPaginationButtonState(source).nextPagePressed,true);
+});
+test('compact menus retain fallback actions, have smaller surfaces, and keep all targets inside the panel',()=>{
+  const scene=Object.create(BroadStreetScene.prototype),game=new GameState(),commands=[];
+  Object.assign(scene,{gameState:game,vrPanelVisible:true,vrPanel:{visible:true},vrPanelDrawCommands:[],vrInputSources:new Map(),
+    vrHeightOffset:0,vrStandingView:false,vrStatus:'',vrWalkingEnabled:true,clearVrPanel(){commands.length=0;},addVrPanelSurface(){},
+    addVrText(text,x,y,width,height){commands.push({text,x,y,width,height});},
+    addVrPanelButton(text,x,y,width,height,action){commands.push({text,x,y,width,height,action});},
+    addVrIconButton(text,x,y,size,action){commands.push({text,x,y,width:size,height:size,action});}});
+  for(const mode of ['home','settings','height','controls']) {
+    scene.vrPanelMode=mode;scene.rebuildVrPanel();assert.ok(scene.vrSurfaceHeight<2.05);
+    for(const command of commands)assert.ok(Math.abs(command.y)+command.height/2<=scene.vrSurfaceHeight/2,`${mode}: ${command.text}`);
+    if(mode==='home')for(const target of ['map','notebook','settings'])assert.ok(commands.some(c=>c.action?.mode===target));
+    if(mode==='settings')assert.ok(commands.some(c=>c.action?.type==='exit-vr'));
+    if(mode==='height')for(const action of ['height-adjust','height-toggle','height-reset'])assert.ok(commands.some(c=>c.action?.type===action));
+  }
+});
+test('Exit VR ends only the XR session, suppresses duplicate requests and offers retry after failure',async()=>{
+  const game=fieldGame(true),scene=Object.create(BroadStreetScene.prototype);let ends=0,finish;
+  const waiting=new Promise(resolve=>finish=resolve),session={end:()=>{ends++;return waiting;}};
+  Object.assign(scene,{gameState:game,renderer:{xr:{getSession:()=>session}},vrExitPending:false,markVrPanelDirty(){}});
+  const count=game.getCollectedEvidence().length;
+  const first=scene.exitVr();await scene.exitVr();assert.equal(ends,1);finish();await first;assert.equal(game.getCollectedEvidence().length,count);
+  scene.vrExitPending=false;session.end=async()=>{throw new Error('runtime refused');};await scene.exitVr();
+  assert.equal(scene.vrExitPending,false);assert.match(scene.vrStatus,/Could not exit VR/);
+});
+
+test('leaving VR restores desktop eye height and clears transient controller state without resetting progress',()=>{
+  const old=globalThis.document;globalThis.document={body:{dataset:{}}};
+  try {
+    const rig=new THREE.Group(),camera=new THREE.PerspectiveCamera();rig.add(camera);rig.position.y=.5;
+    const scene=Object.create(BroadStreetScene.prototype);let applied=0;
+    Object.assign(scene,{playerRig:rig,camera,vrHeightOffset:.5,vrStandingView:true,vrExitPending:true,
+      vrWalking:new VrWalking(),vrShortcuts:new VrShortcutTracker(),vrControllerButtonStates:new Map(),
+      destinationLabels:[],hideVrPanel(){},applyCurrentLocation(){applied++;}});
+    scene.handleVrSessionEnd();assert.equal(rig.position.y,0);assert.equal(camera.position.y,1.62);
+    assert.equal(scene.vrHeightOffset,0);assert.equal(scene.vrStandingView,false);assert.equal(scene.vrExitPending,false);
+    assert.equal(document.body.dataset.xrPresenting,'false');assert.equal(applied,1);
+  } finally {globalThis.document=old;}
 });

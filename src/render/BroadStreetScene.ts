@@ -10,6 +10,7 @@ import type { WalkableEnvironment } from "../walkable/WalkableArea";
 import { WorldTravelTargets } from "../walkable/WorldTravelTargets";
 import { worldTravelRoutes, TravelZoneTracker, type WorldTravelRoute } from "../walkable/TravelRoutes";
 import { DesktopMovement, desktopPitchLimit } from "../walkable/DesktopMovement";
+import { VrShortcutTracker, VrWalking, leftStick, controllerButtons, adjustViewerHeight, setViewerEyeHeight } from "../walkable/VrInput";
 import { standardTurnAxis, teleportViewer, turnViewer } from "../walkable/locomotion";
 import { VRButton } from "three/addons/webxr/VRButton.js";
 import { boardThreshold, fieldStudyGoal, noDialogueActionsText } from "../simulation/content";
@@ -25,13 +26,18 @@ type HotspotVisual = {
   label: THREE.Sprite;
 };
 
-type VrPanelMode = "home" | "map" | "notebook" | "synthesis" | "sound";
+type VrPanelMode = "home" | "map" | "notebook" | "synthesis" | "sound" | "settings" | "height" | "controls";
 type VrPanelIcon = "map" | "notebook" | "x";
 
 type VrButtonAction =
   | { type: "mode"; mode: VrPanelMode }
   | { type: "sound-level"; channel: SoundChannel; delta: number }
   | { type: "sound-mute" }
+  | { type: "height-adjust"; delta: number }
+  | { type: "height-toggle" }
+  | { type: "height-reset" }
+  | { type: "walk-toggle" }
+  | { type: "exit-vr" }
   | { type: "close-panel" }
   | { type: "recenter" }
   | { type: "travel"; locationId: LocationId }
@@ -303,6 +309,13 @@ export class BroadStreetScene {
   private vrActivePageKey?: string;
   private vrPanelHiddenSince?: number;
   private snapTurnLocked = false;
+  private readonly vrWalking = new VrWalking();
+  private readonly vrShortcuts = new VrShortcutTracker();
+  private vrHeightOffset = 0;
+  private vrStandingView = false;
+  private vrWalkingEnabled = true;
+  private vrExitPending = false;
+  private vrSurfaceHeight = vrPanelHeight;
   private dragging = false;
   private previousPointer = { x: 0, y: 0 };
   // Undefined uses keyboard aim; null means the mouse has left the canvas.
@@ -391,22 +404,29 @@ export class BroadStreetScene {
       for(const room of [this.registrar,this.household,this.workhouse,this.brewery,this.courtyard]) {
         if(room.group.visible)room.characters?.update(timeSeconds,this.reducedCharacterMotion.matches);
       }
-      this.updateVrControls(timeSeconds);
+      this.updateVrControls(timeSeconds,elapsed);
       this.updateFocusFromCenter();
       this.updateCharacterHoverLabels();
-      if(this.sound) {
-        this.sound.setLocation(this.gameState.getCurrentLocation().id);
-        this.camera.getWorldPosition(this.soundPosition);this.camera.getWorldDirection(this.soundForward);
-        this.soundUp.set(0,1,0).applyQuaternion(this.camera.getWorldQuaternion(this.controllerWorldQuaternion));
-        this.sound.update(this.soundPosition,this.soundForward,this.soundUp,!!this.walkable &&
-          (this.renderer.xr.isPresenting?!this.vrPanelVisible:this.canUseDesktopMovement()));
-      }
+      this.updateSound();
       this.renderer.render(this.scene, this.camera);
       if (this.allowCanvasCapture && this.captureFrameCounter % 12 === 0) {
         this.canvas.dataset.captureFrame = createCaptureDataUrl(this.renderer.domElement);
       }
       this.captureFrameCounter += 1;
     });
+  }
+
+  private updateSound(): void {
+    if(this.sound) {
+      this.sound.setLocation(this.gameState.getCurrentLocation().id);
+      this.sound.setReading(this.renderer.xr.isPresenting
+        ? this.vrPanelVisible && this.vrPanelMode !== "sound"
+        : document.body.dataset.audioReading === "true");
+      this.camera.getWorldPosition(this.soundPosition);this.camera.getWorldDirection(this.soundForward);
+      this.soundUp.set(0,1,0).applyQuaternion(this.camera.getWorldQuaternion(this.controllerWorldQuaternion));
+      this.sound.update(this.soundPosition,this.soundForward,this.soundUp,!!this.walkable &&
+        (this.renderer.xr.isPresenting?!this.vrPanelVisible:this.canUseDesktopMovement()));
+    }
   }
 
   resetView(): void {
@@ -418,6 +438,7 @@ export class BroadStreetScene {
 
   applyCurrentLocation(): void {
     this.desktopMovement.clear();
+    this.vrWalking?.reset();
     this.worldTravelPending = false;
     this.focusedTravel = undefined;
     this.travelZones.reset();
@@ -436,7 +457,7 @@ export class BroadStreetScene {
       if(room?.group.visible)void room.characters?.loadVisuals(import.meta.env?.BASE_URL || "/");
     }
     if (this.panoramaSky) this.panoramaSky.visible = !this.walkable;
-    this.playerRig.position.set(0, 0, 0);
+    this.playerRig.position.set(0, this.renderer.xr.isPresenting ? (this.vrHeightOffset??0) : 0, 0);
     this.applyPanorama(location.id);
     const spawn = this.walkable?.spawn;
     this.yaw = Math.atan2((spawn?.x ?? 0)-target[0], (spawn?.z ?? 0)-target[2]);
@@ -894,9 +915,13 @@ export class BroadStreetScene {
       controller.add(pointer.group);
       controller.addEventListener("connected", (event) => {
         this.vrInputSources.set(controller, event.data);
+        this.vrWalking.reset();
         this.snapTurnLocked = false;
       });
       controller.addEventListener("disconnected", () => {
+        const source=this.vrInputSources.get(controller);
+        if(source)this.vrShortcuts.forget(source);
+        this.vrWalking.reset();
         this.vrInputSources.delete(controller);
         this.vrControllerButtonStates.delete(controller);
         this.snapTurnLocked = false;
@@ -917,9 +942,14 @@ export class BroadStreetScene {
     const session=this.renderer.xr.getSession?.();
     if(session) {
       const syncSound=()=>this.sound?.setHidden(session.visibilityState!=="visible","xr");
-      session.addEventListener("visibilitychange",syncSound);syncSound();
+      session.addEventListener("visibilitychange",()=>{
+        syncSound();this.vrWalking.reset();this.snapTurnLocked=true;
+        this.vrShortcuts.clear();this.vrControllerButtonStates.clear();
+      });syncSound();
     }
     document.body.dataset.xrPresenting = "true";
+    this.vrHeightOffset=0;this.vrStandingView=false;this.playerRig.position.y=0;
+    this.vrWalking.reset();this.vrShortcuts.clear();this.vrExitPending=false;
     this.desktopMovement.clear();
     this.pendingXrSpawn = true;
     this.disableMotionLook("idle");
@@ -934,6 +964,8 @@ export class BroadStreetScene {
   private handleVrSessionEnd(): void {
     this.sound?.setHidden(false,"xr");
     document.body.dataset.xrPresenting = "false";
+    this.vrHeightOffset=0;this.vrStandingView=false;this.playerRig.position.y=0;
+    this.vrWalking.reset();this.vrShortcuts.clear();this.vrControllerButtonStates.clear();this.vrExitPending=false;
     this.pendingXrSpawn = false;
     this.destinationLabels.forEach(({ valid, blocked }) => { valid.visible = blocked.visible = false; });
     this.hideVrPanel(false);
@@ -948,9 +980,9 @@ export class BroadStreetScene {
     }
 
     if (this.vrPanelVisible) {
-      this.hideVrPanel();
+      this.hideVrPanel(true,true);
     } else {
-      this.showVrPanel();
+      this.vrPanelMode="home";this.showVrPanel();
     }
   }
 
@@ -980,16 +1012,30 @@ export class BroadStreetScene {
     if (this.walkable) teleportViewer(this.playerRig, this.camera, next.position);
   }
 
-  private updateVrControls(timeSeconds: number): void {
+  private updateVrControls(timeSeconds: number, elapsed = 0): void {
     if (!this.renderer.xr.isPresenting) {
       this.vrIdleHint.visible = false;
       return;
     }
 
-    if (this.vrPanelDirty) {
-      this.rebuildVrPanel();
+    const session=this.renderer.xr.getSession?.();
+    const focused=!document.hidden && (!session||session.visibilityState==="visible");
+    for(const source of this.vrInputSources.values()) {
+      for(const action of this.vrShortcuts.update(source,focused)) {
+        void this.sound?.unlock();
+        if(action==="height")this.changeVrHeight("toggle");
+        else this.openVrShortcut(action);
+      }
     }
-
+    const source=[...this.vrInputSources.values()].find(source=>source.handedness==="left");
+    const position=this.camera.getWorldPosition(this.cameraWorldPosition);
+    const forward=this.camera.getWorldDirection(this.controllerWorldDirection);
+    const next=this.vrWalking.update(position,forward,leftStick(source),elapsed,
+      focused && this.vrWalkingEnabled && !this.vrPanelVisible && !this.worldTravelPending && !!this.walkable,
+      this.walkable?.canWalkBetween??(()=>false));
+    if(this.walkable)teleportViewer(this.playerRig,this.camera,next);
+    if (this.vrPanelDirty) this.rebuildVrPanel();
+    if(!focused)return;
     this.updateVrPointers();
     this.updateVrButtonFocus();
     this.updateVrPaginationButtons();
@@ -1097,6 +1143,16 @@ export class BroadStreetScene {
   private handleVrButton(action: VrButtonAction): void {
     this.sound?.effect(action.type==="mode" && ["map","notebook"].includes(action.mode)?"paper":"select");
     switch (action.type) {
+      case "exit-vr":
+        void this.exitVr();return;
+      case "height-adjust":
+        this.changeVrHeight(action.delta);break;
+      case "height-toggle":
+        this.changeVrHeight("toggle");break;
+      case "height-reset":
+        this.changeVrHeight("reset");break;
+      case "walk-toggle":
+        this.vrWalkingEnabled=!this.vrWalkingEnabled;this.vrWalking.reset();break;
       case "sound-mute":
         this.sound?.toggleMuted();
         break;
@@ -1104,7 +1160,6 @@ export class BroadStreetScene {
         if(this.sound)this.sound.setLevel(action.channel,this.sound.getSettings()[action.channel]+action.delta);
         break;
       case "mode":
-        if(action.mode!=="sound")this.gameState.clearActiveDialogueAnswer();
         this.vrPanelMode = this.vrPanelMode === action.mode ? "home" : action.mode;
         if (action.mode === "map") {
           this.vrMapNeedsAttention = false;
@@ -1112,7 +1167,9 @@ export class BroadStreetScene {
         this.vrStatus = this.getDefaultVrStatus();
         break;
       case "close-panel":
-        if (this.vrPanelMode !== "home") {
+        if (["sound","height","controls"].includes(this.vrPanelMode)) {
+          this.vrPanelMode="settings";
+        } else if (this.vrPanelMode !== "home") {
           this.vrPanelMode = "home";
           this.vrStatus = this.getDefaultVrStatus();
         } else if (this.gameState.getActiveDialogue()) {
@@ -1195,6 +1252,37 @@ export class BroadStreetScene {
     this.markVrPanelDirty();
   }
 
+  private openVrShortcut(mode:"map"|"notebook"|"settings"):void {
+    if(this.vrPanelVisible&&this.vrPanelMode===mode) {this.hideVrPanel(true,true);return;}
+    this.vrPanelMode=mode;
+    if(mode==="map")this.vrMapNeedsAttention=false;
+    this.vrStatus=this.getDefaultVrStatus();this.showVrPanel();
+  }
+
+  private changeVrHeight(change:number|"toggle"|"reset"):void {
+    if(!this.renderer.xr.isPresenting)return;
+    if(change==="reset") {
+      this.vrHeightOffset=adjustViewerHeight(this.playerRig,-this.playerRig.position.y);
+      this.vrStandingView=false;
+    } else if(change==="toggle") {
+      this.vrStandingView=!this.vrStandingView;
+      this.vrHeightOffset=setViewerEyeHeight(this.playerRig,this.camera,this.vrStandingView?1.62:1.15);
+    } else this.vrHeightOffset=adjustViewerHeight(this.playerRig,change);
+    if(this.vrPanelVisible)this.placeVrPanelInFront();
+    this.markVrPanelDirty();
+  }
+
+  private async exitVr():Promise<void> {
+    const session=this.renderer.xr.getSession?.();
+    if(!session||this.vrExitPending)return;
+    this.vrExitPending=true;this.markVrPanelDirty();
+    try {await session.end();}
+    catch {
+      this.vrExitPending=false;this.vrStatus="Could not exit VR. Try Exit VR again or use your headset's system menu.";
+      this.markVrPanelDirty();
+    }
+  }
+
   private showVrPanel(placeInFront = true): void {
     this.vrPanelVisible = true;
     this.vrPanel.visible = true;
@@ -1206,8 +1294,8 @@ export class BroadStreetScene {
     this.markVrPanelDirty();
   }
 
-  private hideVrPanel(startIdleHintTimer = true): void {
-    this.gameState.clearActiveDialogueAnswer();
+  private hideVrPanel(startIdleHintTimer = true, preserveAnswer = false): void {
+    if(!preserveAnswer)this.gameState.clearActiveDialogueAnswer();
     this.vrStatus = this.getDefaultVrStatus();
     this.vrPanelVisible = false;
     this.vrPanel.visible = false;
@@ -1230,9 +1318,9 @@ export class BroadStreetScene {
     }
 
     if (this.walkable) {
-      return "Close this panel to explore. Trigger selects people or the pump, clear ground teleports, and marked exits lead onward. Squeeze opens the panel.";
+      return "Left stick walks; right stick turns. Trigger selects or teleports. Grip opens the menu.";
     }
-    return "Aim with the controller beam. Trigger selects. Squeeze toggles the panel. Thumbstick turns.";
+    return "Trigger selects. Grip opens the menu. Right stick turns.";
   }
 
   private rebuildVrPanel(): void {
@@ -1247,6 +1335,28 @@ export class BroadStreetScene {
     }
 
     const currentLocation = this.gameState.getCurrentLocation();
+    this.vrSurfaceHeight=vrPanelHeight;
+    const compactHome=this.vrPanelMode==="home" && !this.gameState.getActiveDialogue()
+      && !["synthesis","board","complete"].includes(this.gameState.getStage());
+    if(compactHome) {
+      this.vrSurfaceHeight=1.15;
+      this.addVrText(currentLocation.title,0,.39,2.2,.16,{fontSize:40,color:"#f6deb0",weight:"700"});
+      this.addVrIconButton("x",1.22,.39,.2,{type:"close-panel"});
+      this.addVrText(this.gameState.getObjective(),0,.14,2.5,.22,{fontSize:30,color:"#d9e5e1"});
+      this.addVrPanelButton("Map",-.88,-.15,.78,.23,{type:"mode",mode:"map"},{highlight:this.vrMapNeedsAttention});
+      this.addVrPanelButton("Notebook",0,-.15,.85,.23,{type:"mode",mode:"notebook"});
+      this.addVrPanelButton("Settings",.88,-.15,.78,.23,{type:"mode",mode:"settings"});
+      this.addVrText("Trigger selects · Grip closes · Left stick walks · Right stick turns",0,-.43,2.55,.14,{fontSize:24,color:"#b9c9c4"});
+      this.addVrPanelSurface();return;
+    }
+    if(["settings","height","controls"].includes(this.vrPanelMode)) {
+      this.vrSurfaceHeight=1.55;
+      this.addVrIconButton("x",1.22,.59,.2,{type:"close-panel"});
+      if(this.vrPanelMode==="height")this.buildVrHeightPanel();
+      else if(this.vrPanelMode==="controls")this.buildVrControlsPanel();
+      else this.buildVrSettingsPanel();
+      this.addVrPanelSurface();return;
+    }
     this.addVrHeaderControls();
     this.addVrText(currentLocation.title, 0.05, 0.81, 1.5, 0.16, {
       color: "#f6deb0",
@@ -1300,8 +1410,46 @@ export class BroadStreetScene {
     }, {
       active: this.vrPanelMode === "notebook",
     });
-    this.addVrPanelButton("Sound", .96, .82, .27, .20, {type:"mode",mode:"sound"});
+    this.addVrPanelButton("Menu", .96, .82, .30, .20, {type:"mode",mode:"settings"});
     this.addVrIconButton("x", 1.22, 0.82, 0.2, { type: "close-panel" });
+  }
+
+  private buildVrSettingsPanel():void {
+    this.addVrText("Settings",0,.58,2.2,.18,{fontSize:40,color:"#f1d79c"});
+    this.addVrPanelButton("Sound",-.65,.25,1.12,.25,{type:"mode",mode:"sound"});
+    this.addVrPanelButton("View height",.65,.25,1.12,.25,{type:"mode",mode:"height"});
+    this.addVrPanelButton("Controls",-.65,-.06,1.12,.25,{type:"mode",mode:"controls"});
+    this.addVrPanelButton("Recenter",.65,-.06,1.12,.25,{type:"recenter"});
+    this.addVrPanelButton(this.vrExitPending?"Leaving VR…":"Exit VR",0,-.38,1.3,.25,{type:"exit-vr"});
+    this.addVrText(this.vrStatus.startsWith("Could not exit")?this.vrStatus:"Exit VR returns to the desktop view and keeps your investigation.",0,-.65,2.5,.16,{fontSize:23,color:"#b9c9c4"});
+  }
+
+  private buildVrHeightPanel():void {
+    this.addVrText("View height",0,.58,2.2,.18,{fontSize:40,color:"#f1d79c"});
+    this.addVrText(`Height offset: ${this.vrHeightOffset>=0?"+":""}${this.vrHeightOffset.toFixed(1)} m`,0,.29,2.1,.16,{fontSize:32});
+    this.addVrPanelButton("Lower 10 cm",-.65,.02,1.12,.24,{type:"height-adjust",delta:-.1});
+    this.addVrPanelButton("Raise 10 cm",.65,.02,1.12,.24,{type:"height-adjust",delta:.1});
+    this.addVrPanelButton(this.vrStandingView?"Crouch":"Stand",-.65,-.28,1.12,.24,{type:"height-toggle"});
+    this.addVrPanelButton("Tracked height",.65,-.28,1.12,.24,{type:"height-reset"});
+    this.addVrText("Stand raises a seated view. Tracked height removes the adjustment. Your head still moves naturally.",0,-.60,2.5,.24,{fontSize:26,color:"#b9c9c4"});
+  }
+
+  private buildVrControlsPanel():void {
+    this.addVrText("Controls",0,.58,2.2,.18,{fontSize:40,color:"#f1d79c"});
+    const bindings:string[]=[];
+    for(const source of this.vrInputSources.values()) {
+      const layout=controllerButtons(source),left=source.handedness==="left";
+      const parts=[layout.primary?`${layout.primary.label}: ${left?"map":"stand/crouch"}`:"",
+        layout.secondary?`${layout.secondary.label}: ${left?"notebook":"settings"}`:""].filter(Boolean);
+      if(parts.length)bindings.push(`${left?"Left":"Right"} — ${parts.join(" · ")}`);
+    }
+    this.addVrText("Left stick: walk · Right stick: turn",0,.30,2.5,.14,{fontSize:30});
+    this.addVrText("Trigger: select / teleport · Grip: menu",0,.12,2.5,.14,{fontSize:30});
+    if(bindings.length)bindings.slice(0,2).forEach((text,index)=>
+      this.addVrText(text,0,-.07-index*.17,2.5,.14,{fontSize:28,color:"#b9c9c4"}));
+    else this.addVrText("Use the menu for map, notebook, height and settings. Extra controller buttons vary by device.",0,-.14,2.5,.28,{fontSize:28,color:"#b9c9c4"});
+    this.addVrPanelButton(`Stick walking: ${this.vrWalkingEnabled?"On":"Off"}`,0,-.46,1.7,.21,{type:"walk-toggle"});
+    this.addVrText("Reading: click left/right stick for previous/next page, or select the arrows.",0,-.66,2.5,.12,{fontSize:23,color:"#b9c9c4"});
   }
 
   private buildVrSoundPanel(): void {
@@ -1419,7 +1567,8 @@ export class BroadStreetScene {
         color: "#e7ece8",
         fontSize: 30,
       }, -0.42);
-      this.addVrPanelButton("Reset", 0, -0.66, 0.68, 0.22, { type: "reset" });
+      this.addVrPanelButton("Reset", -.5, -0.66, 0.68, 0.22, { type: "reset" });
+      this.addVrPanelButton("Exit VR", .5, -.66, .8, .22, {type:"exit-vr"});
       return;
     }
 
@@ -1740,7 +1889,7 @@ export class BroadStreetScene {
     }
   }
 
-  private addVrPanelButton(label: string, x: number, y: number, width: number, height: number, action: VrButtonAction, options: { active?: boolean } = {}): void {
+  private addVrPanelButton(label: string, x: number, y: number, width: number, height: number, action: VrButtonAction, options: { active?: boolean; highlight?: boolean } = {}): void {
     this.vrPanelDrawCommands.push({
       kind: "button",
       label,
@@ -1749,6 +1898,7 @@ export class BroadStreetScene {
       width,
       height,
       active: options.active,
+      highlight: options.highlight,
     });
 
     const button = createVrButtonHitbox(width, height, action);
@@ -1791,7 +1941,7 @@ export class BroadStreetScene {
   }
 
   private addVrPanelSurface(): void {
-    const panelSurface = createVrPanelSurface(this.vrPanelDrawCommands);
+    const panelSurface = createVrPanelSurface(this.vrPanelDrawCommands,this.vrSurfaceHeight);
     panelSurface.position.set(0, 0, 0);
     this.vrPanelSurface = panelSurface;
     this.vrPanel.add(panelSurface);
@@ -1919,10 +2069,10 @@ export class BroadStreetScene {
   }
 
   private getVrPaginationButtonState(inputSource?: XRInputSource): VrControllerButtonState {
-    const buttons = inputSource?.gamepad?.buttons ?? [];
+    const pressed=inputSource?.gamepad?.mapping==="xr-standard" && Boolean(inputSource.gamepad.buttons[3]?.pressed);
     return {
-      nextPagePressed: Boolean(buttons[4]?.pressed),
-      previousPagePressed: Boolean(buttons[5]?.pressed),
+      nextPagePressed: Boolean(pressed && inputSource?.handedness==="right"),
+      previousPagePressed: Boolean(pressed && inputSource?.handedness==="left"),
     };
   }
 
@@ -1973,6 +2123,8 @@ export class BroadStreetScene {
     let turnAxis = 0;
     for (const controller of this.vrControllers) {
       const inputSource = this.vrInputSources.get(controller);
+      // Reserve the left stick for translation; unhanded single controllers can still turn.
+      if(inputSource?.handedness==="left" || inputSource?.hand)continue;
       const candidate = this.getSnapTurnAxis(inputSource);
       if (Math.abs(candidate) > Math.abs(turnAxis)) {
         turnAxis = candidate;
@@ -2272,16 +2424,18 @@ function createControllerPointer(): VrControllerPointer {
   return { group, beam, reticle };
 }
 
-function createVrPanelSurface(commands: VrPanelDrawCommand[]): THREE.Mesh {
+function createVrPanelSurface(commands: VrPanelDrawCommand[],height=vrPanelHeight): THREE.Mesh {
   const canvas = document.createElement("canvas");
   canvas.width = vrPanelTextureWidth;
-  canvas.height = vrPanelTextureHeight;
+  canvas.height = Math.round(vrPanelTextureHeight*height/vrPanelHeight);
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     throw new Error("Could not create VR panel surface.");
   }
 
   drawVrPanelBackground(ctx, canvas.width, canvas.height);
+  // Crop physical panel height without shrinking the text or ray hit targets.
+  ctx.translate(0,(canvas.height-vrPanelTextureHeight)/2);
   commands.forEach((command) => {
     if (command.kind === "button") {
       drawVrPanelButton(ctx, command);
@@ -2322,7 +2476,7 @@ function createVrPanelSurface(commands: VrPanelDrawCommand[]): THREE.Mesh {
     side: THREE.DoubleSide,
     toneMapped: false,
   });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(vrPanelWidth, vrPanelHeight), material);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(vrPanelWidth, height), material);
   mesh.renderOrder = 100;
   return mesh;
 }

@@ -7,7 +7,7 @@ from mathutils import Vector
 
 def bake_lighting(materials, root, *, asset, lights, exterior=(), size=2048, environment_width=512,
                   world_strength=.25, probe=(0,1.45,0), sun=None, weld=False,
-                  island_margin=.004, neutral_value=.45, occluders=()):
+                  island_margin=.004, neutral_value=.45, occluders=(), character_charts=False):
     scene=bpy.context.scene
     scene.render.engine='CYCLES';scene.cycles.device='CPU';scene.cycles.samples=256
     scene.cycles.sample_clamp_indirect=3
@@ -64,6 +64,18 @@ def bake_lighting(materials, root, *, asset, lights, exterior=(), size=2048, env
     bpy.ops.object.mode_set(mode='OBJECT')
     # Keep a small neutral patch outside the packed interior for outdoor meshes.
     for uv in target.data.uv_layers['Lightmap'].data:uv.uv=uv.uv*.94+Vector((.025,.025))
+    if character_charts:
+        # Reserve a continuous chart per face instead of many tiny smart-UV
+        # islands. Facial islands produced visible square seams at close range.
+        heads=[ob for ob in interior if ob.name.startswith('Continuous face')]
+        for uv in target.data.uv_layers['Lightmap'].data:uv.uv.y=.025+(uv.uv.y-.025)*.55
+        slots={ob:i for i,ob in enumerate(heads)}
+        for poly in target.data.polygons:
+            ob,pi=face_map[target.data.attributes['bake_face_id'].data[poly.index].value]
+            if ob not in slots:continue
+            for li,src in zip(poly.loop_indices,ob.data.polygons[pi].loop_indices):
+                u,v=ob.data.uv_layers[0].data[src].uv
+                target.data.uv_layers['Lightmap'].data[li].uv=(.025+(slots[ob]+u)*.94/len(heads),.58+v*.38)
     atlas=bpy.data.images.new(asset+' diffuse light',width=size,height=size,alpha=False,float_buffer=True)
     atlas.colorspace_settings.name='Linear Rec.709'
     nodes=[]
