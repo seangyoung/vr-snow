@@ -11,24 +11,8 @@
       "pose": "table",
       "coat": "59483b",
       "vest": "827a66",
-      "hair": "6c5b49",
-      "faceWidth": 1.1,
-      "faceHeight": 1.0,
-      "labelHeight": 1.8,
-      "height": 1.56,
-      "appearance": {
-        "age": 0.65,
-        "nose": 0.98,
-        "jaw": 1.08,
-        "hairline": 0.024,
-        "cheeks": 1.3,
-        "noseWidth": 1.16,
-        "eyeSpacing": 0.94,
-        "mouthWidth": 1.1,
-        "lipFullness": 1.1,
-        "browSlope": 0.002,
-        "chin": 0.85
-      }
+      "labelHeight": 1.61,
+      "height": 1.45
     },
     {
       "id": "john",
@@ -40,33 +24,22 @@
       "pose": "table",
       "coat": "414b43",
       "vest": "81715d",
-      "hair": "45382c",
-      "faceWidth": 0.94,
-      "faceHeight": 0.96,
-      "labelHeight": 1.8,
-      "height": 1.53,
-      "appearance": {
-        "age": 0.3,
-        "nose": 1.14,
-        "jaw": 0.89,
-        "hairline": -0.006,
-        "cheeks": 0.78,
-        "noseWidth": 0.83,
-        "eyeSpacing": 1.1,
-        "mouthWidth": 0.87,
-        "lipFullness": 0.85,
-        "browSlope": 0.005,
-        "chin": 1.18,
-        "part": 5.8
-      }
+      "labelHeight": 1.61,
+      "height": 1.45
     }
   ],
-  "triangles": 46291,
+  "anatomicalBase": "MakeHuman hm08 / MPFB",
+  "sources": {
+    "edward": "9814be6c88af0cc71acafe4516f1d0059999f45d8c4c56cb4e91932f69a341ab",
+    "john": "0826a913243327969a91a49302db86d4c7c10444f179570bdd81b2d1bd4f8381"
+  },
+  "runtimeSkeleton": false,
+  "triangles": 56930,
   "materialBatches": 24,
   "bakedLighting": {
     "size": 1024,
     "normalization": 4,
-    "diffusePeak999": 1.7933,
+    "diffusePeak999": 1.6936,
     "environmentSize": [
       256,
       128

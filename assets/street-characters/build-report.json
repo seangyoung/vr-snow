@@ -11,25 +11,9 @@
       "pose": "standing",
       "coat": "665447",
       "vest": "8a7b64",
-      "hair": "554439",
-      "faceWidth": 1.04,
-      "faceHeight": 0.98,
-      "labelHeight": 1.95,
-      "height": 1.78,
-      "yaw": 0.45,
-      "appearance": {
-        "age": 0.35,
-        "nose": 0.88,
-        "jaw": 1.18,
-        "hairline": -0.01,
-        "cheeks": 0.9,
-        "noseWidth": 1.22,
-        "eyeSpacing": 1.1,
-        "mouthWidth": 1.18,
-        "lipFullness": 1.15,
-        "browSlope": -0.002,
-        "chin": 1.25
-      }
+      "labelHeight": 1.96,
+      "height": 1.8,
+      "yaw": 0.45
     },
     {
       "id": "resident-east",
@@ -41,34 +25,23 @@
       "pose": "standing",
       "coat": "4a5358",
       "vest": "787062",
-      "hair": "84766a",
-      "faceWidth": 0.94,
-      "faceHeight": 1.0,
-      "labelHeight": 1.95,
+      "labelHeight": 1.96,
       "height": 1.8,
-      "yaw": -0.5,
-      "appearance": {
-        "age": 0.75,
-        "nose": 1.2,
-        "jaw": 0.86,
-        "hairline": 0.04,
-        "cheeks": 0.75,
-        "noseWidth": 0.9,
-        "eyeSpacing": 0.93,
-        "mouthWidth": 0.92,
-        "lipFullness": 0.7,
-        "browSlope": 0.004,
-        "chin": 0.8,
-        "part": 5.8
-      }
+      "yaw": -0.5
     }
   ],
-  "triangles": 46855,
+  "anatomicalBase": "MakeHuman hm08 / MPFB",
+  "sources": {
+    "resident-west": "2b56b4c8c00de84c36e11fa6cdc56ea1c966b7e880c36781ce412e46776a1b8f",
+    "resident-east": "c65885c6f423a2263c1f45aebe2b3383af601c4d0ae53d4629b3fb3cf5b55904"
+  },
+  "runtimeSkeleton": false,
+  "triangles": 56901,
   "materialBatches": 24,
   "bakedLighting": {
     "size": 1024,
     "normalization": 4,
-    "diffusePeak999": 0.6917,
+    "diffusePeak999": 0.6839,
     "environmentSize": [
       256,
       128

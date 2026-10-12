@@ -19,7 +19,11 @@ for ob in s.objects:
   mul=ns.new('ShaderNodeMixRGB');mul.blend_type='MULTIPLY';mul.inputs[0].default_value=1
   if bs.inputs['Base Color'].is_linked:ls.new(bs.inputs['Base Color'].links[0].from_socket,mul.inputs[2])
   else:mul.inputs[2].default_value=bs.inputs['Base Color'].default_value
-  ls.new(tex.outputs['Color'],mul.inputs[1]);em=ns.new('ShaderNodeEmission');em.inputs['Strength'].default_value=4;ls.new(mul.outputs[0],em.inputs['Color']);ls.new(em.outputs[0],ns.get('Material Output').inputs['Surface'])
+  ls.new(tex.outputs['Color'],mul.inputs[1]);em=ns.new('ShaderNodeEmission');em.inputs['Strength'].default_value=4;ls.new(mul.outputs[0],em.inputs['Color']);
+  if bs.inputs['Alpha'].is_linked:
+   transparent=ns.new('ShaderNodeBsdfTransparent');mix=ns.new('ShaderNodeMixShader')
+   ls.new(bs.inputs['Alpha'].links[0].from_socket,mix.inputs[0]);ls.new(transparent.outputs[0],mix.inputs[1]);ls.new(em.outputs[0],mix.inputs[2]);ls.new(mix.outputs[0],ns.get('Material Output').inputs['Surface'])
+  else:ls.new(em.outputs[0],ns.get('Material Output').inputs['Surface'])
 camdata=bpy.data.cameras.new('Review');cam=bpy.data.objects.new('Review',camdata);s.collection.objects.link(cam);s.camera=cam
 actor=config['actors'][0];x,y,z=actor['position'];height=actor['height']
 views=[('portrait',(x+.65,y+height-.05,z+1.9),(x,y+height*.62,z+.1),48),('face',(x+.20,y+height-.05,z+1.35),(x,y+height-.13,z),72)]
@@ -40,7 +44,7 @@ for actor in config['actors']:
  for ob in s.objects:
   if ob.type=='MESH':ob.hide_render=ob not in meshes
  def local(x,y,z):return root_ob.matrix_world@Vector((x,-z,y))
- for name,pos,target,scale in [('front',local(.15,.87,3),local(0,.87,.12),1.98),('side',local(3,.87,.9),local(0,.87,.12),1.98),('face',local(.035,1.39+(.25 if actor['pose']=='standing' else 0),1),local(0,1.39+(.25 if actor['pose']=='standing' else 0),0),.36)]:
+ for name,pos,target,scale in [('front',local(.15,.87,3),local(0,.87,.12),1.98),('side',local(3,.87,.9),local(0,.87,.12),1.98),('face',local(.035,1.27+(.36 if actor['pose']=='standing' else 0),1),local(0,1.27+(.36 if actor['pose']=='standing' else 0),0),.36)]:
   camdata.type='ORTHO';camdata.ortho_scale=scale
   cam.location=pos;cam.rotation_euler=(target-pos).to_track_quat('-Z','Y').to_euler()
   s.render.resolution_x=720;s.render.resolution_y=720 if name=='face' else 1000

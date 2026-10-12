@@ -11,32 +11,21 @@
       "pose": "lap",
       "coat": "3c4651",
       "vest": "6c685b",
-      "hair": "8e887f",
-      "faceWidth": 1.1,
-      "faceHeight": 0.98,
-      "labelHeight": 1.74,
-      "height": 1.54,
-      "appearance": {
-        "age": 0.85,
-        "nose": 1.05,
-        "jaw": 1.16,
-        "hairline": 0.039,
-        "cheeks": 1.22,
-        "noseWidth": 1.22,
-        "eyeSpacing": 1.04,
-        "mouthWidth": 1.18,
-        "lipFullness": 0.85,
-        "browSlope": -0.003,
-        "chin": 1.15
-      }
+      "labelHeight": 1.61,
+      "height": 1.45
     }
   ],
-  "triangles": 22709,
+  "anatomicalBase": "MakeHuman hm08 / MPFB",
+  "sources": {
+    "steward": "83697c32e551e041200ad4247a512b13a67f0f266f83a2a8d7a0ec92c410ca99"
+  },
+  "runtimeSkeleton": false,
+  "triangles": 27105,
   "materialBatches": 12,
   "bakedLighting": {
     "size": 1024,
     "normalization": 4,
-    "diffusePeak999": 0.5681,
+    "diffusePeak999": 0.5598,
     "environmentSize": [
       256,
       128

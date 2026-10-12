@@ -11,6 +11,8 @@ export interface WorldTravelRoute {
   zone?: { x: number; z: number; radius: number };
   door?: boolean;
   labelWidth?: number;
+  /** Local offset for signs mounted in front of projecting facade trim. */
+  labelOffset?: [number, number, number];
 }
 
 /** These are route entrances, not straight-line bearings or measured destination positions. */
@@ -20,7 +22,7 @@ export const streetTravelRoutes: WorldTravelRoute[] = [
   { id: "street-snow", from: "broad-street", to: "snow-desk", title: "Snow's Desk", direction: "SOUTH · Continue via Cambridge St", position: [2.3, 1.65, 11.7], yaw: Math.PI, zone: {x:2.3,z:10.6,radius:.75} },
   { id: "street-registrar", from: "broad-street", to: "registrar", title: "Registrar's Ledger", direction: "SOUTH · Onward to the records office", position: [6.1, 1.65, 11.7], yaw: Math.PI, zone: {x:6.1,z:10.6,radius:.75} },
   // The right-hand door in the northern shop frontage is an illustrative household entrance.
-  { id: "street-household", from: "broad-street", to: "household", title: "Broad Street Household", direction: "Household interview · This door", position: [-11, 2.85, -8.72], yaw: 0, zone: {x:-11,z:-7.15,radius:.65}, door: true },
+  { id: "street-household", from: "broad-street", to: "household", title: "Broad Street Household", direction: "Household interview · This door", position: [-11, 2.85, -8.72], labelOffset: [0, 0, .22], yaw: 0, zone: {x:-11,z:-7.15,radius:.65}, door: true },
 ];
 
 export const returnTravelRoutes: WorldTravelRoute[] = [

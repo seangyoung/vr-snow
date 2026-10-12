@@ -19,6 +19,7 @@ export class WorldTravelTargets {
       group.position.set(...route.position); group.rotation.y=route.yaw;
       const width = route.labelWidth ?? (route.door ? 1.75 : route.zone ? 2.05 : 1.4);
       const label = new THREE.Mesh(new THREE.PlaneGeometry(width, width * 340 / 1024));
+      label.position.set(...(route.labelOffset ?? [0, 0, 0]));
       group.add(label);
       this.routesByObject.set(label,route); this.hitboxes.push(label);
       let ring: THREE.Mesh | undefined;

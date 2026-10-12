@@ -1100,20 +1100,46 @@ test('seated Snow exports only its own meshes with lightmap UVs and a compact as
   }
 });
 
+test('MakeHuman Snow embeds its surface textures, uses alpha masks and matches the editable source',async()=>{
+  const {createHash}=await import('node:crypto');
+  const bytes=await readFile('public/models/snow-character.glb');
+  const gltf=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
+  assert.equal(gltf.skins?.length??0,0,'the authoring rig adds no runtime skinning');
+  assert.equal(gltf.images.length,4);
+  for(const image of gltf.images) {
+    assert.notEqual(image.bufferView,undefined,'surface textures travel with the GLB');
+    assert.equal(image.uri,undefined,'no external authoring paths or network dependencies');
+    const view=gltf.bufferViews[image.bufferView];assert.ok(view.byteLength>1000);
+  }
+  for(const name of ['Skin','Eyes','Brows','Hair']) {
+    const material=gltf.materials.find(m=>m.name===name);
+    assert.ok(material?.pbrMetallicRoughness.baseColorTexture,`${name} keeps its surface detail`);
+    if(name!=='Skin')assert.equal(material.alphaMode,'MASK',`${name} avoids blended-card sorting`);
+  }
+  const report=JSON.parse(await readFile('assets/snow-character/build-report.json','utf8'));
+  assert.equal(report.anatomicalBase,'MakeHuman hm08 / MPFB');
+  const source=await readFile('assets/snow-character/snow-source.blend');
+  assert.equal(report.sourceSha256,createHash('sha256').update(source).digest('hex'),'export is current with the authored source');
+});
+
 
 async function exportedSnow() {
   const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
   const bytes=await readFile('public/models/snow-character.glb');
-  const {scene}=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
+  // These are geometry checks in Node, without a browser image decoder.
+  // Validate actual texture bindings/embedded image bytes separately below.
+  const loader=new GLTFLoader();loader.register(()=>({name:'offline-texture-placeholder',loadTexture:async()=>new THREE.Texture()}));
+  const {scene}=await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
   scene.updateMatrixWorld(true);return scene;
 }
 
-test('exported Snow has a solid coat across chest and abdomen from front and back',async()=>{
-  const root=await exportedSnow(),coat=root.getObjectByName('Snow_upper_Coat');
-  assert.ok(coat?.isMesh);
-  for(const height of [.75,.9,1.02,1.10])for(const offset of [-.13,0,.13]) {
-    const front=new THREE.Raycaster(new THREE.Vector3(-.65+offset,height,-1.5),new THREE.Vector3(0,0,-1)).intersectObject(coat,false)[0];
-    const back=new THREE.Raycaster(new THREE.Vector3(-.65+offset,height,-2.8),new THREE.Vector3(0,0,1)).intersectObject(coat,false)[0];
+test('exported Snow has a clothed torso with real depth across chest and abdomen',async()=>{
+  const root=await exportedSnow(),clothes=[];
+  root.traverse(o=>{if(o.isMesh&&/Snow_upper_(Coat|Waistcoat|Shirt)/.test(o.name))clothes.push(o);});
+  assert.ok(clothes.length>=3);
+  for(const height of [.75,.9,1.00])for(const offset of [-.12,0,.12]) {
+    const front=new THREE.Raycaster(new THREE.Vector3(-.65+offset,height,-1.5),new THREE.Vector3(0,0,-1)).intersectObjects(clothes,false)[0];
+    const back=new THREE.Raycaster(new THREE.Vector3(-.65+offset,height,-2.8),new THREE.Vector3(0,0,1)).intersectObjects(clothes,false)[0];
     assert.ok(front,`missing torso front at ${offset}, ${height}`);
     assert.ok(back,`missing torso back at ${offset}, ${height}`);
     assert.ok(front.point.z-back.point.z>.10,'torso has real depth, not just a front sheet');
@@ -1124,18 +1150,21 @@ test('exported Snow palms are flattened and fingers rest just above the desk',as
   const root=await exportedSnow(),skin=root.getObjectByName('Snow_upper_Skin');
   assert.ok(skin?.isMesh);
   for(const side of [-1,1]) {
-    const cx=-.65+side*.20,z=-2.28+.571;
+    const cx=-.65+side*.18,z=-2.28+.535;
     const top=new THREE.Raycaster(new THREE.Vector3(cx,1,z),new THREE.Vector3(0,-1,0)).intersectObject(skin,false)[0];
     const bottom=new THREE.Raycaster(new THREE.Vector3(cx,.7,z),new THREE.Vector3(0,1,0)).intersectObject(skin,false)[0];
     assert.ok(top&&bottom,'palm has top and bottom surfaces');
     const thickness=top.point.y-bottom.point.y;
-    assert.ok(thickness>.018&&thickness<.033,'palm is anatomically flattened rather than a ball');
-    for(let i=0;i<4;i++) {
-      const x=cx+side*(-.025+i*.017)+side*(i-1.3)*.0015;
-      const hit=new THREE.Raycaster(new THREE.Vector3(x,1,-2.28+.631),new THREE.Vector3(0,-1,0)).intersectObject(skin,false)[0];
-      assert.ok(hit,`finger ${i} is present`);
-      assert.ok(hit.point.y>.82&&hit.point.y<.851,'fingers rest at tabletop height');
+    assert.ok(thickness>.012&&thickness<.045,'palm is anatomically flattened rather than a ball');
+    const points=[];skin.updateWorldMatrix(true,false);
+    const position=skin.geometry.getAttribute('position');
+    for(let i=0;i<position.count;i++) {
+      const p=new THREE.Vector3().fromBufferAttribute(position,i).applyMatrix4(skin.matrixWorld);
+      if((p.x+.65)*side>0&&p.z>-1.72)points.push(p);
     }
+    assert.ok(points.length>100,'anatomical fingers extend beyond the palm');
+    assert.ok(Math.min(...points.map(p=>p.y))>.818,'fingers do not penetrate the desktop');
+    assert.ok(Math.max(...points.map(p=>p.y))<.90,'fingers remain close to the desktop');
   }
 });
 
@@ -1291,16 +1320,18 @@ for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} 
     assert.notEqual(primitive.attributes.TEXCOORD_1,undefined);assert.notEqual(primitive.attributes.COLOR_0,undefined);
     triangles+=gltf.accessors[primitive.indices].count/3;
   }
-  assert.ok(triangles<definition.actors.length*24000);assert.ok(gltf.meshes.length<=definition.actors.length*12);
+  assert.ok(triangles<definition.actors.length*30000);assert.ok(gltf.meshes.length<=definition.actors.length*12);
   assert.ok(gltf.nodes.filter(node=>node.mesh!==undefined).every(node=>definition.actors.some(actor=>node.name.startsWith(actor.id+'_'))),'room reference geometry is excluded');
-  const {scene}=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');scene.updateMatrixWorld(true);
+  const loader=new GLTFLoader();loader.register(()=>({name:'offline-texture-placeholder',loadTexture:async()=>new THREE.Texture()}));
+  const {scene}=await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');scene.updateMatrixWorld(true);
   for(const actor of definition.actors){
     const root=scene.getObjectByName(actor.id+'_root'),coat=scene.getObjectByName(actor.id+'_upper_Coat');
+    const clothes=[];root.traverse(o=>{if(o.isMesh&&/_(Coat|Waistcoat|Shirt)$/.test(o.name))clothes.push(o);});
     assert.ok(root&&coat&&scene.getObjectByName(actor.id+'_head'));
     for(const y of [.80,.95,1.05])for(const x of [-.1,0,.1]) {
       const origin=new THREE.Vector3(x,y+(actor.pose==='standing'?.25:0),1).applyMatrix4(root.matrixWorld);
       const direction=new THREE.Vector3(0,0,-1).transformDirection(root.matrixWorld);
-      assert.ok(new THREE.Raycaster(origin,direction).intersectObject(coat,false)[0],`${actor.id} torso hole at ${x}, ${y}`);
+      assert.ok(new THREE.Raycaster(origin,direction).intersectObjects(clothes,false)[0],`${actor.id} torso hole at ${x}, ${y}`);
     }
   }
   const atlas=await readFile(`public/models/${definition.asset}-lightmap.png`);assert.equal(atlas.readUInt32BE(16),1024);assert.equal(atlas.readUInt32BE(20),1024);
@@ -1310,19 +1341,41 @@ for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} 
 for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} figures have continuous lower bodies and relaxed standing wrists`,async()=>{
   const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
   const bytes=await readFile(`public/models/${definition.asset}.glb`);
-  const {scene}=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
+  const loader=new GLTFLoader();loader.register(()=>({name:'offline-texture-placeholder',loadTexture:async()=>new THREE.Texture()}));
+  const {scene}=await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
   scene.updateMatrixWorld(true);
   for(const actor of definition.actors) {
     const root=scene.getObjectByName(actor.id+'_root'),lower=scene.getObjectByName(actor.id+'_root_Coat');
     assert.ok(lower,'hips and legs or skirt remain a real lower-body mesh');
-    const cast=(x,y,z,dir,mesh=lower)=>new THREE.Raycaster(new THREE.Vector3(x,y,z).applyMatrix4(root.matrixWorld),new THREE.Vector3(...dir).transformDirection(root.matrixWorld)).intersectObject(mesh,false)[0];
+    const garments=[];root.traverse(o=>{if(o.isMesh&&/_(Coat|Waistcoat|Shirt)$/.test(o.name))garments.push(o);});
+    const cast=(x,y,z,dir,mesh)=>new THREE.Raycaster(new THREE.Vector3(x,y,z).applyMatrix4(root.matrixWorld),new THREE.Vector3(...dir).transformDirection(root.matrixWorld)).intersectObjects(mesh?[mesh]:garments,false)[0];
     if(!actor.dress) {
       const standing=actor.pose==='standing';
       // Waist and crotch must connect across the centerline; two separate capped
       // cones would pass individual leg checks but leave a missing pelvis.
-      for(const y of standing?[.82,.87,.92]:[.53,.57,.62])assert.ok(cast(0,y,1,[0,0,-1]),`${actor.id}: pelvis gap at ${y}`);
+      for(const y of standing?[.91,.94,.97]:[.55,.58,.61,.64])assert.ok(cast(0,y,1,[0,0,-1]),`${actor.id}: pelvis gap at ${y}`);
       for(const side of [-1,1])for(let y=.16;y< (standing?.85:.49);y+=.025)
-        assert.ok(cast(side*.11,y,1,[0,0,-1]),`${actor.id}: leg gap at ${y}`);
+        assert.ok([.07,.10,.13,.16,.19,.22].some(x=>cast(side*x,y,1,[0,0,-1])),`${actor.id}: leg gap at ${y}`);
+    }
+    if(actor.dress) {
+      for(const y of [.60,.64,.68,.72,.76])for(const x of [-.10,0,.10])
+        assert.ok(cast(x,y,1,[0,0,-1]),'dress has continuous outward-facing cloth across the waist');
+      const bun=scene.getObjectByName(actor.id+'_head_BunHair');
+      assert.ok(bun?.isMesh,'solid bun is exported separately from masked hair cards');
+      assert.equal(bun.material.alphaTest,0,'closed bun has no transparent hair-card cutouts');
+      assert.equal(bun.material.transparent,false);
+    }
+    if(actor.pose!=='standing') {
+      const skin=scene.getObjectByName(actor.id+'_upper_Skin');
+      const sides=actor.id==='edward'?[-1]:actor.id==='john'?[1]:[-1,1];
+      const inverse=root.matrixWorld.clone().invert(),forward=actor.pose==='table'?.08:0;
+      for(const side of sides)for(const z of [.30,.33,.36]) {
+        const x=side*.13,depth=z+forward;
+        const palm=cast(x,.45,depth,[0,1,0],skin),cloth=cast(x,1,depth,[0,-1,0]);
+        assert.ok(palm&&cloth,`${actor.id}: palm and supporting lap are present`);
+        const gap=palm.point.clone().applyMatrix4(inverse).y-cloth.point.clone().applyMatrix4(inverse).y;
+        assert.ok(gap>=-.004&&gap<.045,`${actor.id}: palm/lap clearance ${gap.toFixed(3)}m`);
+      }
     }
     if(actor.pose==='standing') {
       const skin=scene.getObjectByName(actor.id+'_upper_Skin');
@@ -1332,13 +1385,14 @@ for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} 
         const hand=[];
         for(let i=0;i<positions.count;i++) {
           const p=new THREE.Vector3().fromBufferAttribute(positions,i).applyMatrix4(matrix);
-          if(p.y<1.05&&p.x*side>.20)hand.push(p);
+          if(p.y>.50&&p.y<1.05&&p.x*side>.15)hand.push(p);
         }
         assert.ok(hand.length>50,'complete hand is present');
         const bounds=new THREE.Box3().setFromPoints(hand),size=bounds.getSize(new THREE.Vector3());
-        assert.ok(bounds.min.y>.68&&bounds.max.y<.91,'hand rests beside thigh below wrist');
-        assert.ok(size.y>.12&&size.x<.060&&size.z<.12,'hand points down with the palm facing the thigh');
-        assert.ok(cast(side*.40,.82,.05,[-side,0,0],skin),'wrist-to-palm surface remains connected');
+        assert.ok(bounds.min.y>.67&&bounds.max.y<1.01,'hand rests beside thigh below wrist');
+        assert.ok(size.y>.15&&size.x<.085&&size.z<.15,'hand points down with the palm facing the thigh');
+        assert.ok(hand.every(p=>p.x*side>.20),'relaxed hand stays outside the trouser silhouette');
+        assert.ok([.07,.10,.13].some(z=>cast(side*.40,.86,z,[-side,0,0],skin)),'wrist-to-palm surface remains connected');
       }
     }
   }
@@ -1478,34 +1532,31 @@ test('scene guidance names selectable figures and objects, including noninteract
   }
 });
 
-test('all character eye overlays inherit varied face lighting instead of a glowing neutral patch',async()=>{
-  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
-  for(const asset of ['snow-character',...Object.values(characterDefinitions).map(definition=>definition.asset)]) {
-    const bytes=await readFile(`public/models/${asset}.glb`);
-    const {scene}=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
-    const eyes=[];scene.traverse(ob=>{if(ob.isMesh&&ob.name.includes('_head_Eye'))eyes.push(ob);});
-    assert.ok(eyes.length>=2,`${asset}: expected iris and sclera meshes`);
-    for(const eye of eyes) {
-      const uv=eye.geometry.getAttribute('uv1');assert.ok(uv);
-      const values=Array.from(uv.array);
-      assert.ok(values.every(value=>Number.isFinite(value)&&value>=0&&value<.98),`${asset}: facial UVs must sample the baked surface`);
-      assert.ok(Math.max(...values)-Math.min(...values)>.01,`${asset}: facial lighting must not collapse to a constant patch`);
+test('MakeHuman scene figures embed masked textures and match their editable sources',async()=>{
+  const {createHash}=await import('node:crypto');
+  for(const definition of Object.values(characterDefinitions)) {
+    const bytes=await readFile(`public/models/${definition.asset}.glb`);
+    const gltf=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
+    assert.equal(gltf.skins?.length??0,0,'authoring rigs are not shipped');
+    for(const image of gltf.images) {
+      assert.notEqual(image.bufferView,undefined,'textures are embedded');
+      assert.equal(image.uri,undefined,'no authoring machine or external texture paths');
+      assert.ok(gltf.bufferViews[image.bufferView].byteLength>1000);
     }
-    // Interpolating between unrelated atlas islands makes black streaks even
-    // when every individual UV coordinate points at a valid baked texel.
-    scene.traverse(ob=>{
-      if(!ob.isMesh||!/_head_(Hair|Eye|Eye_white|Lip)$/.test(ob.name))return;
-      const uv=ob.geometry.getAttribute('uv1'),indices=ob.geometry.index;
-      const count=indices?indices.count:uv.count;
-      for(let i=0;i<count;i+=3) {
-        const a=indices?indices.getX(i):i;
-        for(let corner=1;corner<3;corner++) {
-          const b=indices?indices.getX(i+corner):i+corner;
-          assert.equal(uv.getX(a),uv.getX(b),`${asset}/${ob.name}: triangle crosses atlas islands`);
-          assert.equal(uv.getY(a),uv.getY(b),`${asset}/${ob.name}: triangle crosses atlas islands`);
-        }
+    const report=JSON.parse(await readFile(`assets/${definition.asset}/build-report.json`,'utf8'));
+    assert.equal(report.anatomicalBase,'MakeHuman hm08 / MPFB');
+    for(const actor of definition.actors) {
+      const source=await readFile(`assets/scene-people/${actor.id}.blend`);
+      assert.equal(report.sources[actor.id],createHash('sha256').update(source).digest('hex'),'export matches authored anatomy');
+      for(const role of ['Skin','Eyes','Brows','Hair']) {
+        const node=gltf.nodes.find(n=>n.name===`${actor.id}_head_${role}`);
+        assert.ok(node,`${actor.id} has textured ${role}`);
+        const material=gltf.materials[gltf.meshes[node.mesh].primitives[0].material];
+        assert.ok(material.pbrMetallicRoughness.baseColorTexture,`${actor.id} preserves ${role} detail`);
+        if(role!=='Skin')assert.equal(material.alphaMode,'MASK','no sorted transparent hair cards');
+        if(role==='Hair')assert.ok(material.pbrMetallicRoughness.baseColorFactor,'individual hair tint survives glTF export');
       }
-    });
+    }
   }
 });
 

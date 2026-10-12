@@ -1,11 +1,15 @@
 {
-  "version": 4,
-  "triangles": 29466,
-  "materialBatches": 12,
+  "version": 5,
+  "anatomicalBase": "MakeHuman hm08 / MPFB",
+  "authoringSource": "snow-source.blend",
+  "sourceSha256": "b7045fab565bcc5e5f21b2cdb229fd20347d9c8a14166a4488d258ee289217c2",
+  "runtimeSkeleton": false,
+  "triangles": 29840,
+  "materialBatches": 11,
   "bakedLighting": {
     "size": 1024,
     "normalization": 4,
-    "diffusePeak999": 1.1101,
+    "diffusePeak999": 1.094,
     "environmentSize": [
       256,
       128

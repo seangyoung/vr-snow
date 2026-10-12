@@ -54,7 +54,7 @@ def bake_lighting(materials, root, *, asset, lights, exterior=(), size=2048, env
     bpy.ops.object.select_all(action='DESELECT')
     for cp in copies:cp.select_set(True)
     bpy.context.view_layer.objects.active=copies[0];bpy.ops.object.join();target=copies[0];target.name='Temporary lightmap receiver'
-    target.data.uv_layers.active_index=1
+    target.data.uv_layers.active_index=target.data.uv_layers.find('Lightmap')
     bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
     if weld:
         # The street builder emits independent faces. Join coincident vertices on
@@ -68,14 +68,24 @@ def bake_lighting(materials, root, *, asset, lights, exterior=(), size=2048, env
         # Reserve a continuous chart per face instead of many tiny smart-UV
         # islands. Facial islands produced visible square seams at close range.
         heads=[ob for ob in interior if ob.name.startswith('Continuous face')]
-        for uv in target.data.uv_layers['Lightmap'].data:uv.uv.y=.025+(uv.uv.y-.025)*.55
+        custom_charts=[ob for ob in interior if 'lightmap_rect' in ob]
+        garment_charts=any(ob.get('garment_chart') for ob in custom_charts)
+        for uv in target.data.uv_layers['Lightmap'].data:
+            uv.uv.y=(.27+(uv.uv.y-.025)*.055) if garment_charts else (.025+(uv.uv.y-.025)*(.32 if custom_charts else .55))
         slots={ob:i for i,ob in enumerate(heads)}
         for poly in target.data.polygons:
             ob,pi=face_map[target.data.attributes['bake_face_id'].data[poly.index].value]
-            if ob not in slots:continue
+            if ob not in slots and ob not in custom_charts:continue
             for li,src in zip(poly.loop_indices,ob.data.polygons[pi].loop_indices):
-                u,v=ob.data.uv_layers[0].data[src].uv
-                target.data.uv_layers['Lightmap'].data[li].uv=(.025+(slots[ob]+u)*.94/len(heads),.58+v*.38)
+                # Imported anatomy can retain its skin UVs and supply a
+                # separate continuous lighting chart for the head.
+                chart=ob.data.uv_layers.get('FaceLighting') or ob.data.uv_layers[0]
+                u,v=chart.data[src].uv
+                if ob in custom_charts:
+                    x,y,w,h=ob['lightmap_rect']
+                    target.data.uv_layers['Lightmap'].data[li].uv=(x+u*w,y+v*h)
+                else:
+                    target.data.uv_layers['Lightmap'].data[li].uv=(.025+(slots[ob]+u)*.94/len(heads),.58+v*.38)
     atlas=bpy.data.images.new(asset+' diffuse light',width=size,height=size,alpha=False,float_buffer=True)
     atlas.colorspace_settings.name='Linear Rec.709'
     nodes=[]
