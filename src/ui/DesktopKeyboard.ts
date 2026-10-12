@@ -1,3 +1,4 @@
+import { activeDesktopPanel } from "./OutsidePanelDismiss";
 /** Keyboard access to the DOM panels; game actions still use the existing buttons. */
 export class DesktopKeyboard {
   private previousPanel?: string;
@@ -9,8 +10,7 @@ export class DesktopKeyboard {
   }
 
   private panel(): HTMLElement | null {
-    return this.root.querySelector(".overlay-panel")
-      ?? this.root.querySelector(".dialogue-panel, .synthesis-panel, .chapter-panel");
+    return activeDesktopPanel(this.root);
   }
 
   private buttons(scope: HTMLElement): HTMLButtonElement[] {
@@ -33,7 +33,12 @@ export class DesktopKeyboard {
     if (document.body.dataset.xrPresenting === "true" || this.transitioning()) return;
     const panel = this.panel();
     const panelKey = panel?.getAttribute("aria-label") ?? undefined;
-    if (this.scene) this.scene.inert = Boolean(panel);
+    // Keep pointer input for outside clicks and camera drags. Keyboard movement
+    // stays blocked by overlayOpen and Tab remains contained in the dialog.
+    if (this.scene) {
+      this.scene.inert = false;
+      if (!panel) this.scene.removeAttribute("aria-hidden");
+    }
     for (const child of this.root.querySelector(".hud")?.children ?? []) {
       if (child instanceof HTMLElement) child.inert = Boolean(panel && child !== panel);
     }
@@ -53,6 +58,7 @@ export class DesktopKeyboard {
       this.buttons(this.root).find(button => this.key(button) === this.focusedKey)?.focus({ preventScroll: true });
     }
     this.previousPanel = panelKey;
+    if (panel) this.scene?.setAttribute("aria-hidden", "true");
   }
 
   private onKey(event: KeyboardEvent): void {
@@ -71,7 +77,7 @@ export class DesktopKeyboard {
     }
     if (event.key === "Escape") {
       event.preventDefault();
-      const close = panel?.querySelector<HTMLButtonElement>('[data-action="close"], [data-action="close-dialogue"], [data-action="close-snow-review"]');
+      const close = panel?.querySelector<HTMLButtonElement>('[data-action="close"], [data-action="close-dialogue"], [data-action="close-snow-review"], [data-action="close-chapter"]');
       if (close) close.click();
       else if (!panel) this.scene?.focus({ preventScroll: true });
       return;

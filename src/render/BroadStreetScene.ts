@@ -303,6 +303,7 @@ export class BroadStreetScene {
   private vrPanelMode: VrPanelMode = "home";
   private vrPanelDirty = true;
   private vrPanelVisible = false;
+  private readonly vrSelectionStarts = new Map<THREE.Group, { panel: boolean; inside: boolean; origin: THREE.Vector3; direction: THREE.Vector3 }>();
   private vrStatus = "Aim at a person, the pump or a panel. Trigger selects. Squeeze toggles the panel.";
   private vrFocusedButton?: VrButtonMesh;
   private vrMapNeedsAttention = false;
@@ -819,8 +820,8 @@ export class BroadStreetScene {
       if (this.renderer.xr.isPresenting) {
         return;
       }
-      if (document.body.dataset.overlayOpen === "true") return;
-      this.canvas.focus({ preventScroll: true });
+      if (event.button !== 0 || !event.isPrimary) return;
+      if (document.body.dataset.overlayOpen !== "true") this.canvas.focus({ preventScroll: true });
       this.dragging = true;
       this.pointerTravel = 0;
       this.previousPointer = { x: event.clientX, y: event.clientY };
@@ -919,6 +920,7 @@ export class BroadStreetScene {
         this.snapTurnLocked = false;
       });
       controller.addEventListener("disconnected", () => {
+        this.vrSelectionStarts.delete(controller);
         const source=this.vrInputSources.get(controller);
         if(source)this.vrShortcuts.forget(source);
         this.vrWalking.reset();
@@ -926,7 +928,10 @@ export class BroadStreetScene {
         this.vrControllerButtonStates.delete(controller);
         this.snapTurnLocked = false;
       });
-      controller.addEventListener("selectstart", () => { void this.sound?.unlock(); });
+      controller.addEventListener("selectstart", () => {
+        void this.sound?.unlock();
+        this.beginVrSelection(controller);
+      });
       controller.addEventListener("select", () => this.selectFromVrController(controller));
       controller.addEventListener("squeeze", () => this.toggleVrPanel());
       this.playerRig.add(controller);
@@ -939,10 +944,12 @@ export class BroadStreetScene {
   }
 
   private handleVrSessionStart(): void {
+    this.vrSelectionStarts?.clear();
     const session=this.renderer.xr.getSession?.();
     if(session) {
       const syncSound=()=>this.sound?.setHidden(session.visibilityState!=="visible","xr");
       session.addEventListener("visibilitychange",()=>{
+        this.vrSelectionStarts?.clear();
         syncSound();this.vrWalking.reset();this.snapTurnLocked=true;
         this.vrShortcuts.clear();this.vrControllerButtonStates.clear();
       });syncSound();
@@ -962,6 +969,7 @@ export class BroadStreetScene {
   }
 
   private handleVrSessionEnd(): void {
+    this.vrSelectionStarts?.clear();
     this.sound?.setHidden(false,"xr");
     document.body.dataset.xrPresenting = "false";
     this.vrHeightOffset=0;this.vrStandingView=false;this.playerRig.position.y=0;
@@ -1043,7 +1051,16 @@ export class BroadStreetScene {
     this.updateVrIdleHint(timeSeconds);
   }
 
+  private beginVrSelection(controller: THREE.Group): void {
+    const inside = Boolean(this.pickVrPanel(controller));
+    this.setRaycasterFromController(controller);
+    this.vrSelectionStarts.set(controller, { panel: this.vrPanelVisible, inside,
+      origin: this.controllerRaycaster.ray.origin.clone(), direction: this.controllerRaycaster.ray.direction.clone() });
+  }
+
   private selectFromVrController(controller: THREE.Group): void {
+    const start = this.vrSelectionStarts?.get(controller);
+    this.vrSelectionStarts?.delete(controller);
     const button = this.pickVrButton(controller);
     if (button) {
       this.handleVrButton(button.userData.vrButton);
@@ -1054,7 +1071,18 @@ export class BroadStreetScene {
       return;
     }
 
-    if (this.vrPanelVisible) return;
+    if (this.vrPanelVisible) {
+      this.setRaycasterFromController(controller);
+      // A ray dragged off the dialog is not an outside click. Stick movement
+      // never enters this path; only an explicit select can dismiss a panel.
+      if (start && (!start.panel || start.inside
+        || start.origin.distanceTo(this.controllerRaycaster.ray.origin) > .06
+        || start.direction.angleTo(this.controllerRaycaster.ray.direction) > .04)) return;
+      this.gameState.closeDialogue();
+      this.vrPanelMode = "home";
+      this.hideVrPanel();
+      return;
+    }
     this.setRaycasterFromController(controller);
     const travel = this.worldTravel?.routeFor(this.pickWorldTravelHit(this.controllerRaycaster)?.object as THREE.Object3D);
     if (travel) { this.activateWorldTravel(travel); return; }

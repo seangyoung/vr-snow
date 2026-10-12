@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["ui/createUi", "ui/DesktopKeyboard", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
@@ -68,7 +68,7 @@ test("VR street entry supports pump selection, squeeze panel access, and telepor
   controller.rotation.x = -Math.PI / 4;
   scene.selectFromVrController(controller);
   assert.equal(playerRig.position.length(), 0);
-  scene.toggleVrPanel();
+  assert.equal(scene.vrPanelVisible,false,'first outside select dismisses without teleporting');
   const ground = scene.pickVrPointerHit(controller);
   assert.ok(courtyard.canTeleport(ground));
   scene.selectFromVrController(controller);
@@ -444,7 +444,7 @@ test('actual office controller path selects desk, respects panels, teleports and
   const zone=returnTravelRoutes.find(r=>r.id==='snow-street').zone;
   teleportViewer(rig,camera,new THREE.Vector3(zone.x,0,zone.z));
   scene.updateWorldTravelZones();assert.equal(game.getCurrentLocation().id,'snow-desk','exit locked before assignment');
-  game.askQuestion('snow-method-question');scene.updateWorldTravelZones();assert.equal(game.getCurrentLocation().id,'snow-desk','unlock while inside does not travel');
+  game.inspectHotspot('john-snow');game.askQuestion('snow-method-question');scene.updateWorldTravelZones();assert.equal(game.getCurrentLocation().id,'snow-desk','unlock while inside does not travel');
   teleportViewer(rig,camera,officeSpawn);scene.updateWorldTravelZones();
   teleportViewer(rig,camera,new THREE.Vector3(zone.x,0,zone.z));scene.updateWorldTravelZones();
   assert.equal(game.getCurrentLocation().id,'broad-street');
@@ -801,8 +801,12 @@ test("VR modal panels overlay scenery and keep controller actions modal", () => 
     controller.position.x = .8;
     assert.equal(scene.pickVrPointerHit(controller).object, surface);
     scene.selectFromVrController(controller);
+    let dismissed=0;
+    scene.gameState=new GameState();
+    scene.hideVrPanel=()=>{dismissed++;scene.vrPanelVisible=false;};
     controller.position.x = 3;
     scene.selectFromVrController(controller);
+    assert.equal(dismissed,1,'outside selection dismisses the panel');
     assert.equal(actions, 1, 'Panel background and outside-panel rays cannot activate scenery');
     scene.clearVrPanel();
     wall.geometry.dispose(); wall.material.dispose();
@@ -1757,4 +1761,133 @@ test('leaving VR restores desktop eye height and clears transient controller sta
     assert.equal(scene.vrHeightOffset,0);assert.equal(scene.vrStandingView,false);assert.equal(scene.vrExitPending,false);
     assert.equal(document.body.dataset.xrPresenting,'false');assert.equal(applied,1);
   } finally {globalThis.document=old;}
+});
+
+const { OutsidePanelDismiss } = await load('ui/OutsidePanelDismiss');
+function pointerEvent(type,x=20,y=20,extra={}) {
+  const event=new Event(type,{bubbles:true,cancelable:true});
+  for(const [key,value] of Object.entries({clientX:x,clientY:y,button:0,isPrimary:true,pointerId:1,detail:type==='click'?1:0,pointerType:'mouse',...extra}))
+    Object.defineProperty(event,key,{value});
+  return event;
+}
+function outsidePanelFixture(run) {
+  const oldDocument=globalThis.document,oldWindow=globalThis.window;
+  const doc=new EventTarget(),win=new EventTarget();globalThis.document=doc;globalThis.window=win;
+  const panel={getBoundingClientRect:()=>({left:100,right:300,top:100,bottom:300})};
+  const state={panel,enabled:true,closed:0,background:0};
+  const root={querySelector:()=>state.panel};
+  new OutsidePanelDismiss(root,()=>state.enabled,()=>{state.closed++;state.panel=null;});
+  doc.addEventListener('click',()=>{state.background++;});
+  const send=(type,x=20,y=20,extra={})=>{const event=pointerEvent(type,x,y,extra);doc.dispatchEvent(event);return event;};
+  const click=(x=20,y=20,extra={})=>{send('pointerdown',x,y,extra);send('pointerup',x,y,extra);return send('click',x,y,extra);};
+  try {run({state,send,click,doc,win,panel});}
+  finally {globalThis.document=oldDocument;globalThis.window=oldWindow;}
+}
+
+test('outside primary click dismisses once and consumes the background action',()=>outsidePanelFixture(({state,click,send})=>{
+  const event=click();assert.equal(state.closed,1);assert.equal(state.background,0);assert.equal(event.defaultPrevented,true);
+  send('click');assert.equal(state.closed,1,'a gesture cannot dismiss twice');
+}));
+
+test('panel edges, text and internal controls retain normal clicks',()=>outsidePanelFixture(({state,click})=>{
+  for(const point of [[100,100],[300,300],[200,220]])assert.equal(click(...point).defaultPrevented,false);
+  assert.equal(state.closed,0);assert.equal(state.background,3,'inside clicks propagate to panel controls');
+}));
+
+test('outside drags including out-and-back motion do not close or activate background controls',()=>outsidePanelFixture(({state,send})=>{
+  send('pointerdown');send('pointermove',50,20);send('pointermove',20,20);send('pointerup');send('click');
+  assert.equal(state.closed,0);assert.equal(state.background,0);
+  send('pointerdown');send('pointerup',60,20);send('click',60,20);
+  assert.equal(state.closed,0,'release displacement counts even without a move event');
+}));
+
+test('small pointer jitter permits a click but crossing the panel boundary does not',()=>outsidePanelFixture(({state,send})=>{
+  send('pointerdown',102,200);send('pointerup',99,200);send('click',99,200);
+  assert.equal(state.closed,0,'press inside then release outside is not dismissal');
+  send('pointerdown',99,200);send('pointerup',102,200);send('click',102,200);
+  assert.equal(state.closed,0,'touch capture must still respect release coordinates');
+  send('pointerdown',20,20);send('pointermove',22,21);send('pointerup',23,21);send('click',23,21);
+  assert.equal(state.closed,1);
+}));
+
+test('cancelled, non-primary, secondary and keyboard clicks never dismiss',()=>outsidePanelFixture(({state,send,click,win,doc})=>{
+  click(20,20,{button:2});click(20,20,{isPrimary:false});click(20,20,{detail:0});
+  send('pointerdown');send('pointercancel');send('pointerup');send('click');
+  send('pointerdown');win.dispatchEvent(new Event('blur'));send('pointerup');send('click');
+  send('pointerdown');doc.dispatchEvent(new Event('visibilitychange'));send('pointerup');send('click');
+  send('pointerdown');send('pointerdown',30,20,{pointerId:2,isPrimary:false});send('pointerup');send('click');
+  assert.equal(state.closed,0);
+}));
+
+test('opening clicks and stale gestures cannot dismiss a new panel; transition and XR gates are respected',()=>outsidePanelFixture(({state,send,click,panel})=>{
+  state.panel=null;send('pointerdown');state.panel=panel;send('pointerup');send('click');
+  assert.equal(state.closed,0,'opening pointerdown predates the dialog');
+  send('pointerdown');state.panel={...panel};send('pointerup');send('click');assert.equal(state.closed,0);
+  state.enabled=false;click();assert.equal(state.closed,0);
+  state.enabled=true;send('pointerdown');send('pointerup');send('click',20,20,{pointerId:2});assert.equal(state.closed,0);
+}));
+
+test('desktop dragging still turns while a panel is open without selecting scenery',()=>{
+  const oldDocument=globalThis.document,oldWindow=globalThis.window;
+  const doc=new EventTarget();doc.body={dataset:{overlayOpen:'true'}};globalThis.document=doc;globalThis.window=new EventTarget();
+  const canvas=new EventTarget();let captured=false,focused=0,turned=0,selected=0;
+  canvas.focus=()=>focused++;canvas.setPointerCapture=()=>{captured=true;};canvas.hasPointerCapture=()=>captured;canvas.releasePointerCapture=()=>{captured=false;};
+  const scene=Object.create(BroadStreetScene.prototype);
+  Object.assign(scene,{canvas,renderer:{xr:{isPresenting:false,getController:()=>new THREE.Group(),addEventListener:()=>{}}},
+    playerRig:new THREE.Group(),vrControllers:[],vrControllerPointers:[],yaw:0,pitch:0,pointerTravel:0,dragging:false,
+    applyCameraOrientation:()=>turned++,pickHotspot:()=>({id:'test'}),onHotspotActivate:()=>selected++});
+  try {
+    scene.addInputHandlers();
+    for(const [type,x] of [['pointerdown',20],['pointermove',80],['pointerup',80],['click',80]])canvas.dispatchEvent(pointerEvent(type,x,20));
+    assert.equal(turned,1);assert.ok(scene.yaw>0);assert.equal(selected,0);assert.equal(focused,0,'dialog keeps keyboard focus during camera drag');
+    doc.body.dataset.overlayOpen='false';
+    for(const type of ['pointerdown','pointerup','click'])canvas.dispatchEvent(pointerEvent(type,80,20));
+    assert.equal(selected,1,'a subsequent scene click works normally');assert.equal(focused,1);
+  } finally {globalThis.document=oldDocument;globalThis.window=oldWindow;}
+});
+
+test('VR outside selects dismiss without travel, while panel-to-world drags and large ray motion do not',()=>{
+  const scene=Object.create(BroadStreetScene.prototype),controller=new THREE.Group(),game=fieldGame(true);
+  game.travelToLocation('household');game.inspectHotspot('broad-street-household');game.askQuestion('household-water-question');
+  const count=game.getCollectedEvidence().length;let inside=false,hidden=0,world=0;
+  Object.assign(scene,{gameState:game,vrPanelVisible:true,vrSelectionStarts:new Map(),controllerRaycaster:new THREE.Raycaster(),
+    pickVrPanel:()=>inside?{}:undefined,pickVrButton:()=>undefined,setRaycasterFromController:()=>{},
+    hideVrPanel:()=>{hidden++;scene.vrPanelVisible=false;},pickWorldTravelHit:()=>{world++;}});
+  inside=true;scene.beginVrSelection(controller);inside=false;scene.selectFromVrController(controller);
+  assert.equal(hidden,0,'dragging off panel leaves it open');
+  scene.beginVrSelection(controller);scene.controllerRaycaster.ray.origin.x=.1;scene.selectFromVrController(controller);
+  assert.equal(hidden,0,'large hand displacement is not a click');
+  scene.beginVrSelection(controller);scene.controllerRaycaster.ray.direction.set(.2,0,-1).normalize();scene.selectFromVrController(controller);
+  assert.equal(hidden,0,'large aim change is not a click');
+  scene.beginVrSelection(controller);scene.selectFromVrController(controller);
+  assert.equal(hidden,1);assert.equal(world,0);assert.equal(game.getActiveDialogue(),undefined);
+  assert.equal(game.getCollectedEvidence().length,count,'closing retains collected evidence');
+});
+
+const { DesktopKeyboard } = await load('ui/DesktopKeyboard');
+test('panel focus stays contained while canvas pointer input remains available; dismissal restores scene focus',()=>{
+  const old={document:globalThis.document,window:globalThis.window,HTMLElement:globalThis.HTMLElement};
+  class Element {
+    dataset={};attributes={};inert=false;
+    setAttribute(name,value){this.attributes[name]=value;}
+    removeAttribute(name){delete this.attributes[name];}
+    getAttribute(name){return this.attributes[name];}
+    getClientRects(){return [{}];}
+    focus(){globalThis.document.activeElement=this;}
+    querySelectorAll(){return [];}
+  }
+  globalThis.HTMLElement=Element;globalThis.window=new EventTarget();
+  const scene=new Element(),button=new Element(),panel=new Element(),rail=new Element();
+  button.dataset.action='ask';panel.attributes['aria-label']='Interview';panel.querySelectorAll=()=>[button];
+  let open=true;const root={querySelector:selector=>selector==='.hud'?{children:[rail,panel]}:open?panel:null};
+  globalThis.document={body:{dataset:{}},activeElement:scene};
+  try {
+    const keys=new DesktopKeyboard(root,scene,()=>false);keys.afterRender();
+    assert.equal(scene.inert,false);assert.equal(scene.attributes['aria-hidden'],'true');
+    assert.equal(rail.inert,true);assert.equal(globalThis.document.activeElement,button);
+    const tab=new Event('keydown',{cancelable:true});Object.defineProperty(tab,'key',{value:'Tab'});
+    globalThis.window.dispatchEvent(tab);assert.equal(tab.defaultPrevented,true);assert.equal(globalThis.document.activeElement,button);
+    open=false;keys.afterRender();assert.equal(globalThis.document.activeElement,scene);
+    assert.equal(scene.attributes['aria-hidden'],undefined);assert.equal(rail.inert,false);
+  } finally {Object.assign(globalThis,old);}
 });

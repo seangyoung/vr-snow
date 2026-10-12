@@ -230,11 +230,11 @@ button {
   display: none;
 }
 
-.hud[data-stage="briefing"] .tool-rail .icon-button:not([data-action="reset"]) {
+.hud[data-stage="briefing"] .tool-rail .icon-button:not([data-action="reset"]):not([data-action="chapter"]) {
   display: none;
 }
 
-.hud[data-stage="board"] .tool-rail .icon-button:not([data-action="reset"]) {
+.hud[data-stage="board"] .tool-rail .icon-button:not([data-action="reset"]):not([data-action="chapter"]) {
   display: none;
 }
 

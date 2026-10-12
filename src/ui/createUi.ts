@@ -1,5 +1,6 @@
 import type { SoundControls } from "../audio/Soundscape";
 import { DesktopKeyboard } from "./DesktopKeyboard";
+import { OutsidePanelDismiss } from "./OutsidePanelDismiss";
 import { createIcons, icons } from "lucide";
 import { boardThreshold, fieldStudyGoal, locationEvidenceIds, noDialogueActionsText } from "../simulation/content";
 import type { GameState } from "../simulation/gameState";
@@ -120,9 +121,20 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   let message = "Speak with Snow at the desk to receive the field assignment.";
   let isTransitioning = false;
   let snowReviewOpen = false;
+  let dismissedChapter: ChapterStage | undefined;
+  let previousStage = gameState.getStage();
   let soundControls: SoundControls | undefined;
   let motionLookControls: MotionLookControls | undefined;
   const keyboard = new DesktopKeyboard(root, document.getElementById("scene"), () => isTransitioning);
+  new OutsidePanelDismiss(root, () => !isTransitioning && document.body.dataset.xrPresenting !== "true", dismissPanels);
+
+  function dismissPanels(): void {
+    overlayMode = "none";
+    snowReviewOpen = false;
+    dismissedChapter = gameState.getStage();
+    gameState.closeDialogue();
+    render();
+  }
 
   const ui: PrototypeUi = {
     beginTravel,
@@ -161,6 +173,14 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 
     const stage = gameState.getStage();
     const toolsAvailable = stage !== "briefing" && stage !== "board";
+
+    if (action === "close-chapter") { dismissPanels(); return; }
+    if (action === "chapter") {
+      dismissedChapter = undefined;
+      overlayMode = "none";
+      gameState.closeDialogue();
+      render(); return;
+    }
 
     if(action==="sound") {overlayMode=overlayMode==="sound"?"none":"sound";render();return;}
     if(soundControls && ["toggle-sound","ambience-down","ambience-up","effects-down","effects-up"].includes(action)) {
@@ -281,6 +301,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       overlayMode = "none";
     }
     if (action === "reset") {
+      dismissedChapter = undefined;
       overlayMode = "none";
       snowReviewOpen = false;
       message = "Speak with Snow at his desk to receive the field assignment.";
@@ -305,8 +326,10 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     const allEvidence = gameState.getAllEvidence();
     const activeDialogue = gameState.getActiveDialogue();
     const stage = gameState.getStage();
+    if (stage !== previousStage) { dismissedChapter = undefined; previousStage = stage; }
     const currentLocation = gameState.getCurrentLocation();
-    const showChapterPanel = stage === "briefing" || stage === "board" || stage === "complete";
+    const hasChapterPanel = stage === "briefing" || stage === "board" || stage === "complete";
+    const showChapterPanel = hasChapterPanel && dismissedChapter !== stage && overlayMode === "none" && !activeDialogue;
     const showSynthesisPanel =
       stage === "synthesis" &&
       currentLocation.id === "snow-desk" &&
@@ -329,10 +352,11 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
           <span class="location-line">${escapeHtml(gameState.getInteractionHint())}</span>
           ${currentLocation.id !== "board-room" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select clear ground to teleport · Marked exits or map to travel</span>' : ""}
-          <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Panels: Tab / arrows, Enter to choose · Esc: close<br>Page Up / Down: read more · Mouse also supported</span>
+          <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Panels: Tab / arrows, Enter to choose<br>Click outside / Esc: close · Page Up / Down: read more</span>
         </section>
 
         <nav class="tool-rail" aria-label="Investigation tools">
+          ${hasChapterPanel ? '<button class="icon-button" data-action="chapter" aria-label="Open chapter instructions" title="Chapter instructions"><i data-lucide="book-open"></i></button>' : ""}
           <button class="icon-button ${overlayMode === "notebook" ? "is-active" : ""}" data-action="notebook" aria-label="Notebook" aria-keyshortcuts="N" title="Notebook (N)">
             <i data-lucide="notebook-tabs"></i>
             <span>${gameState.getProgressText()}</span>
@@ -537,6 +561,7 @@ export function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gam
         ${boardFindings}
       </div>
       <div class="chapter-actions">
+        <button class="secondary-action" data-action="close-chapter">Close</button>
         <button class="secondary-action" data-action="sound">Sound settings</button>
         ${action}
       </div>
