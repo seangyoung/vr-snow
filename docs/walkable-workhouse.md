@@ -1,57 +1,62 @@
-# Workhouse: walkable courtyard prototype
+# Workhouse: courtyard interview
 
-The workhouse panorama is replaced on `walkable-prototype` with an enclosed, open-air courtyard. It follows the existing panorama's visual setting: stock-brick institutional wings, sash windows, cobbled ground, perimeter paving, a separate water-supply feature and benches. A marked steward's table opens the existing interview. The 18 × 20 m yard, 8.8 m wings, furniture, covered well and pump are interpretive design choices, not a surveyed reconstruction or documentation of the actual 1854 fittings. The water feature is scenery; the steward's testimony remains the evidence source.
+The walkable workhouse is an enclosed, open-air institutional yard. The steward
+stands beside a closed administrative door with a ledger tucked under his left
+arm and his right arm relaxed at his side. The door is solid scenery; there is
+no visible office interior beyond the courtyard.
+The outdoor desk, chair and raised garden bed have been removed.
 
-## Interaction and travel
+The separate water supply remains visible beside the encounter. Its covered base
+and pump are at working height, with two wooden buckets, a small trough and a
+drain grate. Perimeter benches, storage and a narrow gutter give the yard a
+practical function. The 18 × 20 m yard, 8.8 m wings, doorway, ledger, fittings and
+positions are interpretive choices, not a measured reconstruction.
 
-The existing Snow review prerequisite and workhouse map location are unchanged. Enter by map or the east-then-north Poland Street target on Broad Street. Arrival faces the steward's table. Select the table or Steward label to ask the existing water-source question and collect the workhouse exception card.
+Snow recorded both a pump-well on the premises and a supply from the Grand
+Junction Water Works, and that inmates did not fetch water from Broad Street.
+The visible pump represents the separate supply; the existing steward interview
+remains the evidence source. It does not add a second collectible.
 
-WASD/arrows, clear-ground teleportation, controller selection, squeeze panels and snap turning use the shared navigation. Walls, benches, the table, chair, planting bed, storage chest and well constrain artificial movement with 25 cm clearance. A clear route surrounds the well. Virtual obstacles do not stop physical room-scale movement; the headset's real-world play boundary still applies.
+- [Snow's account, UCLA transcription](https://epi-snow.ph.ucla.edu/Stream1_introduction_d9.html)
+- [St. James workhouse history and later site plan](https://www.workhouses.org.uk/StJames/)
 
-The marked entrance door returns to Broad Street via Poland Street. Select it or enter its floor ring. Arrival is outside the ring; closing a panel while inside cannot trigger unexpected travel. Other doors are closed scenery. Map travel remains available.
+The latter source describes reconstruction of the north wing in 1858 and shows
+an 1867 plan. Neither establishes the office location or the precise 1854 water
+fittings used in this scene. No claim is made that Snow met this particular
+steward in the yard.
 
-## Editable assets
+## Navigation and interaction
 
-- `src/walkable/workhouse-layout.json`: courtyard dimensions, collision footprints, arrival, steward and exit positions.
-- `scripts/assets/build_workhouse_courtyard.py`: deterministic Blender generator.
-- `assets/workhouse-courtyard/workhouse-courtyard.blend`: packed editable source with named pieces.
-- `public/models/workhouse-courtyard.glb`: browser export, approximately 1.8 MiB, 20,356 triangles and 14 material batches.
-- `assets/workhouse-courtyard/build-report.json`: geometry counts and the exported layout.
-- `src/walkable/WorkhouseCourtyard.ts`: shared room navigation with a courtyard sky.
+Arrival faces the doorway encounter. Approach and select the steward using a
+controller ray, desktop pointer, or center reticle to open the existing interview.
+The map, Snow-review prerequisite, evidence card and marked return to Broad
+Street are unchanged. The well remains an obstacle, with clear routes around it.
+The standing character's footprint blocks walking and teleporting through him
+when loaded. If his asset fails, the small fallback interaction target remains at
+the interview location; there is no invisible desk occupying the yard.
 
-The model reuses original project brick, cobble, paving, slate and timber textures. It has no real-time shadow maps and no new dependency. The environment and sky load once; failures retain bounded fallback geometry and an overcast background. Material refinement, richer weathering and more specific historical detailing remain for a later art pass.
+## Assets and editing
+
+- `src/walkable/workhouse-layout.json`: collision, arrival, interview and exit layout.
+- `src/walkable/scene-characters.json`: standing steward placement and ledger role.
+- `scripts/assets/build_workhouse_courtyard.py`: environment generator.
+- `assets/scene-people/steward.blend`: authoritative editable person and ledger.
+- `scripts/assets/pose_workhouse_steward.py`: one-time pose authoring from the approved source; preserves his face and textures.
+- `assets/workhouse-courtyard/`: editable environment and generated build report.
+- `assets/workhouse-characters/`: posed, scene-lit export and source checksums.
+- `public/models/workhouse-*`: runtime models, lighting and reflection images.
 
 ```sh
-blender --background --factory-startup --python scripts/assets/build_workhouse_courtyard.py
+blender -b --factory-startup --python-exit-code 1 --python scripts/assets/build_workhouse_courtyard.py
+blender -b --factory-startup --python-exit-code 1 --python scripts/assets/build_scene_characters.py -- workhouse
+blender -b --factory-startup --python-exit-code 1 --python scripts/assets/review_scene_characters.py -- workhouse
 npm run test:walkable
 VITE_BASE_PATH=/vr-snow/walkable/ npm run build
 ```
 
-## Validation and headset checks
-
-All 39 automated checks and the production build pass. Automated coverage includes a clear approach to the steward, a route around the well, collision and teleport exclusion, seated and standing ray targets, controller interview activation, workhouse evidence retention, panel blocking, automatic return, map re-entry, repeated scene changes and embedded asset budgets.
-
-Browser checks confirmed map prerequisites, courtyard rendering, physical table selection, water-source evidence, ground teleport, automatic exit, direct door selection, evidence retention and repeat entry. The final asset was also inspected from both ends after closing the wing corner seams. No browser warnings or errors were recorded.
-
-On Quest, check courtyard loading and frame rate, scale, distant window shimmer, steward/table readability, floor teleport around the well, return door/ring operation and repeated travel to Broad Street. Desktop validation cannot establish headset comfort or performance.
-
-## Planter flicker and notebook cleanup
-
-Headset feedback identified flickering at the raised planting bed. Its soil box
-shared exterior planes with the stone frame; the ground also stacked paving only
-0.5 mm above full-size cobbles, with overlapping paving at the corners. The soil
-now sits behind the visible edging, frame corners meet without overlapping, and
-paving/cobbles partition the ground instead of sharing the same area. The frame
-extends slightly below the ground to close the previous base gap. Navigation
-footprints and the model's 20,356 triangles / 14 material batches are unchanged.
-
-Field Notebook support tags are removed from both VR canvas cards and desktop
-cards. Evidence summaries, source labels and underlying support metadata remain;
-investigation and argument logic are unchanged.
-
-All 45 automated tests and the production build passed. A regression check loads
-the exported GLB geometry and verifies single ground intersections near the bed
-and yard corners, plus soil bounds behind the stone exterior. Browser inspection
-covered the planter from multiple viewpoints and recorded VR/desktop evidence
-cards without tags; no warnings/errors were reported. A fresh Quest check of the
-planter during head movement remains necessary to confirm the reported flicker.
+Rebuild the person after rebuilding the yard so his lighting matches the new
+setting. Automated checks cover interview/evidence continuity, fallback and loaded
+selection, well and character collision, exit travel, the closed door,
+single floor surfaces, source/export consistency and geometry budgets. Offline
+renders inspect the pose and environment; headset appearance and comfort remain
+device checks.

@@ -12,7 +12,7 @@ export class WorkhouseCourtyard extends FurnishedRoom {
   constructor() {
     super({characters: "workhouse", name: "St. James Workhouse courtyard", asset: "workhouse-courtyard.glb", layout, area: workhouseArea,
       bakedLighting: {lightMap: "workhouse-courtyard-lightmap.png", environment: "workhouse-courtyard-environment.png"},
-      interactionFurniture: "steward-table", hotspot: "poland-workhouse", daylight: "#e1e9e7", fill: 0});
+      hotspot: "poland-workhouse", daylight: "#e1e9e7", fill: 0});
   }
   override loadVisuals(basePath: string): Promise<void> {
     return this.courtyardVisuals ??= Promise.all([super.loadVisuals(basePath), this.loadSky(basePath)]).then(() => {});

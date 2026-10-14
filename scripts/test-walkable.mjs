@@ -634,7 +634,7 @@ test('workhouse controller interview retains the separate-supply evidence and re
   const camera=new THREE.PerspectiveCamera();camera.position.set(0,1.62,0);
   const rig=new THREE.Group();rig.add(camera);teleportViewer(rig,camera,workhouseSpawn);
   const controller=new THREE.Group();controller.position.copy(workhouseSpawn).setY(1.62);
-  controller.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),workhouseStewardTarget.clone().setY(.8).sub(controller.position).normalize());
+  controller.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),workhouseStewardTarget.clone().setY(1.55).sub(controller.position).normalize());
   const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
   const scene=Object.create(BroadStreetScene.prototype);
   Object.assign(scene,{camera,playerRig:rig,courtyard:new PumpCourtyard(),office:new SnowOffice(),registrar:new RegistrarRoom(),household:new HouseholdRoom(),workhouse:room,worldTravel:targets,gameState:game,
@@ -654,19 +654,22 @@ test('workhouse controller interview retains the separate-supply evidence and re
 });
 
 const workhouseLayout=JSON.parse(await readFile('src/walkable/workhouse-layout.json','utf8'));
-test('workhouse yard has clear approaches around the well, steward table and exit',()=>{
+test('workhouse yard has clear approaches to the standing steward, water supply and exit',()=>{
   const zone=returnTravelRoutes.find(r=>r.id==='workhouse-return').zone;
-  assert.ok(workhouseArea.canWalkBetween(workhouseSpawn,new THREE.Vector3(-2.2,0,.1)));
+  assert.ok(workhouseArea.canWalkBetween(workhouseSpawn,new THREE.Vector3(-1.5,0,-6.4)));
   assert.ok(workhouseArea.canWalkBetween(workhouseSpawn,new THREE.Vector3(zone.x,0,zone.z)));
-  const loop=[[1.8,5.9],[5.2,1],[5.2,-4],[.9,-4],[.9,1],[1.8,5.9]].map(([x,z])=>new THREE.Vector3(x,0,z));
+  const loop=[[.4,1.8],[5.2,-3.6],[5.2,-7.8],[.9,-7.8],[.9,-3.6],[.4,1.8]].map(([x,z])=>new THREE.Vector3(x,0,z));
   for(let i=1;i<loop.length;i++) assert.ok(workhouseArea.canWalkBetween(loop[i-1],loop[i]),'clear path around separate water supply');
   assert.ok(Math.hypot(workhouseSpawn.x-zone.x,workhouseSpawn.z-zone.z)>zone.radius+1);
   for(const f of workhouseLayout.furniture) assert.equal(workhouseArea.isValidDestination(new THREE.Vector3(f.x,0,f.z)),false,f.id);
-  assert.equal(workhouseArea.canWalkBetween(new THREE.Vector3(.9,0,-1.8),new THREE.Vector3(5.2,0,-1.8)),false,'cannot cut through the well');
+  assert.equal(workhouseArea.canWalkBetween(new THREE.Vector3(.9,0,-5.8),new THREE.Vector3(5.2,0,-5.8)),false,'cannot cut through the well');
   assert.equal(workhouseArea.isValidDestination(new THREE.Vector3(9,0,0)),false,'wing wall bounds');
-  const keys=new DesktopMovement();keys.press('w');let p=new THREE.Vector3(-2.2,1.62,1);
-  for(let i=0;i<100;i++) p=keys.update(p,0,.05,workhouseArea.canWalkBetween).position;
-  assert.ok(p.z>=-.4 && p.z<-.25,'stop before steward table');
+  const room=new WorkhouseCourtyard();room.characters.group.userData.characterStatus='ready';
+  const keys=new DesktopMovement();keys.press('w');let p=new THREE.Vector3(-1.5,1.62,-5);
+  for(let i=0;i<100;i++) p=keys.update(p,0,.05,room.canWalkBetween).position;
+  assert.ok(p.z>=-7.23 && p.z<-7.1,'stop before the standing steward');
+  assert.ok(!workhouseLayout.furniture.some(f=>/steward-table|steward-chair|garden-bed/.test(f.id)));
+  assert.ok(workhouseArea.isValidDestination(new THREE.Vector3(0,0,-9.3)),'doorway approach is open');
 });
 
 test('workhouse seated and standing rays select steward, exit and ground but cannot cross the well',()=>{
@@ -675,7 +678,7 @@ test('workhouse seated and standing rays select steward, exit and ground but can
   const ray=new THREE.Raycaster();
   for(const eyeHeight of [1.15,1.62]) {
     const from=workhouseSpawn.clone().setY(eyeHeight);
-    for(const y of [.8,1.45]) {
+    for(const y of [1.4,1.6]) {
       ray.set(from,workhouseStewardTarget.clone().setY(y).sub(from).normalize());
       const hit=room.pick(ray);assert.equal(room.hotspotFor(hit.object),'poland-workhouse');assert.equal(room.canTeleport(hit),false);
     }
@@ -683,7 +686,7 @@ test('workhouse seated and standing rays select steward, exit and ground but can
   }
   ray.set(new THREE.Vector3(0,1.3,7.8),new THREE.Vector3(0,0,1));
   const hit=targets.pick(ray,'workhouse',room.pick(ray));assert.equal(targets.routeFor(hit.object).to,'broad-street');
-  ray.set(new THREE.Vector3(3,1.62,1),new THREE.Vector3(0,-.15,-1).normalize());
+  ray.set(new THREE.Vector3(3,1.62,-3.5),new THREE.Vector3(0,-.15,-1).normalize());
   const well=room.pick(ray);assert.equal(room.canTeleport(well),false);assert.equal(room.hotspotFor(well.object),undefined,'well is scenery, not a second evidence source');
   room.group.visible=false;assert.equal(room.pick(ray),undefined);
 });
@@ -816,7 +819,7 @@ test("VR modal panels overlay scenery and keep controller actions modal", () => 
   }
 });
 
-test('exported workhouse has one ground surface and soil behind the stone edging', async () => {
+test('exported workhouse has single ground surfaces and a closed courtyard door', async () => {
   const bytes = await readFile('public/models/workhouse-courtyard.glb');
   const jsonLength = bytes.readUInt32LE(12);
   const gltf = JSON.parse(bytes.toString('utf8', 20, 20 + jsonLength));
@@ -836,16 +839,17 @@ test('exported workhouse has one ground surface and soil behind the stone edging
   model.updateMatrixWorld(true);
   const ray = new THREE.Raycaster(); ray.far = .2;
   // Non-diagonal samples avoid double hits along the triangles' shared edge.
-  for (const [x,z] of [[8.71,-5.13],[8.21,9.23],[-8.31,-9.17],[.37,.19]]) {
+  for (const [x,z] of [[8.51,-5.13],[8.21,9.23],[-8.31,-9.17],[.37,.19]]) {
     ray.set(new THREE.Vector3(x,.1,z), new THREE.Vector3(0,-1,0));
     assert.equal(ray.intersectObject(model,true).length, 1, `Single ground layer at ${x}, ${z}`);
   }
-  const soil = model.getObjectByName('Soil'); assert.ok(soil);
-  const soilBounds = new THREE.Box3().setFromObject(soil);
-  const layout = JSON.parse(await readFile('src/walkable/workhouse-layout.json','utf8'));
-  const bed = layout.furniture.find(f => f.id === 'garden-bed');
-  assert.ok(soilBounds.min.x > bed.x-bed.width/2+.04 && soilBounds.max.x < bed.x+bed.width/2-.04);
-  assert.ok(soilBounds.min.z > bed.z-bed.depth/2+.04 && soilBounds.max.z < bed.z+bed.depth/2-.04);
+  assert.equal(model.getObjectByName('Soil'),undefined,'raised garden bed is removed');
+  ray.far=5;
+  for(const [x,y] of [[0,1.5],[-.4,.6],[.4,1.8]]) {
+    ray.set(new THREE.Vector3(x,y,-8),new THREE.Vector3(0,0,-1));
+    const door=ray.intersectObject(model,true)[0];
+    assert.ok(door&&door.point.z>-10.1&&door.point.z<-9.8,'closed door blocks the view into the building');
+  }
   model.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
 });
 
@@ -1381,7 +1385,17 @@ for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} 
       const skin=scene.getObjectByName(actor.id+'_upper_Skin');
       const matrix=new THREE.Matrix4().multiplyMatrices(root.matrixWorld.clone().invert(),skin.matrixWorld);
       const positions=skin.geometry.getAttribute('position');
+      if('heldProp' in actor && actor.heldProp==='ledger') {
+        const book=scene.getObjectByName(actor.id+'_upper_Waistcoat');
+        const cover=cast(.5,1.22,0,[-1,0,0],book);
+        assert.ok(cover,'underarm ledger has a solid outer cover');
+        const coverX=root.worldToLocal(cover.point.clone()).x;
+        assert.ok(coverX>.22&&coverX<.25,'ledger lies beside the ribs, with its cover facing sideways');
+        const hand=cast(.22,.9,.06,[0,1,0],skin);
+        assert.ok(hand,'left palm supports the lower edge of the ledger');
+      }
       for(const side of [-1,1]) {
+        if('heldProp' in actor && actor.heldProp==='ledger' && side===1)continue;
         const hand=[];
         for(let i=0;i<positions.count;i++) {
           const p=new THREE.Vector3().fromBufferAttribute(positions,i).applyMatrix4(matrix);

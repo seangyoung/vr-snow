@@ -11,7 +11,7 @@ export interface RoomLayout {
 }
 export interface RoomOptions {
   name: string; asset: string; layout: RoomLayout; area: WalkableArea;
-  interactionFurniture: string; hotspot: string;
+  interactionFurniture?: string; hotspot: string;
   daylight?: string; fill?: number;
   characters?: CharacterScene;
   bakedLighting?: { lightMap: string; environment: string };
@@ -36,7 +36,7 @@ export class FurnishedRoom implements WalkableEnvironment {
   private readonly solids: THREE.Object3D[] = [];
   private readonly fallback = new THREE.Group();
   private readonly lighting = new THREE.Group();
-  private readonly desk: THREE.Mesh;
+  private readonly desk?: THREE.Mesh;
   protected readonly deskPrompt: THREE.Mesh;
   private visualsPromise?: Promise<void>;
 
@@ -65,12 +65,12 @@ export class FurnishedRoom implements WalkableEnvironment {
     box(layout.width/2,layout.height/2,0,.1,layout.height,layout.depth,plaster);
     box(0,layout.height/2,-layout.depth/2,layout.width,layout.height,.1,plaster);
     box(0,layout.height/2,layout.depth/2,layout.width,layout.height,.1,plaster);
-    let desk!: THREE.Mesh;
+    let desk: THREE.Mesh | undefined;
     for (const f of layout.furniture) {
       const proxy=box(f.x,f.height/2,f.z,f.width,f.height,f.depth,timber);
       if (f.id === options.interactionFurniture) desk=proxy;
     }
-    if (!desk) throw new Error(`Missing interactive furniture: ${options.interactionFurniture}`);
+    if (options.interactionFurniture && !desk) throw new Error(`Missing interactive furniture: ${options.interactionFurniture}`);
     this.desk=desk;
     this.deskPrompt = new THREE.Mesh(new THREE.SphereGeometry(.32,12,8),rayOnly);
     this.deskPrompt.position.fromArray(layout.deskTarget).add(new THREE.Vector3(0,.35,0));

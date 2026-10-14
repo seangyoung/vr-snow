@@ -69,3 +69,12 @@ The anatomy, morph targets and bundled system assets use CC0-1.0; the license is
 in `public/licenses/makehuman-assets.txt`. MPFB authoring software is separately
 GPLv3 and is not bundled in the app. See the provenance file for upstream links,
 pinned revision, asset archive checksum and individual input checksums.
+
+## Workhouse doorway revision
+
+The steward now stands beside the closed administrative door with a ledger tucked
+under his left arm and his right arm relaxed. `pose_workhouse_steward.py` records
+the one-time edit of the approved anatomical source. His face, hair, clothing and
+packed textures are retained. The ledger reuses existing brown, linen and metal
+materials to preserve the per-person batch budget. Normal exports read this saved
+pose; they do not regenerate it from `appearance.json` or the earlier seated pose.

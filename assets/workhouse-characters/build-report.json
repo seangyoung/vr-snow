@@ -4,28 +4,29 @@
     {
       "id": "steward",
       "position": [
-        -2.2,
+        -1.5,
         0,
-        -2.6
+        -7.8
       ],
-      "pose": "lap",
+      "pose": "standing",
       "coat": "3c4651",
       "vest": "6c685b",
-      "labelHeight": 1.61,
-      "height": 1.45
+      "labelHeight": 1.96,
+      "height": 1.8,
+      "heldProp": "ledger"
     }
   ],
   "anatomicalBase": "MakeHuman hm08 / MPFB",
   "sources": {
-    "steward": "83697c32e551e041200ad4247a512b13a67f0f266f83a2a8d7a0ec92c410ca99"
+    "steward": "eae7a76ed70b4680eb834667c97d2b2ad8b92544334d06748736fd10c851da01"
   },
   "runtimeSkeleton": false,
-  "triangles": 27105,
+  "triangles": 27370,
   "materialBatches": 12,
   "bakedLighting": {
     "size": 1024,
     "normalization": 4,
-    "diffusePeak999": 0.5598,
+    "diffusePeak999": 0.618,
     "environmentSize": [
       256,
       128

@@ -51,15 +51,16 @@
       {
         "id": "steward",
         "position": [
-          -2.2,
+          -1.5,
           0,
-          -2.6
+          -7.8
         ],
-        "pose": "lap",
+        "pose": "standing",
         "coat": "3c4651",
         "vest": "6c685b",
-        "labelHeight": 1.61,
-        "height": 1.45
+        "labelHeight": 1.96,
+        "height": 1.8,
+        "heldProp": "ledger"
       }
     ]
   },
