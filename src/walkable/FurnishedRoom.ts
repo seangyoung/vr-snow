@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { extractProps, type InspectableProp } from "./InspectableProps";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { WalkableArea, type WalkableEnvironment } from "./WalkableArea";
 import { SceneCharacters, type CharacterScene } from "./SceneCharacters";
@@ -30,6 +31,7 @@ export function roomArea(layout: RoomLayout): WalkableArea {
 export class FurnishedRoom implements WalkableEnvironment {
   readonly group = new THREE.Group();
   readonly spawn: THREE.Vector3;
+  readonly props: InspectableProp[] = [];
   readonly characters?: SceneCharacters;
   readonly floor: THREE.Mesh;
   readonly canWalkBetween: WalkableArea["canWalkBetween"];
@@ -67,7 +69,8 @@ export class FurnishedRoom implements WalkableEnvironment {
     box(0,layout.height/2,layout.depth/2,layout.width,layout.height,.1,plaster);
     let desk: THREE.Mesh | undefined;
     for (const f of layout.furniture) {
-      const proxy=box(f.x,f.height/2,f.z,f.width,f.height,f.depth,timber);
+      const height=f.id === "medical-table" ? .825 : f.height;
+      const proxy=box(f.x,height/2,f.z,f.width,height,f.depth,timber);
       if (f.id === options.interactionFurniture) desk=proxy;
     }
     if (options.interactionFurniture && !desk) throw new Error(`Missing interactive furniture: ${options.interactionFurniture}`);
@@ -102,6 +105,7 @@ export class FurnishedRoom implements WalkableEnvironment {
           console.warn(`Using the original lighting for ${this.options.name}.`, error);
         }
       }
+      this.props.push(...extractProps(gltf.scene,this.group,this.options.asset));
       this.group.add(gltf.scene);this.fallback.visible=false;
       this.group.userData.environmentStatus="ready";
     } catch (error) {
@@ -114,8 +118,10 @@ export class FurnishedRoom implements WalkableEnvironment {
     this.group.updateMatrixWorld(true);
     if(this.characters)this.deskPrompt.layers.mask=this.characters.ready?0:1;
     const furniture=raycaster.intersectObjects([this.floor,...this.solids],false)[0];
+    const prop=raycaster.intersectObjects(this.props.filter(p=>!p.returning && !p.held).map(p=>p.group),true)[0];
+    const nearest=prop && (!furniture || prop.distance < furniture.distance) ? prop : furniture;
     const person=this.characters?.pick(raycaster);
-    return person && (!furniture || person.distance<furniture.distance) ? person : furniture;
+    return person && (!nearest || person.distance<nearest.distance) ? person : nearest;
   }
   hotspotFor(object: THREE.Object3D): string | undefined {
     return (object === this.desk || object === this.deskPrompt || this.characters?.owns(object)) ? this.options.hotspot : undefined;

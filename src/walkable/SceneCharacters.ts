@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CharacterIdle } from "./CharacterIdle";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import definitions from "./scene-characters.json" with { type: "json" };
 import { loadBakedRoomLighting } from "./BakedRoomLighting";
@@ -13,7 +14,7 @@ export class SceneCharacters {
   readonly targets: THREE.Mesh[] = [];
   readonly labelPosition = new THREE.Vector3();
   private loading?: Promise<void>;
-  private heads: Array<{ object: THREE.Object3D; yaw: number }> = [];
+  private idles: CharacterIdle[] = [];
   private readonly footprints: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }> = [];
   constructor(readonly key: CharacterScene) {
     const definition = definitions[key];
@@ -36,9 +37,9 @@ export class SceneCharacters {
       const {asset,actors} = definitions[this.key];
       model=(await new GLTFLoader().loadAsync(`${basePath}models/${asset}.glb`)).scene;
       await loadBakedRoomLighting(model,basePath,{lightMap:`${asset}-lightmap.png`,environment:`${asset}-environment.png`,preserveVertexColors:true});
-      for (const actor of actors) {
-        const object=model.getObjectByName(`${actor.id}_head`);
-        if(object)this.heads.push({object,yaw:object.rotation.y});
+      for (const [index, actor] of actors.entries()) {
+        const root=model.getObjectByName(`${actor.id}_root`);
+        if(root)this.idles.push(new CharacterIdle(root,index*2.17+actor.id.length*.7,actor.pose!=="standing"));
       }
       this.group.add(model);this.group.userData.characterStatus="ready";
     } catch(error) {
@@ -65,6 +66,6 @@ export class SceneCharacters {
     });
   }
   update(time: number,reducedMotion: boolean): void {
-    this.heads.forEach(({object,yaw},index)=>{object.rotation.y=yaw+(reducedMotion?0:Math.sin(time*.31+index*2.1)*.009);});
+    this.idles.forEach(idle=>idle.update(time,reducedMotion));
   }
 }

@@ -32,8 +32,7 @@ dialogue and progression retain their existing behavior.
 
 Models and lighting load once on first entry, independently of room loading.
 Failed loads retain furniture interaction without invisible blockers. Hidden
-scenes do not animate. Small head movement honors reduced motion; the runtime
-has no skeleton, speech generation or lip sync.
+scenes do not animate. Breathing, small head turns and weight shifts use a continuous deformation in actor coordinates, keeping skin and garments together across mesh boundaries. Each actor has a different phase; feet and interaction proxies remain fixed. Reduced motion disables these loops. The runtime has no skeleton, speech generation or lip sync.
 
 ## Assets and reproduction
 

@@ -352,7 +352,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
           <span class="location-line">${escapeHtml(gameState.getInteractionHint())}</span>
           ${currentLocation.id !== "board-room" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select clear ground to teleport · Marked exits or map to travel</span>' : ""}
-          <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Panels: Tab / arrows, Enter to choose<br>Click outside / Esc: close · Page Up / Down: read more</span>
+          <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Objects: click / Space to inspect or return · Q / E: rotate<br>Panels: Tab / arrows, Enter to choose<br>Click outside / Esc: close · Page Up / Down: read more</span>
         </section>
 
         <nav class="tool-rail" aria-label="Investigation tools">

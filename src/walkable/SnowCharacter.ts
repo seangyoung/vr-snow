@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CharacterIdle } from "./CharacterIdle";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { loadBakedRoomLighting } from "./BakedRoomLighting";
 
@@ -7,10 +8,7 @@ export class SnowCharacter {
   readonly group = new THREE.Group();
   readonly target = new THREE.Mesh(new THREE.BoxGeometry(.6,1.35,.70),new THREE.MeshBasicMaterial({visible:false}));
   private loading?: Promise<void>;
-  private head?: THREE.Object3D;
-  private upper?: THREE.Object3D;
-  private headYaw = 0;
-  private upperY = 0;
+  private idle?: CharacterIdle;
   constructor() {
     this.group.name="Seated John Snow";
     this.target.position.set(-.65,.96,-2.15);
@@ -31,9 +29,8 @@ export class SnowCharacter {
         gltf.scene.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose();}});
         throw error;
       }
-      this.head=gltf.scene.getObjectByName("Snow_head");
-      this.upper=gltf.scene.getObjectByName("Snow_upper");
-      this.headYaw=this.head?.rotation.y??0;this.upperY=this.upper?.position.y??0;
+      const root=gltf.scene.getObjectByName("Snow_character");
+      if(root)this.idle=new CharacterIdle(root,.6,true);
       this.group.add(gltf.scene);this.group.userData.characterStatus="ready";
     } catch(error) {
       this.group.userData.characterStatus="unavailable";
@@ -42,8 +39,6 @@ export class SnowCharacter {
   }
   update(seconds: number, reducedMotion=false): void {
     if(!this.group.visible)return;
-    // Tiny breathing and a slow head movement, not lip-sync or simulated speech.
-    if(this.upper)this.upper.position.y=this.upperY+(reducedMotion?0:Math.sin(seconds*1.3)*.0015);
-    if(this.head)this.head.rotation.y=this.headYaw+(reducedMotion?0:Math.sin(seconds*.37)*.014);
+    this.idle?.update(seconds,reducedMotion);
   }
 }

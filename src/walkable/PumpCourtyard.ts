@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { PumpAction } from "./PumpAction";
 import { SceneCharacters } from "./SceneCharacters";
 import { loadBakedRoomLighting } from "./BakedRoomLighting";
 import { inRectangle, crossesRectangle } from "./WalkableArea";
@@ -38,6 +39,7 @@ export class PumpCourtyard {
   readonly characters = new SceneCharacters("street");
   readonly floor: THREE.Mesh;
   readonly pump = new THREE.Group();
+  readonly pumpAction = new PumpAction(this.pump);
   readonly spawn = streetSpawn.clone();
   private readonly solids: THREE.Object3D[] = [];
   private readonly fallback = new THREE.Group();
@@ -71,6 +73,7 @@ export class PumpCourtyard {
       this.fallback.add(visual);
     }
     this.buildPump();
+    this.pumpAction.water.traverse(object=>{object.raycast=()=>{};});
     this.pump.position.copy(pumpPosition);
     this.group.add(this.pump);
     this.solids.push(this.pump);
@@ -170,8 +173,15 @@ export class PumpCourtyard {
     tube([[0,1.3,-.13],[0,1.31,-.27],[0,1.27,-.42],[0,1.16,-.45]],.052);
     const opening = new THREE.Mesh(new THREE.CircleGeometry(.039,12),new THREE.MeshBasicMaterial({color:"#070b09",side:THREE.DoubleSide}));
     opening.rotation.x = Math.PI/2; opening.position.set(0,1.155,-.45);this.pump.add(opening);
-    tube([[.13,1.72,0],[.28,1.73,0],[.43,1.5,0],[.5,1.13,0],[.47,.87,0]],.032);
-    tube([[.47,.87,0],[.47,.8,.13]],.043);
+    for (const mesh of [
+      tube([[.13,1.72,0],[.28,1.73,0],[.43,1.5,0],[.5,1.13,0],[.47,.87,0]],.032),
+      tube([[.47,.87,0],[.47,.8,.13]],.043),
+    ]) {
+      mesh.geometry.translate(-.13,-1.72,0);this.pumpAction.handle.add(mesh);
+    }
+    // A slightly wider invisible grip makes the narrow iron handle selectable.
+    const grip=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.28,4,8),new THREE.MeshBasicMaterial({visible:false}));
+    grip.position.set(.35,-.74,.04);this.pumpAction.handle.add(grip);
     // A soft opaque contact patch avoids an expensive dynamic shadow map.
     const contact = new THREE.Mesh(new THREE.CircleGeometry(.31,24),new THREE.MeshBasicMaterial({color:"#4e5147"}));
     contact.rotation.x=-Math.PI/2;contact.position.y=.002;this.pump.add(contact);
@@ -192,7 +202,7 @@ export class PumpCourtyard {
 
   readonly canWalkBetween = (from: THREE.Vector3,to: THREE.Vector3): boolean => canWalkBetween(from,to) && !this.characters.blocksPath(from,to);
   hotspotFor(object: THREE.Object3D): string | undefined {
-    return this.isPump(object) ? "broad-street-pump" : undefined;
+    return this.isPump(object) && !this.pumpAction.owns(object) ? "broad-street-pump" : undefined;
   }
 
   canTeleport(hit: THREE.Intersection): boolean {

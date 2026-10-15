@@ -1,7 +1,7 @@
 import { ambienceProfiles, clipGroups, type AmbientEvent, type ClipGroup, type SoundPoint } from "./ambience";
 export type SoundChannel = "ambience" | "effects";
 export type SoundSettings = { muted: boolean; ambience: number; effects: number };
-export type SoundEffect = "select" | "paper" | "evidence" | "step";
+export type SoundEffect = "select" | "paper" | "evidence" | "step" | "water";
 type Point = { x: number; y: number; z: number };
 export interface SoundControls {
   getSettings(): SoundSettings;
@@ -272,17 +272,19 @@ export class Soundscape implements SoundControls {
     const recorded=kind==="step"?this.pickClip(indoor?"woodStep":"stoneStep"):
       kind==="paper"||kind==="evidence"?this.pickClip("paper"):undefined;
     const source=c.createBufferSource();source.buffer=recorded??this.noise;
+    source.loop=kind==="water";
     source.playbackRate.value=.96+this.random()*.08;
     const filter=c.createBiquadFilter();filter.type="bandpass";
     const paper=kind==="paper"||kind==="evidence";
-    filter.frequency.value=paper?1450:kind==="step"?(this.location==="snow-desk"||this.location==="household"||this.location==="registrar"?310:620):900;
+    filter.frequency.value=kind==="water"?2200:paper?1450:kind==="step"?(this.location==="snow-desk"||this.location==="household"||this.location==="registrar"?310:620):900;
     filter.Q.value=paper?.5:.8;
-    const gain=c.createGain(),duration=recorded?recorded.duration/source.playbackRate.value:paper?.23:kind==="step"?.12:.045;
-    gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(paper?.24:kind==="step"?(recorded?.32:.5):.28,now+.008);
-    gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+    const gain=c.createGain(),duration=recorded?recorded.duration/source.playbackRate.value:kind==="water"?.9:paper?.23:kind==="step"?.12:.045;
+    const start=now+(kind==="water"?.55:0);
+    gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(kind==="water"?.16:paper?.24:kind==="step"?(recorded?.32:.5):.28,start+.008);
+    gain.gain.exponentialRampToValueAtTime(.0001,start+duration);
     source.connect(filter);filter.connect(gain);gain.connect(this.effects);this.oneShots.add(source);
     source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();this.oneShots.delete(source);};
-    source.start();source.stop(now+duration+.02);
+    source.start(start);source.stop(start+duration+.02);
   }
   setHidden(hidden: boolean,source: "document"|"xr"="document"): void {
     if(hidden)this.hiddenSources.add(source);else this.hiddenSources.delete(source);

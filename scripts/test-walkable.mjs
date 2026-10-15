@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
@@ -1034,7 +1034,7 @@ test('street lighting failure retains its art, original lights and selectable pu
   assert.equal(street.group.userData.lightingStatus,'fallback');assert.equal(disposed,true);
   assert.equal(street.group.userData.environmentStatus,'ready');assert.ok(street.group.children.includes(root));
   assert.equal(street.group.children.find(o=>o.children.some(c=>c.isLight)).visible,true);
-  assert.equal(street.pump.children[0].material.envMap,null);
+  assert.equal(street.pump.children.find(o=>o.isMesh).material.envMap,null);
 });
 
 test('Snow figure is independently selectable and remains behind the desk collision',async()=>{
@@ -1101,11 +1101,23 @@ test('Snow hover accepts either connected controller and hides behind the VR pan
   scene.vrPanelVisible=false;aim.position.y=.7;scene.updateCharacterHoverLabels();assert.equal(label.visible,false,'desk occludes controller aim');
 });
 
-test('Snow idle motion is small, bounded and disabled for reduced motion',async()=>{
-  const {SnowCharacter}=await load('walkable/SnowCharacter');const person=new SnowCharacter();
-  person.head=new THREE.Group();person.upper=new THREE.Group();person.upperY=.69;person.headYaw=0;
-  for(let t=0;t<300;t+=.37){person.update(t);assert.ok(Math.abs(person.head.rotation.y)<=.014);assert.ok(Math.abs(person.upper.position.y-.69)<=.001501);}
-  person.update(2,true);assert.equal(person.head.rotation.y,0);assert.equal(person.upper.position.y,.69);
+test('Snow idle is continuous across mesh pivots and reduced motion restores the authored pose',async()=>{
+  const {CharacterIdle}=await load('walkable/CharacterIdle');
+  const root=await exportedSnow(),actor=root.getObjectByName('Snow_character');
+  const original=actor.children.map(o=>o.matrix.clone());
+  const idle=new CharacterIdle(actor,.6,true);
+  const shaders=[];
+  actor.traverse(o=>{if(o.isMesh){
+    const shader={uniforms:{},vertexShader:'#include <beginnormal_vertex>\n#include <begin_vertex>'};
+    o.material.onBeforeCompile(shader);shaders.push(shader);
+    const local=new THREE.Vector3(.02,1.08,.1).applyMatrix4(shader.uniforms.meshFromActor.value);
+    assert.ok(local.applyMatrix4(shader.uniforms.actorFromMesh.value).distanceTo(new THREE.Vector3(.02,1.08,.1))<1e-7);
+    assert.match(shader.vertexShader,/idlePosition/);
+  }});
+  assert.ok(shaders.length>5);
+  idle.update(250,false);assert.ok(shaders.every(s=>s.uniforms.idleTime.value===250&&s.uniforms.idleAmount.value===1));
+  idle.update(251,true);assert.ok(shaders.every(s=>s.uniforms.idleAmount.value===0));
+  actor.children.forEach((o,i)=>assert.deepEqual(o.matrix.elements,original[i].elements,'selection and pose pivots remain fixed'));
 });
 
 test('seated Snow exports only its own meshes with lightmap UVs and a compact asset budget',async()=>{
@@ -1973,4 +1985,110 @@ test('panel focus stays contained while canvas pointer input remains available; 
     open=false;keys.afterRender();assert.equal(globalThis.document.activeElement,scene);
     assert.equal(scene.attributes['aria-hidden'],undefined);assert.equal(rail.inert,false);
   } finally {Object.assign(globalThis,old);}
+});
+
+const {extractProps,propSpecs,InspectableProp,PropHold,propFor}=await load('walkable/InspectableProps');
+async function exportedRoom(asset) {
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const bytes=await readFile(`public/models/${asset}`);
+  const loader=new GLTFLoader();loader.register(()=>({name:'offline-texture-placeholder',loadTexture:async()=>new THREE.Texture()}));
+  return (await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'')).scene;
+}
+function triangles(root) {let n=0;root.traverse(o=>{if(o.isMesh)n+=(o.geometry.index?.count??o.geometry.attributes.position.count)/3;});return n;}
+for(const asset of Object.keys(propSpecs))test(`${asset} inspectable objects preserve geometry and baked UVs without duplicating furniture`,async()=>{
+  const model=await exportedRoom(asset),room=new THREE.Group();room.add(model);
+  const before=triangles(model),props=extractProps(model,room,asset);
+  assert.equal(props.length,propSpecs[asset].length);assert.equal(triangles(room),before);
+  for(const [i,prop] of props.entries()) {
+    assert.ok(triangles(prop.group)>50);assert.ok(triangles(prop.group)<1200);
+    const size=new THREE.Box3().setFromObject(prop.group).getSize(new THREE.Vector3());
+    assert.ok(size.x<1&&size.y<.41&&size.z<.7,`${prop.name} contains only the item`);
+    prop.group.traverse(o=>{if(o.isMesh){assert.equal(propFor(o),prop);assert.ok(o.geometry.attributes.uv1);assert.ok(o.geometry.attributes.normal);}});
+    const center=new THREE.Vector3().addVectors(new THREE.Vector3(...propSpecs[asset][i].min),new THREE.Vector3(...propSpecs[asset][i].max)).multiplyScalar(.5);
+    assert.ok(prop.home.distanceTo(center)<1e-9);
+  }
+});
+
+test('pickup follows tracked orientation and returns exactly, without momentum or a second simultaneous grab',()=>{
+  const room=new THREE.Group(),object=new THREE.Group();object.position.set(2,.9,-1);room.add(object);
+  const prop=new InspectableProp(object,'Test object'),hold=new PropHold(),hand=new THREE.Group();hand.position.set(1,1.3,1);
+  assert.equal(hold.begin(prop,hand,false),true);assert.equal(hold.begin(prop,hand,false),false);
+  for(let i=0;i<60;i++)hold.update(1/60);
+  assert.ok(object.position.distanceTo(new THREE.Vector3(1,1.2,.62))<.001);
+  assert.equal(prop.held,true);assert.equal(object.layers.mask,1,'held object remains rendered');
+  const before=object.quaternion.clone();hand.rotation.y=.6;for(let i=0;i<60;i++)hold.update(1/60);
+  assert.ok(object.quaternion.angleTo(before)>.5);
+  hold.release();assert.equal(hold.prop,undefined);assert.equal(prop.held,false);
+  let distance=object.position.distanceTo(prop.home);
+  for(let i=0;i<40;i++){prop.update(1/60,false);const next=object.position.distanceTo(prop.home);assert.ok(next<=distance+1e-9);distance=next;}
+  assert.equal(distance,0);assert.ok(object.quaternion.angleTo(prop.homeRotation)<1e-8);assert.equal(prop.returning,false);
+  assert.equal(hold.begin(prop,hand,true),true);hold.update(.05);hold.release(true);assert.deepEqual(object.position.toArray(),[2,.9,-1]);
+});
+
+test('reduced motion returns an inspected object immediately',()=>{
+  const object=new THREE.Group(),prop=new InspectableProp(object,'Test');object.position.set(3,1,2);prop.release();prop.update(.001,true);
+  assert.deepEqual(object.position.toArray(),[0,0,0]);assert.equal(prop.returning,false);
+});
+
+test('pump strokes are bounded, water stops, handle remains distinct from evidence, and reset disables operation',()=>{
+  const street=new PumpCourtyard(),action=street.pumpAction;street.group.visible=true;
+  assert.equal(action.stroke(),true);assert.equal(action.stroke(),false);
+  let moved=false,flowed=false;
+  for(let i=0;i<120;i++) {
+    action.update(1/60,false);moved ||= action.handle.rotation.z>.1;flowed ||= action.water.visible;
+    assert.ok(action.handle.rotation.z>=0&&action.handle.rotation.z<=.55);
+  }
+  assert.equal(moved,true);assert.equal(flowed,true);assert.equal(action.water.visible,false);assert.equal(action.handle.rotation.z,0);
+  assert.equal(street.hotspotFor(action.handle.children[0]),undefined);
+  assert.equal(street.hotspotFor(street.pump.children.find(o=>o.isMesh)),'broad-street-pump');
+  action.reset(false);assert.equal(action.stroke(),false);assert.equal(action.owns(action.handle.children[0]),false);
+  assert.ok(action.handle.children.every(o=>o.layers.mask===0));action.reset();assert.equal(action.stroke(),true);
+});
+
+test('tactile activation does not collect evidence, teleport, or grab through a nearer obstruction',()=>{
+  const scene=Object.create(BroadStreetScene.prototype),street=new PumpCourtyard();street.group.visible=true;
+  const game=fieldGame(true),ray=new THREE.Raycaster(),hold=new PropHold(),camera=new THREE.PerspectiveCamera();
+  Object.assign(scene,{courtyard:street,gameState:game,propHold:hold,camera});
+  const object=new THREE.Group(),prop=new InspectableProp(object,'Cup'),part=new THREE.Mesh();object.add(part);part.userData.inspectableProp=prop;
+  let hit={object:part,distance:3};street.pick=()=>hit;
+  assert.equal(scene.activateTactile(ray),true);assert.equal(hold.prop,undefined,'move closer required');
+  hit.distance=1;assert.equal(scene.activateTactile(ray),true);assert.equal(hold.prop,prop);
+  hit={object:street.floor,distance:1};assert.equal(scene.activateTactile(ray),true);assert.equal(hold.prop,undefined,'release consumes the click over ground');
+  assert.equal(scene.activateTactile(ray),false,'nearer furniture/ground is never picked through');
+  assert.equal(game.getCollectedEvidence().length,2,'inspection has not awarded additional evidence');
+});
+
+test('controller release cannot activate a target behind a held object regardless of selectend order',()=>{
+  const scene=Object.create(BroadStreetScene.prototype),hand=new THREE.Group();let clicks=0;
+  Object.assign(scene,{tactileVrSelections:new Set([hand]),pickVrButton:()=>{clicks++;throw new Error('click-through');}});
+  scene.selectFromVrController(hand);scene.selectFromVrController(hand);assert.equal(clicks,0);
+});
+
+test('scene changes and interruption restore all objects and stop pumping',()=>{
+  const scene=Object.create(BroadStreetScene.prototype),room=new THREE.Group(),object=new THREE.Group();room.add(object);
+  const prop=new InspectableProp(object,'Mug'),hold=new PropHold(),hand=new THREE.Group(),street=new PumpCourtyard();
+  Object.assign(scene,{propHold:hold,office:{props:[prop]},courtyard:street,gameState:fieldGame(true)});
+  hold.begin(prop,hand,false);hold.update(.1);street.pumpAction.stroke();
+  scene.resetTactileInteractions();assert.equal(hold.prop,undefined);assert.equal(prop.returning,false);assert.deepEqual(object.position.toArray(),[0,0,0]);
+  assert.equal(street.pumpAction.water.visible,false);assert.equal(street.pumpAction.handle.rotation.z,0);
+});
+
+test('real XR event handlers hold until release and suppress click-through in both select/selectend orders',()=>{
+  const oldDocument=globalThis.document,oldWindow=globalThis.window;
+  globalThis.document=new EventTarget();document.body={dataset:{}};globalThis.window=new EventTarget();
+  try {
+    for(const order of [['select','selectend'],['selectend','select']]) {
+      const scene=Object.create(BroadStreetScene.prototype),hand=new THREE.Group(),other=new THREE.Group();
+      const object=new THREE.Group(),mesh=new THREE.Mesh(),prop=new InspectableProp(object,'Cup');object.add(mesh);mesh.userData.inspectableProp=prop;
+      const street=new PumpCourtyard();street.group.visible=true;street.pick=()=>({object:mesh,distance:1});
+      let clicked=0;
+      Object.assign(scene,{canvas:new EventTarget(),renderer:{xr:{isPresenting:true,getController:i=>i===0?hand:other,addEventListener:()=>{}}},
+        playerRig:new THREE.Group(),camera:new THREE.PerspectiveCamera(),courtyard:street,gameState:fieldGame(true),
+        vrControllers:[],vrControllerPointers:[],vrPanelVisible:false,propHold:new PropHold(),tactileVrSelections:new Set(),
+        controllerRaycaster:new THREE.Raycaster(),setRaycasterFromController:()=>{},pickVrButton:()=>{clicked++;},pickVrPanel:()=>undefined});
+      scene.addInputHandlers();hand.dispatchEvent({type:'selectstart'});assert.equal(scene.propHold.prop,prop);
+      for(const type of order)hand.dispatchEvent({type});
+      assert.equal(scene.propHold.prop,undefined);assert.equal(prop.returning,true);assert.equal(clicked,0);
+    }
+  } finally {globalThis.document=oldDocument;globalThis.window=oldWindow;}
 });

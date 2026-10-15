@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { PropHold, propFor } from "../walkable/InspectableProps";
 import type { Soundscape, SoundChannel } from "../audio/Soundscape";
 import { PumpCourtyard, pumpPosition } from "../walkable/PumpCourtyard";
 import { SnowOffice, officeDeskTarget } from "../walkable/SnowOffice";
@@ -219,7 +220,7 @@ export class BroadStreetScene {
   private readonly workhouse = new WorkhouseCourtyard();
   private readonly brewery = new BreweryRoom();
   private get walkable(): WalkableEnvironment | undefined {
-    if (this.courtyard.group.visible) return this.courtyard;
+    if (this.courtyard?.group.visible) return this.courtyard;
     if (this.office?.group.visible) return this.office;
     if (this.registrar?.group.visible) return this.registrar;
     if (this.household?.group.visible) return this.household;
@@ -234,6 +235,10 @@ export class BroadStreetScene {
   private worldTravelPending = false;
   private readonly desktopMovement = new DesktopMovement();
   private lastFrameTime?: number;
+  private readonly propHold = new PropHold();
+  private readonly tactileVrSelections = new Set<THREE.Group>();
+  private tactileLabel?: THREE.Sprite;
+  private tactileLabelText = "";
   private panoramaSky?: THREE.Mesh;
   private pointerTravel = 0;
   private pendingXrSpawn = false;
@@ -408,6 +413,7 @@ export class BroadStreetScene {
       this.updateVrControls(timeSeconds,elapsed);
       this.updateFocusFromCenter();
       this.updateCharacterHoverLabels();
+      this.updateTactileInteractions(elapsed);
       this.updateSound();
       this.renderer.render(this.scene, this.camera);
       if (this.allowCanvasCapture && this.captureFrameCounter % 12 === 0) {
@@ -438,6 +444,7 @@ export class BroadStreetScene {
   }
 
   applyCurrentLocation(): void {
+    this.resetTactileInteractions();
     this.desktopMovement.clear();
     this.vrWalking?.reset();
     this.worldTravelPending = false;
@@ -814,6 +821,83 @@ export class BroadStreetScene {
     this.skyMaterial.needsUpdate = true;
   }
 
+  private resetTactileInteractions(): void {
+    this.propHold?.release(true);
+    for(const room of [this.office,this.registrar,this.household,this.workhouse,this.brewery])
+      for(const prop of room?.props??[])prop.release(true);
+    this.courtyard?.pumpAction?.reset(this.gameState.getStage()!=="complete");
+    if(this.tactileLabel)this.tactileLabel.visible=false;
+  }
+
+  private activateTactile(ray: THREE.Raycaster, controller?: THREE.Group): boolean {
+    if(this.propHold?.prop) {
+      if(!controller)this.propHold.release();
+      return true;
+    }
+    const hit=this.walkable?.pick(ray);
+    if(!hit)return false;
+    const prop=propFor(hit.object);
+    const handle=this.courtyard?.group.visible && this.courtyard.pumpAction?.owns(hit.object);
+    if(!prop && !handle)return false;
+    // A distant object stays an object, never a click-through travel destination.
+    if(hit.distance>2.4)return true;
+    if(handle) {
+      if(this.courtyard.pumpAction.stroke())this.sound?.effect("water");
+    } else if(prop) {
+      this.propHold.begin(prop,controller??this.camera,!controller);
+      this.sound?.effect("select");
+    }
+    return true;
+  }
+
+  private updateTactileInteractions(delta: number): void {
+    const blocked=document.hidden || (this.renderer.xr.isPresenting ? this.vrPanelVisible : document.body.dataset.overlayOpen==="true");
+    if(blocked)this.propHold.release(true);
+    for(const room of [this.office,this.registrar,this.household,this.workhouse,this.brewery])
+      for(const prop of room.props)prop.update(Math.min(.05,delta),this.reducedCharacterMotion.matches);
+    this.propHold.update(delta);
+    if(this.courtyard.group.visible)this.courtyard.pumpAction.update(delta,this.reducedCharacterMotion.matches);
+    if(this.tactileLabel)this.tactileLabel.visible=false;
+    if(blocked)return;
+    let text="",point:THREE.Vector3|undefined;
+    if(this.propHold.prop) {
+      text=this.renderer.xr.isPresenting?"Release trigger to return":"Click / Space: return · Q / E: rotate";
+      point=this.propHold.prop.group.getWorldPosition(new THREE.Vector3());
+    } else {
+      let hit:THREE.Intersection|undefined;
+      if(this.renderer.xr.isPresenting) {
+        for(const controller of this.vrControllers)if(this.vrInputSources.has(controller)) {
+          const candidate=this.pickVrPointerHit(controller);
+          if(candidate && (propFor(candidate.object)||this.courtyard.pumpAction.owns(candidate.object))) {hit=candidate;break;}
+        }
+      } else if(this.characterHoverPointer!==null && !this.dragging) {
+        if(this.characterHoverPointer)this.pickHotspot(this.characterHoverPointer.x,this.characterHoverPointer.y);
+        else {
+          this.camera.getWorldPosition(this.cameraWorldPosition);this.camera.getWorldDirection(this.cameraDirection);
+          this.raycaster.set(this.cameraWorldPosition,this.cameraDirection);
+        }
+        hit=this.walkable?.pick(this.raycaster);
+      }
+      if(hit) {
+        const prop=propFor(hit.object);
+        if(prop)text=hit.distance>2.4?"Move closer to inspect":`${prop.name} · ${this.renderer.xr.isPresenting?"hold trigger":"click / Space"}`;
+        else if(this.courtyard.pumpAction.owns(hit.object))text=hit.distance>2.4?"Move closer to the handle":"Work pump · select handle";
+        if(text)point=prop?prop.group.getWorldPosition(new THREE.Vector3()):hit.point.clone();
+      }
+    }
+    if(!text||!point)return;
+    if(text!==this.tactileLabelText) {
+      if(this.tactileLabel) {
+        this.scene.remove(this.tactileLabel);this.tactileLabel.material.map?.dispose();this.tactileLabel.material.dispose();
+      }
+      this.tactileLabel=createTactileLabel(text);this.scene.add(this.tactileLabel);this.tactileLabelText=text;
+    }
+    this.tactileLabel!.visible=true;this.tactileLabel!.position.copy(point).add(new THREE.Vector3(0,.20,0));
+    this.camera.getWorldPosition(this.cameraWorldPosition);
+    const width=Math.min(1.05,this.cameraWorldPosition.distanceTo(point)*.62);
+    this.tactileLabel!.scale.set(width,width/8,1);
+  }
+
   private addInputHandlers(): void {
     window.addEventListener("resize", () => this.resize());
     this.canvas.addEventListener("pointerdown", (event) => {
@@ -862,6 +946,7 @@ export class BroadStreetScene {
       }
       if (this.pointerTravel > 6 || document.body.dataset.overlayOpen === "true") return;
       const hotspot = this.pickHotspot(event.clientX, event.clientY);
+      if (this.activateTactile(this.raycaster)) return;
       const travel = this.worldTravel?.routeFor(this.pickWorldTravelHit(this.raycaster)?.object as THREE.Object3D);
       if (travel) {
         this.activateWorldTravel(travel);
@@ -877,7 +962,13 @@ export class BroadStreetScene {
     this.canvas.addEventListener("pointerleave", () => { this.characterHoverPointer = null; });
     this.canvas.addEventListener("pointercancel", () => { this.dragging = false; this.pointerTravel = Infinity; this.characterHoverPointer = null; });
     window.addEventListener("keydown", (event) => {
+      if (!this.renderer.xr.isPresenting && document.body.dataset.overlayOpen !== "true" && this.propHold.prop && event.key === "Escape") {
+        this.propHold.release();event.preventDefault();return;
+      }
       if (event.defaultPrevented) return;
+      if (this.canUseDesktopMovement() && this.propHold.prop && ["q","e"].includes(event.key.toLowerCase())) {
+        this.propHold.rotate(event.key.toLowerCase()==="q" ? -.12 : .12);event.preventDefault();return;
+      }
       if (event.altKey || event.ctrlKey || event.metaKey) {
         this.desktopMovement.clear();
         return;
@@ -893,6 +984,9 @@ export class BroadStreetScene {
         this.characterHoverPointer = undefined;
         event.preventDefault();
         if (event.repeat) return;
+        this.camera.getWorldPosition(this.cameraWorldPosition);this.camera.getWorldDirection(this.cameraDirection);
+        this.raycaster.set(this.cameraWorldPosition,this.cameraDirection);
+        if (this.activateTactile(this.raycaster)) return;
         if (this.focusedTravel) {
           event.preventDefault();
           this.activateWorldTravel(this.focusedTravel);
@@ -904,8 +998,8 @@ export class BroadStreetScene {
       }
     });
     window.addEventListener("keyup", (event) => this.desktopMovement.release(event.key));
-    window.addEventListener("blur", () => this.desktopMovement.clear());
-    document.addEventListener("visibilitychange", () => this.desktopMovement.clear());
+    window.addEventListener("blur", () => {this.desktopMovement.clear();this.resetTactileInteractions();});
+    document.addEventListener("visibilitychange", () => {this.desktopMovement.clear();if(document.hidden)this.resetTactileInteractions();});
     document.addEventListener("focusin", () => {
       if (!this.canUseDesktopMovement()) this.desktopMovement.clear();
     });
@@ -920,6 +1014,8 @@ export class BroadStreetScene {
         this.snapTurnLocked = false;
       });
       controller.addEventListener("disconnected", () => {
+        if(this.propHold.anchor===controller)this.propHold.release(true);
+        this.tactileVrSelections.delete(controller);
         this.vrSelectionStarts.delete(controller);
         const source=this.vrInputSources.get(controller);
         if(source)this.vrShortcuts.forget(source);
@@ -930,7 +1026,17 @@ export class BroadStreetScene {
       });
       controller.addEventListener("selectstart", () => {
         void this.sound?.unlock();
+        this.tactileVrSelections.delete(controller);
+        if(!this.vrPanelVisible) {
+          this.setRaycasterFromController(controller);
+          if(this.activateTactile(this.controllerRaycaster,controller)) {
+            this.tactileVrSelections.add(controller);return;
+          }
+        }
         this.beginVrSelection(controller);
+      });
+      controller.addEventListener("selectend", () => {
+        if(this.propHold.anchor===controller)this.propHold.release();
       });
       controller.addEventListener("select", () => this.selectFromVrController(controller));
       controller.addEventListener("squeeze", () => this.toggleVrPanel());
@@ -944,12 +1050,14 @@ export class BroadStreetScene {
   }
 
   private handleVrSessionStart(): void {
+    this.resetTactileInteractions();
     this.vrSelectionStarts?.clear();
     const session=this.renderer.xr.getSession?.();
     if(session) {
       const syncSound=()=>this.sound?.setHidden(session.visibilityState!=="visible","xr");
       session.addEventListener("visibilitychange",()=>{
         this.vrSelectionStarts?.clear();
+        this.resetTactileInteractions();
         syncSound();this.vrWalking.reset();this.snapTurnLocked=true;
         this.vrShortcuts.clear();this.vrControllerButtonStates.clear();
       });syncSound();
@@ -969,6 +1077,7 @@ export class BroadStreetScene {
   }
 
   private handleVrSessionEnd(): void {
+    this.resetTactileInteractions();
     this.vrSelectionStarts?.clear();
     this.sound?.setHidden(false,"xr");
     document.body.dataset.xrPresenting = "false";
@@ -1059,6 +1168,9 @@ export class BroadStreetScene {
   }
 
   private selectFromVrController(controller: THREE.Group): void {
+    // WebXR may deliver select before or after selectend. Neither may click
+    // through a released object to the person, ground or panel behind it.
+    if(this.tactileVrSelections?.has(controller))return;
     const start = this.vrSelectionStarts?.get(controller);
     this.vrSelectionStarts?.delete(controller);
     const button = this.pickVrButton(controller);
@@ -1312,6 +1424,7 @@ export class BroadStreetScene {
   }
 
   private showVrPanel(placeInFront = true): void {
+    this.propHold?.release(true);
     this.vrPanelVisible = true;
     this.vrPanel.visible = true;
     this.vrPanelHiddenSince = undefined;
@@ -1472,12 +1585,12 @@ export class BroadStreetScene {
       if(parts.length)bindings.push(`${left?"Left":"Right"} — ${parts.join(" · ")}`);
     }
     this.addVrText("Left stick: walk · Right stick: turn",0,.30,2.5,.14,{fontSize:30});
-    this.addVrText("Trigger: select / teleport · Grip: menu",0,.12,2.5,.14,{fontSize:30});
+    this.addVrText("Trigger: select / pump · Hold on an object to inspect",0,.12,2.5,.14,{fontSize:30});
     if(bindings.length)bindings.slice(0,2).forEach((text,index)=>
       this.addVrText(text,0,-.07-index*.17,2.5,.14,{fontSize:28,color:"#b9c9c4"}));
     else this.addVrText("Use the menu for map, notebook, height and settings. Extra controller buttons vary by device.",0,-.14,2.5,.28,{fontSize:28,color:"#b9c9c4"});
     this.addVrPanelButton(`Stick walking: ${this.vrWalkingEnabled?"On":"Off"}`,0,-.46,1.7,.21,{type:"walk-toggle"});
-    this.addVrText("Reading: click left/right stick for previous/next page, or select the arrows.",0,-.66,2.5,.12,{fontSize:23,color:"#b9c9c4"});
+    this.addVrText("Release trigger: return object · Grip: menu · Stick click: page",0,-.66,2.5,.12,{fontSize:23,color:"#b9c9c4"});
   }
 
   private buildVrSoundPanel(): void {
@@ -4465,4 +4578,15 @@ function roundRect(
   ctx.arcTo(x, y + height, x, y, radius);
   ctx.arcTo(x, y, x + width, y, radius);
   ctx.closePath();
+}
+
+function createTactileLabel(text: string): THREE.Sprite {
+  const canvas=document.createElement("canvas");canvas.width=1024;canvas.height=128;
+  const ctx=canvas.getContext("2d")!;
+  ctx.fillStyle="rgba(18,17,14,.86)";roundRect(ctx,4,4,1016,120,24);ctx.fill();
+  ctx.fillStyle="#e6e4d8";ctx.font="500 38px system-ui";ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(text,512,64,970);
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthWrite:false}));
+  sprite.scale.set(1.05,.132,1);return sprite;
 }
