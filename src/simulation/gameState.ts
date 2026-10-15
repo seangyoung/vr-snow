@@ -42,8 +42,8 @@ export class GameState {
     const choices=surveyRoutes.filter(r=>r.origin===this.activeSurvey);
     const canRecord=!!route && route.stop===this.activeSurvey && route.destination===this.currentLocationId && !this.recordedRoutes.has(route.id);
     return {title:choices.length?'Paired pump-access survey':'Pump survey stop',
-      text:choices.length?'Select each route from this same marked origin. Use the map or marked world exits to visit its pump stop, then explicitly record the estimate. Compact scenes stand in for the intervening streets.':
-        canRecord?`${route!.title}: about ${route!.metres} metres; ${route!.seconds} seconds at the teaching assumption of 1.2 m/s. Movement mode and elapsed playing time do not affect this estimate.`:
+      text:choices.length?'Select each route from this same marked origin. Use the map or marked world exits to visit its pump stop, then record the estimate.':
+        canRecord?`${route!.title}: about ${route!.metres} metres; ${route!.seconds} seconds, estimated at 1.2 m/s.`:
         'Return to the marked origin on Broad Street to select an unrecorded route. Each comparison uses a matched starting point.',
       routes:choices,canRecord,canConclude:this.hasWalkingBoundary() && this.currentLocationId==='broad-street',observations:this.getRouteObservations()};
   }
@@ -73,9 +73,9 @@ export class GameState {
   canEndDay(): boolean { return this.day<3 && this.recaps.has(this.day) && this.currentLocationId==='snow-desk'; }
   getDayIntroduction(): string[] { const day=this.getDay(); return [
     `${day.date} · ${day.title}`,
-    `Retrospective historical context: ${day.previousDeaths} deaths on ${day.previousDate}, from Snow’s 1855 Table I. These are deaths, not new attacks or instant registrar reports.`,
+    `Historical context · ${day.previousDeaths} deaths on ${day.previousDate}.`,
     ...(this.day===1?[chronologyNote]:[]),
-    'Speak with Snow for today’s assignments. Earlier locations remain available after the first briefing.'
+    'Speak with Snow for today’s assignments.'
   ]; }
   dismissDayIntroduction(): void { this.dayIntroOpen=false; this.emitChange(); }
   endDay(): boolean {
@@ -193,19 +193,18 @@ export class GameState {
     const hypothesis = this.getSelectedHypothesis();
 
     if (this.stage === "board" && !this.boardPresented) {
-      return ["The Guardians await the presentation. You may look around before beginning.",
-        "This room and the three unnamed officials are an interpretation inspired by the original panorama, not a documented reconstruction."];
+      return ["The Guardians await the presentation. You may look around before beginning."];
     }
     if (this.stage === "board" && hypothesis) {
       if (hypothesis.id === "waterborne") {
         return [
-          `Historical course: Snow argues for a waterborne explanation. Our prepared theory is ${hypothesis.title}; the case supports precaution without claiming final proof.`,
+          `Historical course: Snow asks the Guardians to close the pump. Our recommendation is based on ${hypothesis.title.toLowerCase()}.`,
           `Recommended action: ${hypothesis.boardAction}`,
         ];
       }
 
       return [
-        `Alternate teaching conclusion: we have chosen ${hypothesis.title}. This differs from Snow’s historical recommendation; he tests it against the evidence that remains unexplained.`,
+        `Alternate teaching conclusion: our recommendation favors ${hypothesis.title.toLowerCase()}, departing from Snow’s call to close the pump.`,
         `Recommended action: ${hypothesis.boardAction}`,
         "The pump handle case is not yet strong under this theory, so Snow urges more inquiry before a pump-specific intervention.",
       ];
@@ -215,13 +214,13 @@ export class GameState {
       if (hypothesis.id === "waterborne") {
         return [
           "Historical outcome: the pump handle was removed on September 8. The outbreak was already declining, so its decline cannot by itself establish the effect of removing the handle.",
-          "Whitehead later helped trace the household at 40 Broad Street, and parish investigators examined defective drainage beside the well. That later work strengthened the water explanation; it was not part of the immediate evidence presented here.",
+          "Whitehead later changed his mind. His inquiries at 40 Broad Street, together with parish investigations of defective drainage beside the well, helped explain how the water became contaminated.",
         ];
       }
 
       return [
-        "Alternate course — a fictional teaching outcome: the Board delays pump-specific action. We cannot know how many additional illnesses that decision would have caused; this is not a historical second outbreak or a prediction.",
-        "In the later historical inquiry, Whitehead and parish investigators traced contamination associated with 40 Broad Street and the well. Those findings belong to the epilogue, not to the evidence available during this compressed inquiry.",
+        "Alternate course — a fictional teaching outcome: the Board delays pump-specific action. Historically, the handle was removed on September 8, when the outbreak was already declining.",
+        "Whitehead later changed his mind. His inquiries at 40 Broad Street and the parish investigation of drainage beside the well strengthened the water explanation.",
       ];
     }
 
@@ -373,7 +372,7 @@ export class GameState {
     const review = this.getHypothesisReview(hypothesis);
     return [
       `For: ${review.supporting?.text ?? "No supporting evidence recorded yet."}`,
-      `Against / limits: ${review.complicating?.text ?? "No challenge recorded yet; this is not proof."}`,
+      `Against / limits: ${review.complicating?.text ?? "No challenge recorded yet."}`,
     ];
   }
 
@@ -389,7 +388,7 @@ export class GameState {
     }
 
     if (this.hasEvidence("household-water-pattern")) {
-      findings.push("A second composite household links water choice to preference and errands; it is not a population tally.");
+      findings.push("The second household prefers Broad Street water and collects it during errands.");
     }
 
     if (this.hasEvidence("pump-water-inspection")) {
@@ -397,7 +396,7 @@ export class GameState {
     }
 
     if (this.hasEvidence("attack-timeline")) {
-      findings.push("Registrar death returns add timing: fatal attacks rose and fell suddenly, not as a slow chain alone.");
+      findings.push("Death returns show a sudden surge around the end of August and early September.");
     }
 
     if (this.hasEvidence("workhouse-exception")) {
@@ -409,7 +408,7 @@ export class GameState {
     }
 
     if(this.hasEvidence("nonlocal-exposure"))findings.push("A distant residence can be connected to exposure near Broad Street.");
-    if(this.hasEvidence("walking-access"))findings.push("Walking access describes convenience, not actual consumption; the revealed boundary is historical.");
+    if(this.hasEvidence("walking-access"))findings.push("The paired routes compare access to Broad Street, Marlborough and Rupert Street pumps.");
     return findings;
   }
 

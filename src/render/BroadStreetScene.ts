@@ -1,7 +1,6 @@
 import { PumpSurveyStop } from "../walkable/PumpSurveyStop";
 import { surveyRoutes, type RouteId } from "../simulation/fieldwork";
 import { AdditionalHousehold } from "../walkable/AdditionalHousehold";
-import { chronologyNote } from "../simulation/campaign";
 import { BoardRoom } from "../walkable/BoardRoom";
 import * as THREE from "three";
 import { PropHold, propFor } from "../walkable/InspectableProps";
@@ -1567,7 +1566,7 @@ export class BroadStreetScene {
       });
       if(survey.canRecord)this.addVrPanelButton('Record this route',0,-.3,2,.22,{type:'record-route'});
       if(survey.canConclude)this.addVrPanelButton('Compare the results',0,-.52,2,.22,{type:'conclude-survey'});
-      this.addVrText(`${survey.observations.length}/4 routes recorded · 1.2 m/s teaching assumption`,0,-.7,2.5,.12,{fontSize:23});this.addVrPanelSurface();return;
+      this.addVrText(`${survey.observations.length}/4 routes recorded · Estimates assume 1.2 m/s`,0,-.7,2.5,.12,{fontSize:23});this.addVrPanelSurface();return;
     }
     const conversation = this.vrPanelMode === "home" ? this.gameState.getConversationView() : undefined;
     if (conversation) {
@@ -1916,8 +1915,6 @@ export class BroadStreetScene {
         unlocked: studyGoalCompleted,
         studyGoal: true,
       },
-      {kind:'notebook-card',x:0,y:0,width:0,height:0,eyebrow:'Historical notes',title:'Chronology and reconstruction',body:chronologyNote,unlocked:true},
-      {kind:'notebook-card',x:0,y:0,width:0,height:0,eyebrow:'Sources',title:'Historical accounts and route estimates',body:'Snow, On the Mode of Communication of Cholera (1855), Table I and Broad Street account; UCLA John Snow Archive, Stream 2e. Route distances use six GeoDa Snow pump anchors in British National Grid metres. The street traces and rooms are teaching interpretations. See the desktop notebook for source links.',unlocked:true},
       ...allEvidence.map((card) => {
         const unlocked = collectedIds.has(card.id);
         return {
@@ -2015,7 +2012,7 @@ export class BroadStreetScene {
         color: "#e7ece8", fontSize: 28,
       });
       this.addVrText("Against / limits", -1.04, -0.385, 0.43, 0.22, { color: "#f1d79c", fontSize: 24, weight: "700" });
-      this.addVrText(review?.complicating?.text ?? "No challenge recorded yet; this is not proof.", 0.24, -0.385, 2.04, 0.29, {
+      this.addVrText(review?.complicating?.text ?? "No challenge recorded yet.", 0.24, -0.385, 2.04, 0.29, {
         color: "#e7ece8", fontSize: 28,
       });
     } else {

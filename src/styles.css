@@ -1826,6 +1826,5 @@ button:focus-visible, [role="dialog"]:focus-visible {
   fill: none; stroke: #47633b; stroke-width: 50; stroke-dasharray: 130 80;
 }
 
-.assignment-summary, .historical-notes { display: block; }
+.assignment-summary { display: block; }
 .assignment-summary p + p { margin-top: .55rem; }
-.historical-notes a { color: var(--brass-strong); }

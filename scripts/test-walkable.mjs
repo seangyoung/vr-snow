@@ -1537,8 +1537,8 @@ test('concise theory comparisons never reveal uncollected evidence, for every co
   const game=reviewGame();
   assert.equal(game.getCollectedEvidence().length,9,'full inquiry fixture');
   const water=game.getHypothesisReview(game.getHypothesis('waterborne'));
-  assert.match(water.supporting.text,/Composite household/);
-  assert.match(water.complicating.text,/population rate/);
+  assert.match(water.supporting.text,/Households describe drinking pump water/);
+  assert.match(water.complicating.text,/some pump users remained well/);
 });
 
 test('desktop review shows two points per theory, full-note links and no confidence controls or repeated map list',()=>{
@@ -2329,4 +2329,50 @@ test('VR day, route and hearing buttons drive the shared campaign and expose eac
  scene.handleVrButton({type:'begin-hearing'});assert.equal(scene.vrPanelMode,'home');assert.equal(placements,1);assert.equal(hearing.boardPresented,false);
  for(let i=0;i<30&&!hearing.getConversationView().complete;i++){const v=hearing.getConversationView();scene.handleVrButton({type:'conversation-choice',beatId:v.beatId,choiceId:v.choices[0].id});}
  assert.ok(hearing.boardPresented);assert.equal(placements,1,'choices keep the panel stable');scene.handleVrButton({type:'board-decision'});assert.equal(scene.vrPanelMode,'synthesis');assert.equal(hearing.getConversationView(),undefined);scene.handleVrButton({type:'finish-board'});assert.equal(hearing.stage,'complete');
+});
+
+
+test('spoken dialogue stays within the inquiry and witnesses retain their own voices',()=>{
+  for(const conversation of conversations) {
+    for(const beat of conversation.beats) {
+      const spoken=[beat.text,...beat.choices.map(c=>c.label)].join(' ');
+      assert.doesNotMatch(spoken,/Table\s+(?:I|1)\b|1855|retrospective|composite|teaching (?:walk|route|outcome)|epilogue|historical (?:boundary|conclusion)|Snow described/i,`${conversation.id}/${beat.id}`);
+    }
+    if(['registrar','survivor','water-householder','away-householder','steward','brewery-owner'].includes(conversation.actorId)) {
+      assert.equal(new Set(conversation.beats.map(b=>b.speaker)).size,1,'witness is not replaced by a remote Snow field note');
+      assert.doesNotMatch(conversation.beats.map(b=>b.text).join(' '),/controlled experiment|population (?:tally|survey)|recorded (?:with|as)|return to Snow|test(?:s)? (?:the|a) theory/i);
+    }
+  }
+});
+
+test('all interview branches retain their essential shared observations',()=>{
+  const required={
+    'registrar-records':[/end of August/,/September/,/dates and addresses/],
+    'household-first':[/Broad Street water/,/before the illness/,/nursing/],
+    'pump-sample':[/inspection/,/no decisive/],
+    'household-routines':[/Broad Street/,/errands/,/drinking/],
+    'workhouse-supply':[/five hundred/,/few deaths/,/separate supply/],
+    'brewery-supply':[/No deaths/,/beer/,/well/],
+    'household-away':[/drank at Broad Street/,/working/,/water home/,/ill here/],
+  };
+  for(const [id,facts] of Object.entries(required)) {
+    const graph=conversations.find(c=>c.id===id);
+    const walk=(beatId,visited=[])=>{
+      const beat=graph.beats.find(b=>b.id===beatId),path=[...visited,beat.text];
+      if(beat.conclusion) for(const fact of facts)assert.match(path.join(' '),fact,id);
+      else for(const choice of beat.choices)walk(choice.next,path);
+    };
+    walk(graph.start);
+  }
+});
+
+test('VR notebook contains assignments and evidence without historical or source essays',()=>{
+  const game=reviewGame(),scene=Object.create(BroadStreetScene.prototype),cards=[];
+  let page=0,total=0;
+  Object.assign(scene,{gameState:game,vrTextPageCounts:new Map(),addVrText:()=>{},addVrPanelButton:()=>{},
+    getVrListPage:(_key,count)=>{total=count;return page;},addVrNotebookCard:card=>cards.push(card)});
+  do {scene.buildVrNotebookPanel();page++;} while(page*2<total);
+  assert.equal(cards.length,game.getAllEvidence().length+1);
+  assert.equal(cards.filter(c=>c.studyGoal).length,1);
+  assert.doesNotMatch(cards.map(c=>[c.eyebrow,c.title,c.body,c.meta].join(' ')).join(' '),/Historical notes|Chronology and reconstruction|Table I|composite|teaching reconstruction/i);
 });

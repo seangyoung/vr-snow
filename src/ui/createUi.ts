@@ -1,5 +1,4 @@
 import { surveyRoutes, type RouteId } from "../simulation/fieldwork";
-import { chronologyNote } from "../simulation/campaign";
 import type { SoundControls } from "../audio/Soundscape";
 import { DesktopKeyboard } from "./DesktopKeyboard";
 import { OutsidePanelDismiss } from "./OutsidePanelDismiss";
@@ -68,7 +67,7 @@ const mapAnnotations: Array<{
   {
     evidenceId: "household-water-pattern",
     title: "Water preferences",
-    body: "A composite household describes choosing Broad Street water for its taste and everyday routines.",
+    body: "A household chooses Broad Street water for its taste and collects it during errands.",
     x: 43,
     y: 67,
     kind: "household",
@@ -649,7 +648,6 @@ function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[], 
       <div class="panel-body evidence-list">
         ${renderAssignments(gameState)}
         ${renderStudyGoal(studyGoalCompleted)}
-        <article class="evidence-row historical-notes"><div><h3>Historical notes</h3><p>${escapeHtml(chronologyNote)}</p><p>Snow’s 1855 account and Table I; UCLA John Snow Archive, Stream 2e. New households and unnamed officials are interpretations. Whitehead’s later contamination inquiry belongs to the epilogue.</p><p><a href="https://www.academia.dk/MedHist/Biblioteket/Print/snow_1855.html" target="_blank" rel="noopener">Snow’s 1855 account and Table I</a> · <a href="https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_e.html" target="_blank" rel="noopener">UCLA John Snow Archive, Stream 2e</a> · <a href="https://geodacenter.github.io/data-and-lab/snow6/" target="_blank" rel="noopener">GeoDa digitized pump coordinates</a></p><p>Route estimates use six pump anchors in British National Grid metres. Street traces are teaching approximations, rounded to 5 metres, not surveyed or shortest-path routes.</p></div></article>
         ${evidenceRows}
       </div>
     </aside>
@@ -765,7 +763,7 @@ function renderHypothesisCard(
 }
 
 function renderEvidenceFit(label: string, text: string | undefined, kind: "supports" | "complicates"): string {
-  const empty = kind === "supports" ? "No supporting evidence recorded yet." : "No challenge recorded yet; this is not proof.";
+  const empty = kind === "supports" ? "No supporting evidence recorded yet." : "No challenge recorded yet.";
   return `
     <div class="fit-list is-${kind}">
       <span>${escapeHtml(label)}</span>

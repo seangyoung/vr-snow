@@ -71,8 +71,8 @@ carried water. The pump-stop facades and cast-iron pump details are interpretive
 - [Original Table I image](https://www.academia.dk/MedHist/Biblioteket/Grafik/Snow_1855/table1.gif):
   preceding-day **deaths** for the three openings are 71 (Sept 4), 45 (Sept 5), and
   37 (Sept 6). These are explicitly retrospective context, not instant registrar
-  reports or new attacks. The notebook's separate fatal-attack series is 56 on
-  Aug 31, 143 on Sept 1, and 116 on Sept 2.
+  reports or new attacks. The registrar’s evidence now describes the sudden surge
+  without importing the later publication’s numerical fatal-attack series.
 - [UCLA John Snow Archive, Stream 2e](https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_e.html):
   Whitehead's initial opposition, later inquiry, and neighborhood observations,
   including chloride-of-lime treatment. Dialogue is authored, not quoted testimony.
@@ -83,14 +83,14 @@ carried water. The pump-stop facades and cast-iron pump details are interpretive
 - The Board panorama supplies visual inspiration. Its room and unnamed officials
   are representative interpretations. Editable characters and licensing are in
   `assets/scene-people/SOURCE.md` and `assets/snow-character/SOURCE.md`.
-- Chronology is compressed into Sept 5–7; the opening and notebook disclose this.
+- Chronology is compressed into Sept 5–7; a brief opening notice discloses this.
   Historical removal of the handle is Sept 8, after the outbreak was already
   declining. Alternate endings are fictional teaching outcomes, not predictions
   of additional deaths or an asserted historical second outbreak.
 
 ## Verification and acceptance
 
-The 185 interaction tests pass locally; production-base and preview-base builds
+All 188 interaction tests pass locally; production-base and preview-base builds
 and web-app packaging checks pass. Automated checks cover graph paths, once-only rewards, 72 assignment visit-order
 combinations, optional talks, save/reload after choices, interrupted recaps and
 hearing, invalid saves, future-evidence gates, route invariance, room circulation,
@@ -123,3 +123,28 @@ permissions and repository environment protections are unchanged.
 No generated dialogue, voice acting, lip sync, timed failure, exhaustive
 questioning, continuous neighborhood simulation, cloud accounts or synchronized
 saves are included.
+
+
+## Dialogue and notebook editorial revision — 15 October 2026
+
+At user request, historical/source essays are removed from both notebook interfaces.
+A brief opening disclosure covers compressed chronology and reconstructed dialogue,
+households, settings and officials. The epilogue retains the historical outcome,
+Whitehead’s later findings and the distinction between historical and alternate endings.
+Full provenance remains in this document and conversation source metadata.
+
+Witnesses now describe their own duties, experiences and routines. The shared interview
+template no longer interrupts with a remote Snow field note: each witness has specific
+follow-up questions. Snow interprets findings at the office and hearing; Whitehead stays
+opposed to his water explanation. Pump and route observations are labeled as observations,
+not spoken by an absent Snow. Evidence notes are concise and use in-world source labels.
+The map retains a brief explanation that its historical access boundary is not calculated
+from the four route comparisons; estimates disclose the 1.2 m/s assumption.
+
+Conversation, beat, choice and evidence identifiers are unchanged, preserving existing
+save cursors and rewards. Regression checks cover every interview path’s essential facts,
+contemporary dialogue and removal of the extra VR notebook cards. Desktop review also
+checks the notebook and witness follow-ups.
+
+The editorial revision also preserves all 24 conversation graph structures (IDs,
+choices, edges, conclusion rewards and terminal actions) against the prior preview.

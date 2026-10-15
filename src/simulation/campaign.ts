@@ -6,7 +6,7 @@ export interface DayDefinition {
   objectives: readonly { id: ObjectiveId; title: string; location: LocationId; evidence: string }[];
 }
 export const historicalSource = 'https://www.academia.dk/MedHist/Biblioteket/Print/snow_1855.html';
-export const chronologyNote = 'Teaching reconstruction: this inquiry compresses work from several dates into September 5–7, 1854. Household testimony is composite, and dialogue is authored. Mortality updates come from Snow’s retrospective 1855 Table I, not instant reports available to the characters.';
+export const chronologyNote = 'About this dramatization: the investigation is condensed into three days. Dialogue, households, rooms and unnamed officials are reconstructed. Daily death totals are historical context compiled after the outbreak, not reports available to the characters.';
 export const days: readonly DayDefinition[] = [
  {day:1,date:'September 5, 1854',title:'Establish the pattern',previousDate:'September 4',previousDeaths:71,objectives:[
   {id:'records',title:'Copy the registrar’s records',location:'registrar',evidence:'attack-timeline'},
