@@ -42,3 +42,10 @@ export const ambienceProfiles: Record<string, AmbientProfile> = {
     {kind:"cloth",at:[-4,.7,3],gain:.10,cutoff:1500},
   ]},
 };
+
+// Reuse the established acoustic palette for the compact teaching locations.
+ambienceProfiles['household-routines'] = ambienceProfiles.household;
+ambienceProfiles['household-away'] = ambienceProfiles.household;
+ambienceProfiles['marlborough-pump'] = ambienceProfiles['broad-street'];
+ambienceProfiles['rupert-pump'] = ambienceProfiles['broad-street'];
+ambienceProfiles['board-room'] = ambienceProfiles.registrar;

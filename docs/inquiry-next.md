@@ -3,145 +3,123 @@
 Branch: `codex/inquiry-next`. Production remains `main` at `/vr-snow/`.
 Preview: `/vr-snow/preview/inquiry/`.
 
-## Current review checkpoint — 15 October 2026
+## Implementation checkpoint — 15 October 2026
 
-Implemented steps 1 and 2 of the accepted plan:
+The approved conversation prototype now extends through the campaign, fieldwork,
+and hearing. This remains a feature preview pending complete Quest and pacing
+acceptance; automated or desktop results do not establish headset readiness.
 
-- Walkable, baked-light Board room inspired by the earlier panorama: long timber
-  table, chairs, tall windows, fireplace, papers, schematic map, and circulation
-  around the table. Snow stands near the visitor; three distinct representative
-  Guardians sit with hands resting on their laps. All use the existing anatomical
-  pipeline and restrained idle movement. The room loads on first entry.
-- Board arrival no longer counts as presentation. An explicit Begin hearing action
-  precedes the existing conclusion. The three-objection hearing is still step 4.
-- Shared typed conversation definitions, choices, graph cursor, conclusion guard,
-  and view model, owned by GameState. Snow's initial briefing and Whitehead's street
-  conversation branch briefly and reconverge. Closing and reopening preserves the
-  current beat during the session. Stale/double-click choices cannot advance twice.
-- Compact desktop bottom overlay and a world-positioned VR panel beside the
-  speaker. Panels retain the existing geometry-occlusion protection, close button,
-  outside-click dismissal, keyboard navigation and controller-ray selection.
-  Artificial walking and snap turning pause while the conversation is open;
-  physical head movement remains available.
+- **September 5:** Snow assigns registrar records and the bereaved household.
+  Returning for the recap plots the addresses and awards the cluster finding.
+- **September 6:** pump sample, water-routines household, workhouse comparison.
+- **September 7:** brewery, daily-journey household, paired pump-access exercise;
+  Snow reviews the argument before the Board hearing.
+- Explicit assignments and concluded conversations govern progression. Earlier
+  places remain revisitable; future evidence cannot be collected early. Recaps
+  require the day's work, and End day is an explicit action. No forced return.
+- All interviews use short authored graphs with alternative approaches converging
+  on essential facts and a once-only evidence award. Closing/resuming preserves
+  the beat. Optional Whitehead and both street residents have daily material.
+  Whitehead remains opposed to the pump explanation; later findings stay epilogue-only.
+- Nine evidence cards retain the original seven IDs and add nonlocal exposure and
+  walking access. Two illustrative households no longer imply a population tally.
+- Two household interiors reuse modular assets, with different furniture layouts,
+  possessions, adult occupants and composite testimony. They are interpretations,
+  not identified families or surveyed addresses.
+- Browser-local versioned saves follow choices, travel and transitions. Continue
+  restores narrative state at the location's safe spawn, without held props or
+  controller transients. Invalid/unavailable storage leaves a playable new inquiry.
+  The base path separates production and preview saves.
+- Desktop uses the compact bottom overlay; VR uses the same conversation view
+  model on a stable panel beside the speaker. Keyboard navigation, rays, explicit
+  close, deliberate outside dismissal and head movement remain available.
+- The walkable Board has Snow and three representative officials. Arrival,
+  beginning the hearing and submitting the recommendation are separate events.
+  Three objections cover foul air, unaffected neighbors and distant cases. Snow
+  corrects unsupported answers; every hypothesis reaches its labeled conclusion.
 
-**This is a prototype review checkpoint, not the completed three-day campaign.**
-The original seven-card progression and other interviews remain in place. Browser
-reload persistence is not implemented yet. The user-approved sequence requires
-reviewing this presentation in desktop and seated/standing Quest before converting
-the remaining interviews. Do not merge the branch on the strength of desktop tests.
+## Pump-access exercise and reproducibility
 
-### Review links and checks
+Select Survey A or B on Broad Street, choose a route, visit the linked pump stop,
+and explicitly record it. Return to the **same origin** for its paired route.
+The compact Marlborough and Rupert stops stand in for intervening streets; travel
+may use the map, marked exits, smooth movement or teleportation.
 
-- Normal start: `https://seangyoung.github.io/vr-snow/preview/inquiry/`
-- Room inspection: `https://seangyoung.github.io/vr-snow/preview/inquiry/?review=board`
-  This explicit preview fixture grants no evidence or hearing credit. Close the
-  arrival panel to walk; Reset returns to Snow. In a normal inquiry the Board is
-  still reached through Snow's prepared argument.
-- Talk with Snow, choose either opening, interrupt with Close/Escape/grip or a
-  deliberate outside click, and resume. Try keyboard-only choices and controller
-  rays. Check seated and standing readability without covering the character.
-- Visit Broad Street and turn toward the opposite pavement. Whitehead stands near
-  the household side of the street, closer to the pump than the western resident.
-  He has a hover label, individual actor target and optional conversation; no card.
-- Walk around the Board table and inspect faces, hands, chairs, loading, light and
-  performance. Confirm Snow is recognizable. Try smooth movement and teleport.
+`src/simulation/route-data.json` stores polylines separately from scene geometry.
+Six pump anchors register existing SVG percentages to EPSG:27700 British National
+Grid metres. The affine fit has 1.096 m anchor RMS: this describes registration,
+**not** the accuracy of the manually traced routes. Distances are approximate,
+rounded to 5 m, and times use the disclosed 1.2 m/s teaching assumption. No reading
+time, joystick speed or teleport duration enters the calculation.
 
-Automated validation covers every graph path, shared conclusions, interrupted
-exchanges, stale selections, assignment timing, no Whitehead reward, safe Board
-arrival, all four existing hypothesis endings, room circulation, poses, asset
-budgets, desktop/VR lifecycle, keyboard focus, and the existing interaction suite.
-Headless Chrome checks are desktop/SwiftShader checks, not headset frame-rate tests.
+Run `python3 scripts/calibrate-inquiry-routes.py` to verify the stored coefficients
+and report the estimates using only Python's standard library. Coordinates are
+preserved alongside source URLs; no external download is needed to reproduce them.
 
-## Remaining implementation, in the accepted order
+After four observations both interfaces reveal the existing historical
+`PumpServiceArea` line. The desktop display derivative
+`public/maps/pump-service-area.svg` omits only the scanned page-frame subpaths and
+thickens the original line; VR applies the same treatment to the original SVG.
+This boundary is **not calculated from the four routes**. The concluding exchange
+separates convenience from consumption and discusses preference, errands and
+carried water. The pump-stop facades and cast-iron pump details are interpretive.
 
-### Step 3 — Campaign, households and saving
+## History and provenance
 
-- Typed days for September 5–7, 1854; explicit objective completion replaces the
-  evidence-count threshold. Keep earlier locations revisitable; gate future rewards.
-- September 5: registrar and existing household; return to Snow, plot addresses,
-  earn `pump-cluster`, and discuss what the pattern can establish.
-- September 6: pump sample, second household's preferences/routines, workhouse;
-  recap inconclusive inspection, corroborating testimony and separate supply.
-- September 7: brewery, third household's nonlocal exposure, walking-access
-  exercise; return to Snow, prepare the case and attend the Board.
-- Preserve the existing seven evidence IDs; add nonlocal exposure and walking
-  access. Revise `household-water-pattern` and every dependent hypothesis summary
-  so illustrative interviews do not purport to establish the existing 68/75 tally.
-- Two modular household variants with distinct layouts, possessions, occupants
-  and composite testimony/source notes. Convert interviews to actor/object graphs;
-  evidence once at a common conclusion, no exhaustive-questioning requirement.
-- Optional day-specific Whitehead and two separately addressable street residents
-  (chloride of lime, disrupted routines); no compulsory cards.
-- Completed objectives prompt, but never force, a return. Recap plus explicit End
-  day advances days 1 and 2. Day 3 uses Attend the meeting.
-- Day opening date, assignments and preceding-day deaths from **Snow's 1855 Table
-  I**, verified against the original table. Label these retrospective context,
-  not instant registrar reports or new attacks. Do not substitute Whitehead's later
-  counts. Explain compressed chronology at the beginning and in historical notes.
-- Versioned browser-local save after choices, awards, travel and transitions;
-  Continue/New Inquiry, validated restoration at safe spawns, no held objects or
-  controller transients. Invalid/unavailable storage must be harmless. Derive a
-  separate preview save namespace from the base path.
+- [Snow, *On the Mode of Communication of Cholera* (1855)](https://www.academia.dk/MedHist/Biblioteket/Print/snow_1855.html):
+  Broad Street account, comparisons, distant exposures, alternative pumps and Table I.
+- [Original Table I image](https://www.academia.dk/MedHist/Biblioteket/Grafik/Snow_1855/table1.gif):
+  preceding-day **deaths** for the three openings are 71 (Sept 4), 45 (Sept 5), and
+  37 (Sept 6). These are explicitly retrospective context, not instant registrar
+  reports or new attacks. The notebook's separate fatal-attack series is 56 on
+  Aug 31, 143 on Sept 1, and 116 on Sept 2.
+- [UCLA John Snow Archive, Stream 2e](https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_e.html):
+  Whitehead's initial opposition, later inquiry, and neighborhood observations,
+  including chloride-of-lime treatment. Dialogue is authored, not quoted testimony.
+- [GeoDa Snow data](https://geodacenter.github.io/data-and-lab/snow6/) and its
+  [documentation](https://geodacenter.github.io/data-and-lab/data/snow_documentation.pdf):
+  digitized pump coordinates in British National Grid. The Rupert anchor is the
+  southeastern pump, distinct from Warwick Street farther southwest.
+- The Board panorama supplies visual inspiration. Its room and unnamed officials
+  are representative interpretations. Editable characters and licensing are in
+  `assets/scene-people/SOURCE.md` and `assets/snow-character/SOURCE.md`.
+- Chronology is compressed into Sept 5–7; the opening and notebook disclose this.
+  Historical removal of the handle is Sept 8, after the outbreak was already
+  declining. Alternate endings are fictional teaching outcomes, not predictions
+  of additional deaths or an asserted historical second outbreak.
 
-### Step 4 — Fieldwork, hearing and history
+## Verification and acceptance
 
-- Compact Marlborough and Rupert Street pump stops via map/world travel.
-- Two paired comparisons, Broad/Marlborough and Broad/Rupert, with an identical
-  marked origin within each pair. Source-cited polylines and calibrated distances
-  separate from scene geometry; visit linked stops, explicitly record, draw routes.
-- Disclose the 1.2 m/s teaching assumption. Results never use joystick speed,
-  teleport duration, elapsed reading time or the player's real walking pace.
-- Reveal existing historical `PumpServiceArea` after both comparisons on both maps;
-  explicitly a historical walking-access boundary, not a polygon derived from four
-  sample walks. Conclude that access is not consumption: preferences, work, errands
-  and carried water matter; Snow discussed poor alternatives and circuitous routes.
-- Separate arrival, beginning hearing, three objections and completed presentation.
-  Objections: foul air, unaffected neighbors, distant cases. Evidence responses
-  reconverge with Snow clarifying as needed. Retain hypothesis choice and explicitly
-  historical versus alternate endings. Whitehead's later discoveries stay epilogue-only.
+The 185 interaction tests pass locally; production-base and preview-base builds
+and web-app packaging checks pass. Automated checks cover graph paths, once-only rewards, 72 assignment visit-order
+combinations, optional talks, save/reload after choices, interrupted recaps and
+hearing, invalid saves, future-evidence gates, route invariance, room circulation,
+asset budgets, all hypothesis endings, keyboard/controller/panel behavior, pickup,
+pump and installation regressions. The two compact pump stops batch their static
+geometry to keep scene drawing overhead small.
 
-## Acceptance before merge
+Desktop browser review uses actual safe-spawn saves to inspect the new scenes,
+then exercises conversation interruption, registrar and household choices, End
+day, notebook/map, route recording and Board submission. Browser checks use
+Chrome/SwiftShader and cannot measure standalone headset performance.
 
-Test all graph paths/rewards/resume, different fieldwork orders, optional talks,
-reloads and interrupted recaps; all days must complete without count-based gates.
-Verify UI/map/notebook/save parity, paired route origins and invariant distances,
-all hypothesis endings, and no credit for Board arrival. Keep movement, pickup/
-return, pump, keyboard, dismissal and installation tests passing. Review new
-geometry, loading, poses, occlusion and performance. Require a complete Quest
-playthrough, seated/standing dialogue acceptance and 30–45 minute pacing review.
-Only then merge main, verify production, record a development milestone, redirect
-this preview and retire the branch.
+Before merging, require a complete Quest playthrough, seated and standing panel
+checks, smooth movement and teleportation, natural poses, loading/occlusion review,
+and confirmation of the **30–45 minute pacing target**. Content exists end to end,
+but timing is not validated by automated traversal. After acceptance: merge main,
+verify production, record a development milestone, redirect this preview, and
+retire the temporary branch. None of those acceptance-dependent steps is automatic.
 
 ## Deployment isolation
 
-The Pages workflow builds `main` at `/vr-snow/`, resolves the feature branch to a
-commit, tests/builds that checkout with `/vr-snow/preview/inquiry/`, and nests its
-output under the production build. A failed preview prevents the whole publication;
-GitHub retains the previous Pages artifact. Production pushes also include the
-preview while the branch exists, so they cannot erase it accidentally.
+The feature workflow validates the preview. Its successful run triggers the Pages
+workflow on main through `workflow_run`. That workflow builds main at `/vr-snow/`,
+resolves and revalidates the feature revision, then nests the preview at
+`/vr-snow/preview/inquiry/`. A failed preview prevents publication and leaves the
+previous Pages artifact intact. Production pushes also include the preview while
+this branch exists. `revision.txt` identifies its published commit. Pages
+permissions and repository environment protections are unchanged.
 
-Pages currently allows deployment only from main. A successful feature validation
-run triggers the workflow on main through `workflow_run`; feature runs never deploy
-themselves. The second run revalidates the exact revision it resolves. Pull requests
-validate without publishing. One shared Pages concurrency group serializes runs.
-`revision.txt` in the preview identifies the published feature commit. There are no
-changes to repository environment protections. Once the feature branch is retired,
-remove the temporary trigger and provide the preview redirect in production.
-
-## Historical and asset sources
-
-- Snow, *On the Mode of Communication of Cholera* (1855):
-  https://www.academia.dk/MedHist/Biblioteket/Print/snow_1855.html
-- UCLA John Snow archive, Stream 2e (Board, Whitehead and his later inquiry):
-  https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_e.html
-- Existing `public/panoramas/board-room.jpg` supplies visual inspiration only.
-  Architecture and unnamed officials are interpretations, not documented likenesses.
-- Whitehead's dialogue is authored reconstruction informed by his local familiarity
-  and initial opposition: he expected investigation to refute Snow. The opening
-  and common conclusion preserve that disagreement on every dialogue path; his
-  later conversion remains outside this opening encounter. His appearance is interpretive; Snow reuses the approved portrait
-  study. Sources, editable rigs and licenses: `assets/scene-people/SOURCE.md` and
-  `assets/snow-character/SOURCE.md`.
-
-No generated dialogue, voice acting, lip sync, timed failure, exhaustive questioning,
-continuous neighborhood simulation, cloud accounts or synchronized saves are planned.
+No generated dialogue, voice acting, lip sync, timed failure, exhaustive
+questioning, continuous neighborhood simulation, cloud accounts or synchronized
+saves are included.

@@ -8,7 +8,7 @@ const manifest = JSON.parse(await readFile(`${root}/manifest.json`, 'utf8'));
 assert.ok(manifest.name && manifest.short_name);
 assert.equal(manifest.display, 'standalone');
 assert.notEqual(manifest.prefer_related_applications, true);
-for (const base of ['/vr-snow/', '/vr-snow/walkable/']) {
+for (const base of ['/vr-snow/', '/vr-snow/walkable/', '/vr-snow/preview/inquiry/']) {
   const url = new URL(`${base}manifest.json`, 'https://example.org');
   for (const key of ['start_url', 'scope']) {
     assert.equal(new URL(manifest[key], url).pathname, base, `${key} must preserve the deployment`);
@@ -17,7 +17,7 @@ for (const base of ['/vr-snow/', '/vr-snow/walkable/']) {
   // Omit it to use the resolved start_url as the deployment-specific identity.
   const start = new URL(manifest.start_url, url);
   const identity = manifest.id === undefined ? start : new URL(manifest.id, start.origin);
-  assert.equal(identity.pathname, base, 'App identity must distinguish stable from walkable');
+  assert.equal(identity.pathname, base, 'App identity must distinguish production from each preview');
   for (const icon of manifest.icons) {
     assert.ok(new URL(icon.src, url).pathname.startsWith(`${base}icons/`));
   }

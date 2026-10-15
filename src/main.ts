@@ -14,6 +14,11 @@ if (!canvas || !app) {
 const gameState = new GameState();
 // Explicit review link bypasses fieldwork only for visual inspection, never awards evidence.
 if (new URLSearchParams(location.search).get("review") === "board") gameState.previewBoardRoom();
+if(new URLSearchParams(location.search).get('review') !== 'board') {
+  let storage: Storage | undefined;
+  try { storage=window.localStorage; } catch { /* Storage may be disabled. */ }
+  gameState.configurePersistence(storage,import.meta.env.BASE_URL || '/');
+}
 const ui = createUi(app, gameState);
 const scene = new BroadStreetScene(canvas, gameState);
 const sound = new Soundscape();

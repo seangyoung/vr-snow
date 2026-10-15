@@ -1,6 +1,8 @@
+import { surveyRoutes, observation, type RouteId, type FieldworkView } from "./fieldwork";
+import { days, dayDefinition, locationDay, chronologyNote, type InquiryDay, type ObjectiveId } from "./campaign";
+import { conversations } from "./conversations";
 import { ConversationProgress, type ConversationView } from "./conversations";
 import {
-  boardThreshold,
   chapterScenes,
   dialogueNodes,
   evidenceCards,
@@ -29,11 +31,70 @@ type ChangeHandler = () => void;
 export class GameState {
   private readonly conversations = new ConversationProgress();
   getConversationView(): ConversationView | undefined { return this.conversations.view(); }
+  private activeSurvey?: string;
+  private selectedRoute?: RouteId;
+  private recordedRoutes = new Set<RouteId>();
+  getRouteObservations() { return [...this.recordedRoutes].map(observation); }
+  hasWalkingBoundary(): boolean { return this.recordedRoutes.size===surveyRoutes.length; }
+  getFieldworkView(): FieldworkView | undefined {
+    if(!this.activeSurvey)return undefined;
+    const route=surveyRoutes.find(r=>r.id===this.selectedRoute);
+    const choices=surveyRoutes.filter(r=>r.origin===this.activeSurvey);
+    const canRecord=!!route && route.stop===this.activeSurvey && route.destination===this.currentLocationId && !this.recordedRoutes.has(route.id);
+    return {title:choices.length?'Paired pump-access survey':'Pump survey stop',
+      text:choices.length?'Select each route from this same marked origin. Use the map or marked world exits to visit its pump stop, then explicitly record the estimate. Compact scenes stand in for the intervening streets.':
+        canRecord?`${route!.title}: about ${route!.metres} metres; ${route!.seconds} seconds at the teaching assumption of 1.2 m/s. Movement mode and elapsed playing time do not affect this estimate.`:
+        'Return to the marked origin on Broad Street to select an unrecorded route. Each comparison uses a matched starting point.',
+      routes:choices,canRecord,canConclude:this.hasWalkingBoundary() && this.currentLocationId==='broad-street',observations:this.getRouteObservations()};
+  }
+  startSurveyRoute(id: RouteId): boolean {
+    const route=surveyRoutes.find(r=>r.id===id);
+    if(this.day!==3 || !this.hasCurrentAssignment() || this.currentLocationId!=='broad-street' || route?.origin!==this.activeSurvey || this.recordedRoutes.has(id))return false;
+    this.selectedRoute=id;this.activeSurvey=undefined;this.activeDialogueId=undefined;this.emitChange();return true;
+  }
+  recordSurveyRoute(): boolean {
+    if(!this.getFieldworkView()?.canRecord || !this.selectedRoute)return false;
+    this.recordedRoutes.add(this.selectedRoute);this.selectedRoute=undefined;this.emitChange();return true;
+  }
+  concludeSurvey(): boolean {
+    if(!this.getFieldworkView()?.canConclude)return false;
+    this.activeSurvey=undefined;this.conversations.open('walking-review');this.activeDialogueId='walking-review';this.emitChange();return true;
+  }
+
+  day: InquiryDay = 1;
+  private assignedDays = new Set<InquiryDay>();
+  private objectives = new Set<ObjectiveId>();
+  private recaps = new Set<InquiryDay>();
+  dayIntroOpen = true;
+  getDay() { return dayDefinition(this.day); }
+  getAssignments() { return this.getDay().objectives.map(item=>({...item,complete:this.objectives.has(item.id)})); }
+  hasCurrentAssignment(): boolean { return this.assignedDays.has(this.day); }
+  isDayFieldworkComplete(): boolean { return this.getDay().objectives.every(o=>this.objectives.has(o.id)); }
+  canEndDay(): boolean { return this.day<3 && this.recaps.has(this.day) && this.currentLocationId==='snow-desk'; }
+  getDayIntroduction(): string[] { const day=this.getDay(); return [
+    `${day.date} · ${day.title}`,
+    `Retrospective historical context: ${day.previousDeaths} deaths on ${day.previousDate}, from Snow’s 1855 Table I. These are deaths, not new attacks or instant registrar reports.`,
+    ...(this.day===1?[chronologyNote]:[]),
+    'Speak with Snow for today’s assignments. Earlier locations remain available after the first briefing.'
+  ]; }
+  dismissDayIntroduction(): void { this.dayIntroOpen=false; this.emitChange(); }
+  endDay(): boolean {
+    if(!this.canEndDay())return false;
+    this.day=(this.day+1) as InquiryDay; this.dayIntroOpen=true;this.conversations.close();
+    this.activeDialogueId=undefined;this.activeDialogueQuestionId=undefined;this.emitChange();return true;
+  }
   chooseConversation(beatId: string, choiceId: string): void {
-    const result = this.conversations.choose(beatId, choiceId);
-    if (!result.advanced) return;
-    if (result.conclusion?.assignment) this.askedQuestions.add("snow-method-question");
-    if (result.conclusion?.evidenceId) this.collectedEvidence.add(result.conclusion.evidenceId);
+    const result=this.conversations.choose(beatId,choiceId);
+    if(!result.advanced)return;
+    const end=result.conclusion;
+    if(end?.assignment || end?.assignmentDay) {
+      this.assignedDays.add(end.assignmentDay??1);this.askedQuestions.add('snow-method-question');
+    }
+    if(end?.objective && this.hasCurrentAssignment() && this.getDay().objectives.some(o=>o.id===end.objective)) this.objectives.add(end.objective);
+    if(end?.recapDay===this.day && this.isDayFieldworkComplete())this.recaps.add(this.day);
+    if(end?.evidenceId && (end.objective ? this.objectives.has(end.objective) : end.recapDay ? this.recaps.has(end.recapDay) : false))this.collectedEvidence.add(end.evidenceId);
+    if(this.day===3 && this.recaps.has(3) && this.stage==='field')this.stage='synthesis';
+    if(end?.hearing && this.stage==='board' && this.preparedForBoard)this.boardPresented=true;
     this.emitChange();
   }
 
@@ -50,119 +111,49 @@ export class GameState {
   boardPresented = false;
 
   inspectHotspot(hotspotId: string): { dialogue?: DialogueNode; message: string } {
-    if (this.stage === "briefing") {
-      return { message: "Begin the field inquiry before collecting evidence." };
+    const hotspot=this.getHotspot(hotspotId);
+    if(!hotspot || hotspot.locationId!==this.currentLocationId || this.stage==='complete')return {message:'That person or object is not here.'};
+    this.activeSurvey=undefined;
+    if(hotspotId.startsWith('survey-')) {
+      if(this.day!==3 || !this.hasCurrentAssignment())return {message:'The pump-access exercise is assigned on September 7.'};
+      this.conversations.close();this.activeSurvey=hotspotId;this.activeDialogueId='fieldwork';this.emitChange();return {dialogue:this.getActiveDialogue(),message:'Survey stop opened.'};
     }
-
-    if (this.stage === "board" || this.stage === "complete") {
-      return { message: "The evidence has already been presented to the Board." };
+    let id: string | undefined;
+    if(hotspotId==='john-snow') {
+      if(!this.hasCurrentAssignment())id=this.day===1?'snow-introduction':`snow-day-${this.day}`;
+      else if(this.isDayFieldworkComplete())id=`snow-recap-${this.day}`;
+      else return {message:this.getObjective()};
+    } else if(hotspotId==='whitehead')id=this.day===1?'whitehead-local-knowledge':`whitehead-day-${this.day}`;
+    else if(hotspotId==='resident-west'||hotspotId==='resident-east')id=`${hotspotId}-day-${this.day}`;
+    else if(hotspotId==='board-hearing') { this.beginHearing();return {dialogue:this.getActiveDialogue(),message:'The Board awaits your response.'}; }
+    else {
+      const source: Record<string,string>={'registrar-ledger':'registrar-records','broad-street-household':'household-first',
+        'broad-street-pump':'pump-sample','routines-household':'household-routines','away-household':'household-away',
+        'poland-workhouse':'workhouse-supply','broad-street-brewery':'brewery-supply'};
+      id=source[hotspotId];
+      const graph=conversations.find(c=>c.id===id),objective=graph?.beats.find(b=>b.conclusion?.objective)?.conclusion?.objective;
+      const assigned=days.find(d=>d.objectives.some(o=>o.id===objective));
+      if(assigned && (assigned.day>this.day || !this.hasCurrentAssignment()))return {message:'This inquiry belongs to a later assignment. Speak with Snow about today’s work.'};
     }
-
-    const hotspot = this.getHotspot(hotspotId);
-    if (!hotspot) {
-      return { message: "No evidence found." };
-    }
-
-    this.inspectedHotspots.add(hotspot.id);
-    this.conversations.close();
-    if (hotspot.id === "john-snow" && !this.hasFieldAssignment()) this.conversations.open("snow-introduction");
-    if (hotspot.id === "whitehead") this.conversations.open("whitehead-local-knowledge");
-    const dialogue = hotspot.id === "whitehead" ? this.conversationDialogue() : this.getDialogueForLocation(hotspot.locationId);
-    this.activeDialogueQuestionId = undefined;
-    if (dialogue) {
-      this.activeDialogueId = dialogue.id;
-    }
-    this.emitChange();
-
-    return {
-      dialogue,
-      message: dialogue ? `Opened ${dialogue.speaker}.` : `${hotspot.shortLabel} inspected.`,
-    };
+    if(!id)return {message:'No conversation is available here.'};
+    this.inspectedHotspots.add(hotspotId);this.conversations.open(id);this.activeDialogueId=id;
+    this.activeDialogueQuestionId=undefined;this.emitChange();return {dialogue:this.getActiveDialogue(),message:'Conversation opened.'};
   }
 
-  askQuestion(questionId: string): { evidence?: EvidenceCard; response?: string; message: string } {
-    const dialogue = this.getActiveDialogue();
-    const question = dialogue
-      ? this.getAvailableDialogueQuestions(dialogue).find((candidate) => candidate.id === questionId)
-      : undefined;
-
-    if (!dialogue || !question) {
-      return { message: "That question is not available here." };
-    }
-
-    this.conversations.close();
-    const alreadyAsked = this.askedQuestions.has(question.id);
-    this.askedQuestions.add(question.id);
-    this.activeDialogueQuestionId = question.id;
-
-    let evidence: EvidenceCard | undefined;
-    let reachedSynthesis = false;
-    if (question.unlocksEvidenceId) {
-      const alreadyCollected = this.collectedEvidence.has(question.unlocksEvidenceId);
-      const hadEnoughEvidence = this.hasEnoughEvidenceForSynthesis();
-      this.collectedEvidence.add(question.unlocksEvidenceId);
-      evidence = this.getEvidence(question.unlocksEvidenceId);
-      reachedSynthesis = !alreadyCollected && !hadEnoughEvidence && this.hasEnoughEvidenceForSynthesis();
-      if (reachedSynthesis) {
-        this.stage = "synthesis";
-      }
-    }
-
-    this.emitChange();
-
-    return {
-      evidence,
-      response: question.response,
-      message:
-        evidence && !alreadyAsked
-          ? reachedSynthesis
-            ? `${evidence.title} added to the Field Notebook. Return to Snow's Desk to prepare the theory.`
-            : evidence.id === "pump-cluster"
-              ? `${evidence.title} added to the Field Notebook. Open the map to inspect the plotted deaths around the pump.`
-              : `${evidence.title} added to the Field Notebook.`
-          : question.id === "snow-method-question" && !alreadyAsked
-            ? "Study goal added to the Field Notebook. The inquiry map is now available."
-            : alreadyAsked
-              ? "That answer is already recorded."
-              : `${dialogue.speaker} answered the question.`,
-    };
+  /** Old single-question rewards are retired; all rewards pass through graph conclusions. */
+  askQuestion(_questionId: string): {evidence?: EvidenceCard;response?:string;message:string} {
+    return {message:'Speak with the witness and complete the conversation to record the finding.'};
   }
 
   getObjective(): string {
-    if (this.stage === "briefing") {
-      return "Begin at Snow's desk, then enter Broad Street with a field notebook.";
-    }
-
-    if (this.stage === "field" && !this.hasFieldAssignment()) {
-      return "Talk with Snow and receive the field assignment.";
-    }
-
-    if (this.stage === "synthesis") {
-      if (this.preparedForBoard) {
-        return "Return to Snow's review panel and present the findings to the Board.";
-      }
-
-      if (this.currentLocationId === "snow-desk") {
-        return "Test the evidence against each theory with Snow.";
-      }
-
-      return "Return to Snow's Desk and decide which theory best fits the evidence.";
-    }
-
-    if (this.stage === "board") {
-      return this.boardPresented ? "The hearing is complete. Review the conclusion." : "Explore the Board room, then begin the hearing when ready.";
-    }
-
-    if (this.stage === "complete") {
-      return "Late September: the parish sees the consequence of the Board's decision.";
-    }
-
-    if (this.preparedForBoard) {
-      return "Return to Snow's review panel and present the findings to the Board.";
-    }
-
-    const remaining = Math.max(boardThreshold - this.collectedEvidence.size, 0);
-    return `Gather ${remaining} more evidence ${remaining === 1 ? "card" : "cards"} before meeting the Board.`;
+    if(this.stage==='complete')return 'Read the epilogue or revisit your evidence in the Field Notebook.';
+    if(this.stage==='board')return this.boardPresented?'Presentation complete. Read the Board’s decision.':'Explore the room, then begin or resume the hearing.';
+    if(this.selectedRoute){const route=surveyRoutes.find(r=>r.id===this.selectedRoute)!;return `${route.title}: visit the marked pump survey stop and record the route. Return to the origin for the paired route.`;}
+    if(this.preparedForBoard)return 'Attend the meeting from Snow’s review panel.';
+    if(this.hasEnoughEvidenceForSynthesis())return 'Review the theories with Snow and prepare the Board argument.';
+    if(!this.hasCurrentAssignment())return `Day ${this.day}: speak with Snow for today’s assignments.`;
+    if(this.isDayFieldworkComplete())return this.recaps.has(this.day)?'Today’s review is complete. Return to Snow and choose End day when ready.':'Today’s fieldwork is complete. Return to Snow for the recap; exploration remains available.';
+    return `Day ${this.day}: ${this.getAssignments().filter(o=>!o.complete).map(o=>o.title).join(' · ')}.`;
   }
 
   getCollectedEvidence(): EvidenceCard[] {
@@ -174,14 +165,12 @@ export class GameState {
   }
 
   getMissingEvidencePrompt(card: EvidenceCard): string {
+    const assignment=days.find(d=>d.objectives.some(o=>o.evidence===card.id));
+    if(assignment && assignment.day>this.day)return `Assigned on day ${assignment.day}: ${assignment.title}.`;
     const location = this.getEvidenceLocation(card.id);
 
     if (!location) {
       return "Find the matching source location to add this note.";
-    }
-
-    if (card.id === "household-water-pattern" && !this.hasEvidence("household-exposure")) {
-      return `First complete the household water-use interview at ${location.title}; then conduct interviews at other households to add this note.`;
     }
 
     const prompt = this.getLocationEvidencePrompt(card, location);
@@ -210,13 +199,13 @@ export class GameState {
     if (this.stage === "board" && hypothesis) {
       if (hypothesis.id === "waterborne") {
         return [
-          `Snow presents our prepared theory: ${hypothesis.title}. The evidence is circumstantial, but it is specific, mapped, and action-oriented.`,
+          `Historical course: Snow argues for a waterborne explanation. Our prepared theory is ${hypothesis.title}; the case supports precaution without claiming final proof.`,
           `Recommended action: ${hypothesis.boardAction}`,
         ];
       }
 
       return [
-        `Snow presents our prepared theory: ${hypothesis.title}, then tests it against the evidence that remains unexplained.`,
+        `Alternate teaching conclusion: we have chosen ${hypothesis.title}. This differs from Snow’s historical recommendation; he tests it against the evidence that remains unexplained.`,
         `Recommended action: ${hypothesis.boardAction}`,
         "The pump handle case is not yet strong under this theory, so Snow urges more inquiry before a pump-specific intervention.",
       ];
@@ -225,14 +214,14 @@ export class GameState {
     if (this.stage === "complete" && hypothesis) {
       if (hypothesis.id === "waterborne") {
         return [
-          "The pump handle is removed on September 8. By late September the Broad Street outbreak has spent itself, leaving the parish to count its dead and argue over what the pattern means.",
-          "Snow keeps the notebook open. Whitehead's later inquiry will press into the households around Broad Street and the drainage near number 40.",
+          "Historical outcome: the pump handle was removed on September 8. The outbreak was already declining, so its decline cannot by itself establish the effect of removing the handle.",
+          "Whitehead later helped trace the household at 40 Broad Street, and parish investigators examined defective drainage beside the well. That later work strengthened the water explanation; it was not part of the immediate evidence presented here.",
         ];
       }
 
       return [
-        "Alternate course: the Board leaves the Broad Street pump in use after September 8. Within days, fresh cases appear near the pump and the parish faces a second rise before officials finally close it.",
-        "When Whitehead and the parish investigators later trace the 40 Broad Street household and the foul ground around the well, Snow marks the missed warning in his notebook: the water route had remained open.",
+        "Alternate course — a fictional teaching outcome: the Board delays pump-specific action. We cannot know how many additional illnesses that decision would have caused; this is not a historical second outbreak or a prediction.",
+        "In the later historical inquiry, Whitehead and parish investigators traced contamination associated with 40 Broad Street and the well. Those findings belong to the epilogue, not to the evidence available during this compressed inquiry.",
       ];
     }
 
@@ -257,7 +246,7 @@ export class GameState {
         accepted: false,
         message: this.hasEnoughEvidenceForSynthesis()
           ? "Snow asks us to prepare a theory at his desk before going to the Board."
-          : `The Board asks for ${boardThreshold} evidence cards before considering action.`,
+          : "Complete the three days of assignments and Snow’s reviews first.",
       };
     }
 
@@ -277,6 +266,7 @@ export class GameState {
   /** Preview-only room inspection, with no evidence or hearing credit. */
   previewBoardRoom(): void {
     this.closeDialogue();
+    this.dayIntroOpen=false;this.startupOpen=false;
     this.stage = "board"; this.currentLocationId = "board-room";
     this.boardPresented = false;
     this.emitChange();
@@ -284,12 +274,13 @@ export class GameState {
 
   beginHearing(): void {
     if (this.stage !== "board" || !this.preparedForBoard || !this.selectedHypothesisId) return;
-    this.boardPresented = true;
+    this.conversations.open("board-hearing");this.activeDialogueId="board-hearing";
     this.emitChange();
   }
 
   finishBoard(): void {
     if (this.stage !== "board" || !this.boardPresented) return;
+    this.conversations.close();
     this.stage = "complete";
     this.currentLocationId = "board-room";
     this.activeDialogueId = undefined;
@@ -307,6 +298,7 @@ export class GameState {
       return { traveled: false, message: `${location.title} is not available for field travel yet.` };
     }
 
+    this.activeSurvey=undefined;
     this.conversations.close();
     this.currentLocationId = locationId;
     this.activeDialogueId = undefined;
@@ -322,6 +314,7 @@ export class GameState {
   }
 
   closeDialogue(): void {
+    this.activeSurvey=undefined;
     this.conversations.close();
     this.activeDialogueId = undefined;
     this.activeDialogueQuestionId = undefined;
@@ -351,7 +344,7 @@ export class GameState {
 
   prepareBoardArgument(): { prepared: boolean; message: string } {
     if (!this.hasEnoughEvidenceForSynthesis()) {
-      return { prepared: false, message: `Snow asks for ${boardThreshold} evidence cards before synthesis.` };
+      return { prepared: false, message: "Complete the three days of assignments and recaps before synthesis." };
     }
 
     if (this.currentLocationId !== "snow-desk") {
@@ -396,7 +389,7 @@ export class GameState {
     }
 
     if (this.hasEvidence("household-water-pattern")) {
-      findings.push("Other household interviews turn individual accounts into a pump-use pattern.");
+      findings.push("A second composite household links water choice to preference and errands; it is not a population tally.");
     }
 
     if (this.hasEvidence("pump-water-inspection")) {
@@ -415,15 +408,17 @@ export class GameState {
       findings.push("The Lion Brewery on Broad Street had no deaths, and did not rely on the Broad Street pump.");
     }
 
+    if(this.hasEvidence("nonlocal-exposure"))findings.push("A distant residence can be connected to exposure near Broad Street.");
+    if(this.hasEvidence("walking-access"))findings.push("Walking access describes convenience, not actual consumption; the revealed boundary is historical.");
     return findings;
   }
 
   getHotspots(): Hotspot[] {
-    if (this.stage !== "field" && this.stage !== "synthesis") {
+    if (this.stage !== "field" && this.stage !== "synthesis" && this.stage !== "board") {
       return [];
     }
 
-    return hotspots.filter((hotspot) => hotspot.locationId === this.currentLocationId);
+    return hotspots.filter((hotspot) => hotspot.locationId === this.currentLocationId && (!hotspot.id.startsWith("survey-") || this.day===3 && this.hasCurrentAssignment()));
   }
 
   getAllHotspots(): Hotspot[] {
@@ -445,7 +440,8 @@ export class GameState {
   }
 
   getActiveDialogue(): DialogueNode | undefined {
-    if (this.getConversationView()?.actorId === "whitehead") return this.conversationDialogue();
+    const survey=this.getFieldworkView();if(survey)return {id:'fieldwork',locationId:this.currentLocationId,speaker:survey.title,role:'Walking-access fieldwork',intro:survey.text,questions:[]};
+    if (this.getConversationView()) return this.conversationDialogue();
     return this.activeDialogueId ? dialogueNodes.find((dialogue) => dialogue.id === this.activeDialogueId) : undefined;
   }
 
@@ -503,6 +499,7 @@ export class GameState {
   }
 
   getInteractionHint(): string {
+    if(this.stage==='complete')return 'The inquiry is complete. Open the chapter panel for the epilogue or the notebook to review your evidence.';
     if (this.currentLocationId === "board-room" && !this.boardPresented) return "Walk around the table. Open the chapter panel when ready to begin.";
     return locationInteractionHints[this.currentLocationId];
   }
@@ -549,6 +546,7 @@ export class GameState {
       return location.id === "snow-desk";
     }
 
+    if ((locationDay[location.id]??1)>this.day)return false;
     if (location.unlocksWith) {
       return this.hasEvidence(location.unlocksWith);
     }
@@ -567,7 +565,7 @@ export class GameState {
 
   private getLocationEvidencePrompt(card: EvidenceCard, location: InvestigationLocation): string {
     if (card.id === "household-water-pattern") {
-      return `Return to ${location.title} and conduct interviews at other households to add this note.`;
+      return `Interview the householder at ${location.title} about water preferences and routines.`;
     }
 
     if (card.sourceType === "interview") {
@@ -602,7 +600,7 @@ export class GameState {
   }
 
   hasEnoughEvidenceForSynthesis(): boolean {
-    return this.collectedEvidence.size >= boardThreshold;
+    return this.day===3 && this.recaps.has(3) && days.every(d=>d.objectives.every(o=>this.objectives.has(o.id)));
   }
 
   hasInspected(hotspotId: string): boolean {
@@ -610,7 +608,7 @@ export class GameState {
   }
 
   getProgressText(): string {
-    return this.hasEnoughEvidenceForSynthesis() ? "Ready" : `${this.collectedEvidence.size}/${boardThreshold}`;
+    return `Day ${this.day} · ${this.getAssignments().filter(o=>o.complete).length}/${this.getAssignments().length}`;
   }
 
   getSnapshot(): InvestigationSnapshot {
@@ -631,7 +629,8 @@ export class GameState {
   }
 
   reset(): void {
-    this.conversations.reset();
+    this.startupOpen=false;this.pendingSave=undefined;this.recordedRoutes.clear();this.selectedRoute=undefined;this.activeSurvey=undefined;
+    this.conversations.reset();this.day=1;this.assignedDays.clear();this.objectives.clear();this.recaps.clear();this.dayIntroOpen=true;
     this.inspectedHotspots.clear();
     this.collectedEvidence.clear();
     this.askedQuestions.clear();
@@ -645,7 +644,79 @@ export class GameState {
     this.emitChange();
   }
 
+  startupOpen = false;
+  saveNotice = '';
+  private storage?: Pick<Storage,'getItem'|'setItem'|'removeItem'>;
+  private saveKey = '';
+  private pendingSave?: string;
+  get hasSavedInquiry(): boolean { return !!this.pendingSave; }
+  configurePersistence(storage: Pick<Storage,'getItem'|'setItem'|'removeItem'> | undefined, basePath: string): void {
+    this.storage=storage;this.saveKey=`broad-street-inquiry:v1:${basePath}`;this.startupOpen=true;
+    try {
+      const saved=storage?.getItem(this.saveKey);
+      if(saved) {
+        const probe=new GameState();
+        if(probe.restoreSave(saved))this.pendingSave=saved;
+        else this.saveNotice='The saved inquiry could not be read. Start a new inquiry.';
+      }
+      if(!storage)this.saveNotice='Local saving is unavailable; you can still play this session.';
+    } catch { this.storage=undefined;this.saveNotice='Local saving is unavailable; you can still play this session.'; }
+  }
+  continueInquiry(): boolean {
+    if(!this.pendingSave || !this.restoreSave(this.pendingSave))return false;
+    this.pendingSave=undefined;this.startupOpen=false;this.emitChange();return true;
+  }
+  serializeSave(): string {
+    return JSON.stringify({version:1,day:this.day,location:this.currentLocationId,stage:this.stage,
+      conversation:this.conversations.serialize(),hypothesis:this.selectedHypothesisId,
+      prepared:this.preparedForBoard,dayIntro:this.dayIntroOpen,routes:[...this.recordedRoutes],selectedRoute:this.selectedRoute});
+  }
+  restoreSave(json: string): boolean {
+    try {
+      const value=JSON.parse(json);
+      if(value?.version!==1 || ![1,2,3].includes(value.day) || !this.getLocation(value.location)
+        || !['field','synthesis','board','complete'].includes(value.stage) || typeof value.prepared!=='boolean'
+        || typeof value.dayIntro!=='boolean' || (value.hypothesis!==undefined && !this.getHypothesis(value.hypothesis)))return false;
+      if(!Array.isArray(value.routes) || new Set(value.routes).size!==value.routes.length || !value.routes.every((id:unknown)=>surveyRoutes.some(r=>r.id===id)) || (value.selectedRoute!==undefined && !surveyRoutes.some(r=>r.id===value.selectedRoute)))return false;
+      if(value.day!==3 && (value.routes.length || value.selectedRoute))return false;
+      const progress=new ConversationProgress();if(!progress.restore(value.conversation))return false;
+      const objectives=new Set<ObjectiveId>(),assigned=new Set<InquiryDay>(),recaps=new Set<InquiryDay>(),evidence=new Set<string>();
+      let hearing=false;
+      for(const graph of conversations)if(progress.hasCompleted(graph.id)) {
+        const end=graph.beats.find(b=>b.conclusion!==undefined)!.conclusion!;
+        if(end.assignment)assigned.add(1);if(end.assignmentDay)assigned.add(end.assignmentDay);
+        if(end.objective)objectives.add(end.objective);if(end.recapDay)recaps.add(end.recapDay);
+        if(end.evidenceId)evidence.add(end.evidenceId);if(end.hearing)hearing=true;
+      }
+      for(const day of days) {
+        if(day.day>value.day && (assigned.has(day.day)||recaps.has(day.day)||day.objectives.some(o=>objectives.has(o.id))))return false;
+        if(day.day<value.day && !recaps.has(day.day))return false;
+        if(recaps.has(day.day) && (!assigned.has(day.day)||!day.objectives.every(o=>objectives.has(o.id))))return false;
+        if(day.objectives.some(o=>objectives.has(o.id)) && !assigned.has(day.day))return false;
+      }
+      if(objectives.has("walking-access") && value.routes.length!==surveyRoutes.length)return false;
+      const ready=recaps.has(3);
+      if(value.prepared && (!ready||!value.hypothesis))return false;
+      if(['board','complete'].includes(value.stage) && (!value.prepared||value.location!=='board-room'))return false;
+      if(value.stage==='complete'&&!hearing)return false;
+      if(hearing&&!['board','complete'].includes(value.stage))return false;
+      if((value.routes.length||value.selectedRoute)&&!assigned.has(3))return false;
+      if(value.selectedRoute&&value.routes.includes(value.selectedRoute))return false;
+      if(value.stage==='synthesis'&&!ready)return false;
+      if((locationDay[value.location as LocationId]??1)>value.day || (!assigned.has(1) && value.location!=='snow-desk'))return false;
+      // Commit only after full validation; callers can retain their current session on failure.
+      this.conversations.restore(value.conversation);this.day=value.day;this.currentLocationId=value.location;
+      this.stage=value.stage;this.objectives=objectives;this.recaps=recaps;this.assignedDays=assigned;this.collectedEvidence=evidence;
+      this.askedQuestions=new Set(assigned.has(1)?['snow-method-question']:[]);this.inspectedHotspots.clear();
+      this.selectedHypothesisId=value.hypothesis;this.preparedForBoard=value.prepared;this.boardPresented=hearing;
+      this.recordedRoutes=new Set(value.routes);this.selectedRoute=value.selectedRoute;this.activeSurvey=undefined;
+      this.dayIntroOpen=value.dayIntro;this.activeDialogueId=undefined;this.activeDialogueQuestionId=undefined;
+      return true;
+    } catch { return false; }
+  }
+
   private emitChange(): void {
+    if(this.storage && !this.startupOpen)try { this.storage.setItem(this.saveKey,this.serializeSave()); } catch { this.saveNotice="Progress could not be saved; this session is still playable."; }
     this.changeHandlers.forEach((handler) => handler());
   }
 }

@@ -211,5 +211,45 @@
         "yaw": -1.5708
       }
     ]
+  },
+  "household-routines": {
+    "asset": "household-routines-characters",
+    "room": "household-routines-room",
+    "actors": [
+      {
+        "id": "water-householder",
+        "position": [
+          -0.65,
+          0,
+          -0.2
+        ],
+        "pose": "standing",
+        "coat": "5a5145",
+        "vest": "8b7861",
+        "height": 1.8,
+        "labelHeight": 1.86,
+        "yaw": 0
+      }
+    ]
+  },
+  "household-away": {
+    "asset": "household-away-characters",
+    "room": "household-away-room",
+    "actors": [
+      {
+        "id": "away-householder",
+        "position": [
+          1,
+          0,
+          -1
+        ],
+        "pose": "standing",
+        "coat": "3c4b50",
+        "vest": "77705e",
+        "height": 1.8,
+        "labelHeight": 1.86,
+        "yaw": 0
+      }
+    ]
   }
 }

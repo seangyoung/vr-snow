@@ -51,16 +51,16 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
     summary: "A shared drinking-water source spreads cholera.",
     boardAction: "Close the pump temporarily while inquiry continues.",
     supportingEvidence: [
-      { evidenceIds: ["household-water-pattern", "workhouse-exception"], text: "68 of 75 known histories involved pump use; the workhouse had few deaths and a separate supply." },
-      { evidenceIds: ["household-water-pattern"], text: "68 of 75 early deaths with known water histories involved Broad Street pump use." },
+      { evidenceIds: ["household-water-pattern", "workhouse-exception"], text: "Composite household accounts describe pump use; the nearby workhouse had few deaths and a separate supply." },
+      { evidenceIds: ["household-water-pattern"], text: "The composite household accounts describe Broad Street water use and the routines behind it." },
       { evidenceIds: ["workhouse-exception"], text: "The nearby workhouse had few deaths and used a separate water supply." },
       { evidenceIds: ["brewery-exception"], text: "No brewery workers died; they did not regularly drink from the street pump." },
       { evidenceIds: ["household-exposure"], text: "The bereaved household reports using Broad Street pump water." },
       { evidenceIds: ["pump-cluster"], text: "Deaths cluster around the pump, consistent with a shared local water source." },
     ],
     complicatingEvidence: [
-      { evidenceIds: ["household-water-pattern", "pump-water-inspection"], text: "Six known histories reported no pump use; inspecting the water gave no decisive proof." },
-      { evidenceIds: ["household-water-pattern"], text: "Six of the 75 known histories reported no pump use; exposure histories need checking." },
+      { evidenceIds: ["household-water-pattern", "pump-water-inspection"], text: "Illustrative interviews cannot establish a population rate; inspecting the water gave no decisive proof." },
+      { evidenceIds: ["household-water-pattern"], text: "The small set of illustrative accounts cannot establish a population rate; recalled exposure needs checking." },
       { evidenceIds: ["pump-water-inspection"], text: "The water sample gave no decisive visible proof. Clear-looking water does not establish safety." },
     ],
   },
@@ -114,12 +114,16 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
 
 export const locationInteractionHints: Record<LocationId, string> = {
   "snow-desk": "Select John Snow at his desk to speak with him.",
-  "broad-street": "Select the pump to investigate the water. Speak with Whitehead across the street; the other residents are background figures in this preview.",
+  "broad-street": "Select the pump to investigate the water. Speak with Whitehead and both street residents. Day 3 survey origins are marked on the pavement.",
   household: "Select the seated household survivor to interview her.",
   registrar: "Select the registrar or the open ledger to review the death returns.",
   workhouse: "Select the steward to ask about the workhouse water supply.",
   brewery: "Select either brewery owner to ask about the workers' drinking water.",
-  "board-room": "Use the panel to continue after the meeting.",
+  "household-routines": "Select the householder to ask about water preferences and errands.",
+  "household-away": "Select the householder to trace a connection to Broad Street.",
+  "marlborough-pump": "Inspect the survey stop and record the selected route comparison.",
+  "rupert-pump": "Inspect the survey stop and record the selected route comparison.",
+  "board-room": "Select the table or a Board member to begin or resume the hearing.",
 };
 
 export const evidenceCards: EvidenceCard[] = [
@@ -138,10 +142,10 @@ export const evidenceCards: EvidenceCard[] = [
     id: "attack-timeline",
     title: "The outbreak rises and falls abruptly",
     summary:
-      "Parish figures show a sharp surge after August 30: 31 fatal attacks on August 31, then 131 and 125 over the next two days.",
+      "Snow’s retrospective 1855 Table I lists 56 fatal attacks on August 31, 143 on September 1 and 116 on September 2. These estimated attack dates differ from death dates; the figures were compiled after the outbreak.",
     confidence: "reported",
     sourceType: "document",
-    sourceLabel: "Registrar's daily returns",
+    sourceLabel: "Snow (1855), Table I; retrospective fatal-attack series, not same-day death reports",
     supports: ["Common-source exposure", "Urgent public health action"],
     complicates: ["Slow person-to-person spread"],
   },
@@ -152,18 +156,18 @@ export const evidenceCards: EvidenceCard[] = [
       "A local survivor reports a death during the surge and records the household's pump-water use, attack timing, and close nursing contact.",
     confidence: "reported",
     sourceType: "interview",
-    sourceLabel: "Local household interview",
+    sourceLabel: "Composite household and reconstructed testimony; Snow (1855), Broad Street account",
     supports: ["Exposure history", "Household field inquiry", "Common-source testing"],
     complicates: ["Place-only explanations"],
   },
   {
     id: "household-water-pattern",
-    title: "Other household interviews show pump-water exposure",
+    title: "Water preference and routines shape exposure",
     summary:
-      "Among 75 early deaths with known pump-use histories, household respondents identified 68 Broad Street pump users, one probable user, and six non-users.",
+      "A second composite household describes choosing Broad Street water for its taste and collecting it during errands. These illustrative accounts support an exposure explanation but do not establish a population tally.",
     confidence: "reported",
     sourceType: "interview",
-    sourceLabel: "Follow-up household interviews",
+    sourceLabel: "Composite household and reconstructed testimony; Snow (1855), water preferences",
     supports: ["Exposure history", "Statistical pattern", "Common-source testing"],
     complicates: ["Anecdote alone", "Person-to-person spread alone", "Miasma alone"],
   },
@@ -200,6 +204,8 @@ export const evidenceCards: EvidenceCard[] = [
     supports: ["Exposure history", "Negative evidence"],
     complicates: ["Street-level miasma"],
   },
+  { id: "nonlocal-exposure", title: "Residence is not necessarily exposure", summary: "A composite household account connects a distant residence to Broad Street through daily activity and carried water. Snow described distant cases with work, school or water connections; each link still needs checking.", confidence: "reported", sourceType: "interview", sourceLabel: "Composite household; Snow (1855), explanation of the map and distant cases", supports: ["Exposure history"], complicates: ["Distance alone"] },
+  { id: "walking-access", title: "Walking access describes convenience, not consumption", summary: "Two paired route comparisons use the same origin within each pair and a 1.2 m/s teaching walking-speed assumption. The revealed PumpServiceArea is the historical walking-access boundary, not a polygon calculated from these four walks. Preferences, errands and carried water can override proximity.", confidence: "inferred", sourceType: "inference", sourceLabel: "Teaching route estimates on the historical map; Snow (1855), discussion of Marlborough and Rupert Street pumps", supports: ["Access as an exposure clue"], complicates: ["Nearest pump equals actual consumption"] },
 ];
 
 export const fieldStudyGoal: StudyGoal = {
@@ -208,160 +214,8 @@ export const fieldStudyGoal: StudyGoal = {
     "Begin at the General Register Office and consult the daily returns ledger for cholera deaths. Use those records to guide interviews, check water histories, inspect the pump sample, and test exceptions before drawing conclusions.",
 };
 
-export const dialogueNodes: DialogueNode[] = [
-  {
-    id: "snow-briefing",
-    locationId: "snow-desk",
-    speaker: "John Snow",
-    role: "Physician and investigator",
-    intro:
-      "Snow stands over his notes, careful and methodical. He wants every claim we make tied to an address, a date, or a witness.",
-    questions: [
-      {
-        id: "snow-method-question",
-        prompt: "Where should we begin the inquiry?",
-        response:
-          "We begin with the records. We should go to the General Register Office and consult the daily returns ledger for cholera deaths: dates, addresses, and fatal attacks. Then we can use those records to guide household interviews, check water histories, inspect the pump sample, and test exceptions.",
-      },
-      {
-        id: "ledger-address-question",
-        prompt: "Why copy addresses from the registrar's ledger?",
-        response:
-          "The register's totals show severity. Its addresses show pattern. We need both to compare the timing with the geography.",
-        requiresEvidenceIds: ["attack-timeline"],
-      },
-      {
-        id: "pump-cluster-question",
-        prompt: "What do our plotted addresses show?",
-        response:
-          "The marks crowd around Broad Street. The pattern does not explain every case, but it gives our inquiry a center of gravity. Open the map to inspect the plotted deaths around the pump.",
-        unlocksEvidenceId: "pump-cluster",
-        requiresEvidenceIds: ["attack-timeline"],
-      },
-      {
-        id: "pump-limits-question",
-        prompt: "Does the cluster alone settle the cause?",
-        response:
-          "No. A cluster is a lead, not proof. We still need timing, exposure histories, and an explanation for exceptions to the pattern.",
-        requiresEvidenceIds: ["pump-cluster", "pump-water-inspection"],
-      },
-      {
-        id: "household-contact-question",
-        prompt: "Could nursing the sick person explain the spread?",
-        response:
-          "Close care may matter inside a home, but we have to ask whether many separate households were struck after drawing from the same pump.",
-        requiresEvidenceIds: ["household-exposure"],
-      },
-      {
-        id: "workhouse-miasma-question",
-        prompt: "What does the St. James Workhouse exception tell us about street air?",
-        response:
-          "We would expect the nearby institution to suffer heavily as well. Its relative escape pushes the inquiry back toward water source and exposure.",
-        requiresEvidenceIds: ["workhouse-exception"],
-      },
-      {
-        id: "brewery-exposure-question",
-        prompt: "Why does the Lion Brewery exception matter?",
-        response:
-          "It reminds us why place alone is not enough. We must ask what people actually consumed, not merely where they stood.",
-        requiresEvidenceIds: ["brewery-exception"],
-      },
-    ],
-  },
-  {
-    id: "pump-observation",
-    locationId: "broad-street",
-    speaker: "Broad Street pump",
-    role: "Street observation",
-    intro:
-      "Snow suspects the pump water may carry the danger, but suspicion is not the same as proof. The sample must be inspected for any visible sign of contamination.",
-    questions: [
-      {
-        id: "pump-caution-question",
-        prompt: "What did Snow's water sample show?",
-        response:
-          "The sample did not give decisive proof by sight, taste, smell, or simple inspection. Snow records that absence as a problem for the argument, not a reason to ignore the map.",
-        unlocksEvidenceId: "pump-water-inspection",
-      },
-    ],
-  },
-  {
-    id: "registrar-ledger-interview",
-    locationId: "registrar",
-    speaker: "Registrar",
-    role: "Mortality returns",
-    intro:
-      "The registrar's ledger turns the outbreak into dates, addresses, and a curve of fatal attacks.",
-    questions: [
-      {
-        id: "ledger-timeline-question",
-        prompt: "When did the outbreak surge?",
-        response:
-          "The returns rise sharply after August 30: 31 fatal attacks on August 31, then 131 and 125 over the next two days before falling.",
-        unlocksEvidenceId: "attack-timeline",
-      },
-    ],
-  },
-  {
-    id: "household-interview",
-    locationId: "household",
-    speaker: "Bereaved household survivor",
-    role: "Household witness",
-    intro:
-      "A black ribbon hangs at the door. Snow has the address from the returns; now he needs the timing, care, and water habits behind the death mark.",
-    questions: [
-      {
-        id: "household-water-question",
-        prompt: "What water did the household use before the illness?",
-        response:
-          "The family fetched from the Broad Street pump because it was near and well regarded. We'll record the water source and the time symptoms began.",
-        unlocksEvidenceId: "household-exposure",
-      },
-      {
-        id: "household-pattern-question",
-        prompt: "Conduct interviews at other households",
-        response:
-          "Taken one by one, the accounts are imperfect; taken together, they become a pattern. Of 75 early deaths where pump use could be learned, 68 were Broad Street pump users, one was a probable user, and six were non-users.",
-        unlocksEvidenceId: "household-water-pattern",
-        requiresEvidenceIds: ["household-exposure"],
-      },
-    ],
-  },
-  {
-    id: "workhouse-interview",
-    locationId: "workhouse",
-    speaker: "St. James Workhouse steward",
-    role: "Institutional witness",
-    intro:
-      "The St. James Workhouse holds over 500 inmates close to affected streets, but reports very few deaths. Snow wants to know whether its water supply explains the exception.",
-    questions: [
-      {
-        id: "workhouse-water-question",
-        prompt: "Where did the inmates get water?",
-        response:
-          "The St. James Workhouse had its own supply. With over 500 inmates so near Broad Street, the very small number of deaths becomes important negative evidence.",
-        unlocksEvidenceId: "workhouse-exception",
-      },
-    ],
-  },
-  {
-    id: "brewery-interview",
-    locationId: "brewery",
-    speaker: "Edward and John Huggins",
-    role: "Lion Brewery owners",
-    intro:
-      "Edward and John Huggins receive Snow's questions at the Lion Brewery. The brewery stands near the affected area, yet no workers are reported dead. Snow wants to know what made this workplace different.",
-    questions: [
-      {
-        id: "brewery-drink-question",
-        prompt: "What did your workers drink during the day?",
-        response:
-          "Edward and John Huggins report that no Lion Brewery workers died during the outbreak. Workers had beer or the brewery's own water available and were not regular users of the Broad Street pump.",
-        unlocksEvidenceId: "brewery-exception",
-      },
-    ],
-  },
-];
+// Conversations are actor-specific authored graphs in conversations.ts.
+export const dialogueNodes: DialogueNode[] = [];
 
 export const locations: InvestigationLocation[] = [
   {
@@ -384,7 +238,6 @@ export const locations: InvestigationLocation[] = [
     shortTitle: "Household",
     description: "A representative Broad Street household interview explores timing, care, and water-use testimony; this doorway is illustrative.",
     mapPoint: { x: 53, y: 44 },
-    unlocksWith: "pump-cluster",
   },
   {
     id: "registrar",
@@ -399,7 +252,6 @@ export const locations: InvestigationLocation[] = [
     shortTitle: "St. James Workhouse",
     description: "A nearby institution that complicates any simple bad-air explanation.",
     mapPoint: { x: 50, y: 28 },
-    unlocksWith: "pump-cluster",
   },
   {
     id: "brewery",
@@ -407,7 +259,6 @@ export const locations: InvestigationLocation[] = [
     shortTitle: "Lion Brewery",
     description: "A workplace exception that makes exposure history matter.",
     mapPoint: { x: 78, y: 40 },
-    unlocksWith: "pump-cluster",
   },
   {
     id: "board-room",
@@ -417,18 +268,34 @@ export const locations: InvestigationLocation[] = [
     mapPoint: { x: 50, y: 80 },
     boardOnly: true,
   },
+  {id:"household-routines",title:"Household: Water Routines",shortTitle:"Water routines",description:"A second composite household explores preference, errands and carried water; the map placement is illustrative.",mapPoint:{x:42,y:49}},
+  {id:"household-away",title:"Household: A Daily Journey",shortTitle:"Daily journey",description:"A composite household away from the pump illustrates a connection through daily activity; this is not a documented address.",mapPoint:{x:26,y:61}},
+  {id:"marlborough-pump",title:"Marlborough Street Pump",shortTitle:"Marlborough pump",description:"A compact interpretive fieldwork stop at the alternative pump.",mapPoint:{x:16.4,y:33.9}},
+  {id:"rupert-pump",title:"Rupert Street Pump",shortTitle:"Rupert pump",description:"A compact interpretive fieldwork stop for the southern comparison.",mapPoint:{x:97.4,y:73.2}},
 ];
 
 export const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
   "snow-desk": ["pump-cluster"],
-  "broad-street": ["pump-water-inspection"],
-  household: ["household-exposure", "household-water-pattern"],
+  "broad-street": ["pump-water-inspection", "walking-access"],
+  household: ["household-exposure"],
+  "household-routines": ["household-water-pattern"],
+  "household-away": ["nonlocal-exposure"],
   registrar: ["attack-timeline"],
   workhouse: ["workhouse-exception"],
   brewery: ["brewery-exception"],
 };
 
 export const hotspots: Hotspot[] = [
+  {id:'survey-marlborough',locationId:'broad-street',label:'Survey A · western origin',shortLabel:'Survey A',description:'Compare both routes from this same marked origin.',position:[-8.5,1.25,-2]},
+  {id:'survey-rupert',locationId:'broad-street',label:'Survey B · eastern origin',shortLabel:'Survey B',description:'Compare both routes from this same marked origin.',position:[8,1.25,-2]},
+  {id:'survey-broad-pump',locationId:'broad-street',label:'Record Broad Street route',shortLabel:'Survey stop',description:'Record the selected walk at the pump.',position:[-3.0,1.2,1.9]},
+  {id:'survey-marlborough-pump',locationId:'marlborough-pump',label:'Marlborough survey stop',shortLabel:'Record route',description:'Record the selected route.',position:[.65,1.25,-2]},
+  {id:'survey-rupert-pump',locationId:'rupert-pump',label:'Rupert survey stop',shortLabel:'Record route',description:'Record the selected route.',position:[.65,1.25,-2]},
+  {id:"resident-west",locationId:"broad-street",label:"Street shopkeeper",shortLabel:"Shopkeeper",description:"Ask about the chloride of lime and the neighborhood.",position:[-10,1.82,-7]},
+  {id:"resident-east",locationId:"broad-street",label:"Street neighbor",shortLabel:"Neighbor",description:"Ask about the neighborhood’s disrupted routines.",position:[11,1.82,-7]},
+  {id:"routines-household",locationId:"household-routines",label:"Householder",shortLabel:"Householder",description:"Ask about water preferences.",position:[-.65,1.4,-.2],evidenceId:"household-water-pattern"},
+  {id:"away-household",locationId:"household-away",label:"Householder",shortLabel:"Householder",description:"Trace a connection to Broad Street.",position:[1,1.4,-1],evidenceId:"nonlocal-exposure"},
+  {id:"board-hearing",locationId:"board-room",label:"Board hearing",shortLabel:"Hearing",description:"Begin or resume the presentation.",position:[0,1.4,-2.2]},
   { id: "whitehead", locationId: "broad-street", label: "Reverend Henry Whitehead", shortLabel: "Whitehead",
     description: "Speak with the local curate about the neighborhood and how to question an explanation.", position: [-6.5, 1.82, -5.6] },
   {
@@ -485,5 +352,3 @@ export const hotspots: Hotspot[] = [
     position: [-2.8, 1.55, 2.4],
   },
 ];
-
-export const boardThreshold = 6;

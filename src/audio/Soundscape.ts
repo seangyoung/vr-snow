@@ -268,7 +268,7 @@ export class Soundscape implements SoundControls {
   effect(kind: SoundEffect): void {
     const c=this.context;if(!c||!this.noise||!this.effects||c.state!=="running"||this.hidden||this.settings.muted||!this.settings.effects)return;
     const now=c.currentTime;if(kind!=="evidence"&&now-this.lastEffect<.07)return;this.lastEffect=now;
-    const indoor=["snow-desk","household","registrar"].includes(this.location);
+    const indoor=["snow-desk","household","household-routines","household-away","registrar","board-room"].includes(this.location);
     const recorded=kind==="step"?this.pickClip(indoor?"woodStep":"stoneStep"):
       kind==="paper"||kind==="evidence"?this.pickClip("paper"):undefined;
     const source=c.createBufferSource();source.buffer=recorded??this.noise;
@@ -276,7 +276,7 @@ export class Soundscape implements SoundControls {
     source.playbackRate.value=.96+this.random()*.08;
     const filter=c.createBiquadFilter();filter.type="bandpass";
     const paper=kind==="paper"||kind==="evidence";
-    filter.frequency.value=kind==="water"?2200:paper?1450:kind==="step"?(this.location==="snow-desk"||this.location==="household"||this.location==="registrar"?310:620):900;
+    filter.frequency.value=kind==="water"?2200:paper?1450:kind==="step"?(indoor?310:620):900;
     filter.Q.value=paper?.5:.8;
     const gain=c.createGain(),duration=recorded?recorded.duration/source.playbackRate.value:kind==="water"?.9:paper?.23:kind==="step"?.12:.045;
     const start=now+(kind==="water"?.55:0);

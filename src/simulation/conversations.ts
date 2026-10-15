@@ -1,14 +1,19 @@
+import { campaignConversations } from "./campaignConversations";
+import type { InquiryDay, ObjectiveId } from "./campaign";
 import type { LocationId } from "./types";
 
-export type ActorId = "john-snow" | "whitehead";
-export type ConversationId = "snow-introduction" | "whitehead-local-knowledge";
+export type ActorId = "john-snow" | "whitehead" | "resident-west" | "resident-east" | "registrar" | "survivor" | "water-householder" | "away-householder" | "steward" | "brewery-owner" | "pump" | "board-chair" | "board-tradesman" | "board-guardian" | "survey";
+export type ConversationId = string;
 export interface ConversationChoice { id: string; label: string; next: string }
 export interface ConversationBeat {
   id: string;
   speaker: string;
   text: string;
   choices: readonly ConversationChoice[];
-  conclusion?: { assignment?: boolean; evidenceId?: string };
+  conclusion?: { assignment?: boolean; assignmentDay?: InquiryDay; evidenceId?: string; objective?: ObjectiveId; recapDay?: InquiryDay; hearing?: boolean };
+  terminalAction?: "end-day" | "review-theory" | "board-decision";
+  anchor?: readonly [number, number, number];
+  actorId?: ActorId;
 }
 export interface ConversationDefinition {
   id: ConversationId;
@@ -23,21 +28,22 @@ export interface ConversationDefinition {
 export interface ConversationView {
   id: ConversationId; actorId: ActorId; title: string; beatId: string;
   speaker: string; text: string; choices: readonly ConversationChoice[];
-  anchor: readonly [number, number, number]; complete: boolean;
+  anchor: readonly [number, number, number]; complete: boolean; terminalAction?: ConversationBeat["terminalAction"];
 }
 const next = (id: string, label: string, to: string): ConversationChoice => ({ id, label, next: to });
 export const conversations: readonly ConversationDefinition[] = [
+  ...campaignConversations,
   {
     id: "snow-introduction", actorId: "john-snow", locationId: "snow-desk", title: "Starting the inquiry",
     anchor: [-.65, 1.35, -2.15], start: "opening",
-    sourceNote: "Reconstructed teaching dialogue, informed by Snow, On the Mode of Communication of Cholera (1855). This preview retains the existing field assignments pending the three-day campaign.",
+    sourceNote: "Reconstructed teaching dialogue, informed by Snow, On the Mode of Communication of Cholera (1855). The inquiry compresses several historical activities into September 5–7.",
     beats: [
       { id: "opening", speaker: "John Snow", text: "People are dying near Broad Street, and I suspect something they have swallowed. Will you help me test that suspicion against what we can find?", choices: [next("begin", "Where should we begin?", "records"), next("doubt", "What if the water is innocent?", "skepticism")] },
       { id: "records", speaker: "John Snow", text: "Begin with the death returns: when did people fall ill, and where did they live? Addresses can guide our questions, but a mark on a map cannot tell us what someone drank.", choices: [next("people", "Then we need to speak with the households.", "method")] },
       { id: "skepticism", speaker: "John Snow", text: "Then we must be willing to change our explanation. Look for people who escaped illness as carefully as those who suffered it.", choices: [next("compare", "How can we make a fair comparison?", "method")] },
       { id: "method", speaker: "John Snow", text: "Ask about water, daily routines, and the timing of illness; compare those accounts with the records. Keep observations separate from reports and our own inferences.", choices: [next("accept", "I will collect the accounts and bring them back.", "assignment"), next("proof", "Will that prove what caused the outbreak?", "limits")] },
       { id: "limits", speaker: "John Snow", text: "No single account will prove it. Together, a pattern and its exceptions may tell us whether action is justified while uncertainty remains.", choices: [next("undertake", "Let us begin the inquiry.", "assignment")] },
-      { id: "assignment", speaker: "John Snow", text: "Take the notebook and map. Visit the registrar, examine Broad Street, and return to me to plot the addresses; Reverend Whitehead knows the neighborhood well, though he disagrees with my explanation.", choices: [], conclusion: { assignment: true } },
+      { id: "assignment", speaker: "John Snow", text: "Take the map and notebook: copy the registrar’s records and interview the bereaved household. Then return here to plot the addresses; Whitehead knows the neighborhood but opposes my explanation.", choices: [], conclusion: { assignment: true } },
     ],
   },
   {
@@ -66,13 +72,32 @@ export class ConversationProgress {
     this.activeId = id;
   }
   close(): void { this.activeId = undefined; }
+  hasCompleted(id: string): boolean { return this.concluded.has(id); }
+  serialize() { return { cursors: Object.fromEntries(this.cursors), concluded: [...this.concluded] }; }
+  restore(data: unknown): boolean {
+    if (!data || typeof data !== "object") return false;
+    const value = data as { cursors?: Record<string, unknown>; concluded?: unknown };
+    if (!value.cursors || typeof value.cursors !== "object" || Array.isArray(value.cursors) || !Array.isArray(value.concluded)) return false;
+    const cursors = new Map<string,string>();
+    for (const [id,beat] of Object.entries(value.cursors)) {
+      if (typeof beat !== "string" || !conversations.find(c=>c.id===id)?.beats.some(b=>b.id===beat)) return false;
+      cursors.set(id,beat);
+    }
+    if (!value.concluded.every(id=>typeof id==='string' && conversations.find(c=>c.id===id)?.beats.some(b=>b.id===cursors.get(id) && b.conclusion!==undefined))) return false;
+    if(new Set(value.concluded).size!==value.concluded.length)return false;
+    for(const [id,beat] of cursors) {
+      const terminal=conversations.find(c=>c.id===id)!.beats.find(b=>b.id===beat)!.conclusion!==undefined;
+      if(terminal!==value.concluded.includes(id))return false;
+    }
+    this.cursors=cursors; this.concluded=new Set(value.concluded); this.close(); return true;
+  }
   reset(): void { this.cursors.clear(); this.concluded.clear(); this.close(); }
   view(): ConversationView | undefined {
     const definition = conversations.find(item => item.id === this.activeId);
     const beat = definition?.beats.find(item => item.id === this.cursors.get(definition.id));
-    return definition && beat ? { id: definition.id, actorId: definition.actorId, title: definition.title,
+    return definition && beat ? { id: definition.id, actorId: beat.actorId ?? definition.actorId, title: definition.title,
       beatId: beat.id, speaker: beat.speaker, text: beat.text, choices: beat.choices,
-      anchor: definition.anchor, complete: beat.conclusion !== undefined } : undefined;
+      anchor: beat.anchor ?? definition.anchor, complete: beat.conclusion !== undefined, terminalAction: beat.terminalAction } : undefined;
   }
   choose(beatId: string, choiceId: string): { advanced: boolean; conclusion?: ConversationBeat["conclusion"] } {
     const view = this.view();

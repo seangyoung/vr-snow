@@ -1,0 +1,24 @@
+import type { LocationId } from './types';
+export type InquiryDay = 1 | 2 | 3;
+export type ObjectiveId = 'records' | 'first-household' | 'sample' | 'water-routines' | 'workhouse' | 'brewery' | 'nonlocal' | 'walking-access';
+export interface DayDefinition {
+  day: InquiryDay; date: string; title: string; previousDate: string; previousDeaths: number;
+  objectives: readonly { id: ObjectiveId; title: string; location: LocationId; evidence: string }[];
+}
+export const historicalSource = 'https://www.academia.dk/MedHist/Biblioteket/Print/snow_1855.html';
+export const chronologyNote = 'Teaching reconstruction: this inquiry compresses work from several dates into September 5–7, 1854. Household testimony is composite, and dialogue is authored. Mortality updates come from Snow’s retrospective 1855 Table I, not instant reports available to the characters.';
+export const days: readonly DayDefinition[] = [
+ {day:1,date:'September 5, 1854',title:'Establish the pattern',previousDate:'September 4',previousDeaths:71,objectives:[
+  {id:'records',title:'Copy the registrar’s records',location:'registrar',evidence:'attack-timeline'},
+  {id:'first-household',title:'Listen to the bereaved household',location:'household',evidence:'household-exposure'}]},
+ {day:2,date:'September 6, 1854',title:'Test the explanation',previousDate:'September 5',previousDeaths:45,objectives:[
+  {id:'sample',title:'Inspect the pump water',location:'broad-street',evidence:'pump-water-inspection'},
+  {id:'water-routines',title:'Ask a second household about water routines',location:'household-routines',evidence:'household-water-pattern'},
+  {id:'workhouse',title:'Investigate the workhouse exception',location:'workhouse',evidence:'workhouse-exception'}]},
+ {day:3,date:'September 7, 1854',title:'Explain the exceptions',previousDate:'September 6',previousDeaths:37,objectives:[
+  {id:'brewery',title:'Interview the brewery owners',location:'brewery',evidence:'brewery-exception'},
+  {id:'nonlocal',title:'Trace a household’s connection to Broad Street',location:'household-away',evidence:'nonlocal-exposure'},
+  {id:'walking-access',title:'Compare walking access to the pumps',location:'broad-street',evidence:'walking-access'}]},
+];
+export const locationDay: Partial<Record<LocationId, InquiryDay>> = {'household-routines':2,workhouse:2,brewery:3,'household-away':3,'marlborough-pump':3,'rupert-pump':3};
+export function dayDefinition(day: InquiryDay): DayDefinition { return days[day-1]; }

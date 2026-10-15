@@ -270,5 +270,55 @@
     "eye": "blue",
     "brows": "eyebrow001",
     "grey": 0.2
+  },
+  "water-householder": {
+    "age": 0.6,
+    "gender": 1,
+    "muscle": 0.46,
+    "weight": 0.55,
+    "head": "oval",
+    "headShape": 0.4,
+    "noseLength": 0.22,
+    "noseWidth": 0.12,
+    "jaw": -0.1,
+    "cheeks": -0.12,
+    "mouth": -0.12,
+    "eyeSpacing": 0.04,
+    "hair": "short04",
+    "hairTint": [
+      0.25,
+      0.2,
+      0.16
+    ],
+    "recession": 0.2,
+    "skin": "middleage_caucasian_male/middleage_lightskinned_male_diffuse.png",
+    "eye": "brown",
+    "brows": "eyebrow001",
+    "grey": 0.15
+  },
+  "away-householder": {
+    "age": 0.68,
+    "gender": 1,
+    "muscle": 0.46,
+    "weight": 0.47,
+    "head": "square",
+    "headShape": 0.4,
+    "noseLength": -0.1,
+    "noseWidth": 0.12,
+    "jaw": 0.22,
+    "cheeks": -0.12,
+    "mouth": -0.12,
+    "eyeSpacing": 0.04,
+    "hair": "short04",
+    "hairTint": [
+      0.25,
+      0.2,
+      0.16
+    ],
+    "recession": 0.2,
+    "skin": "middleage_caucasian_male/middleage_lightskinned_male_diffuse.png",
+    "eye": "grey",
+    "brows": "eyebrow001",
+    "grey": 0.4
   }
 }

@@ -112,3 +112,14 @@ comes from the interpretive `assets/board-room/board-room.blend`, generated with
 `build_board_room.py`. The saved sources, including packed textures, remain the
 editable authority; one-time authoring scripts are not rerun for routine exports.
 See `docs/inquiry-next.md` for historical boundaries and the pending Quest review.
+
+## Inquiry household composites
+
+`water-householder.blend` and `away-householder.blend` are fictional adults,
+created with the existing MakeHuman anatomical and clothing pipeline. The
+appearance profiles use adult age targets (.60 and .68), distinct facial
+proportions and coat colors, and relaxed standing poses. Neither claims a likeness
+to a documented household member. Their rooms, possessions and testimony are
+explicit teaching composites. Export with `build_scene_characters.py --
+household-routines` or `-- household-away`; room source files and lightmap reports
+are in the corresponding `assets/household-*-room` folders.

@@ -1,0 +1,36 @@
+{
+  "scene": "household-away",
+  "actors": [
+    {
+      "id": "away-householder",
+      "position": [
+        1,
+        0,
+        -1
+      ],
+      "pose": "standing",
+      "coat": "3c4b50",
+      "vest": "77705e",
+      "height": 1.8,
+      "labelHeight": 1.86,
+      "yaw": 0
+    }
+  ],
+  "anatomicalBase": "MakeHuman hm08 / MPFB",
+  "sources": {
+    "away-householder": "1d1cf40f075ea93b2da08a6d5f0e749f8ccc1ce76b99d39ece0aec95f95b086d"
+  },
+  "runtimeSkeleton": false,
+  "triangles": 27119,
+  "materialBatches": 12,
+  "bakedLighting": {
+    "size": 1024,
+    "normalization": 4,
+    "diffusePeak999": 3.0271,
+    "environmentSize": [
+      256,
+      128
+    ]
+  },
+  "interpretive": true
+}
