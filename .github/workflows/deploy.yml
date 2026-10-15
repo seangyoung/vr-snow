@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/inquiry-next]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -20,40 +20,66 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source
+      # A preview push must never publish its source as the production app.
+      - name: Checkout production (or the pull request for validation)
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.ref || 'main' }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Check movement, interactions and evidence
-        run: npm run test:walkable
-
-      - name: Build app
+      - run: npm ci
+      - run: npm run test:walkable
+      - name: Build production
         env:
           VITE_BASE_PATH: /vr-snow/
         run: npm run build
+      - run: node scripts/test-web-app.mjs dist /vr-snow/
 
-      - name: Check published web app assets
-        run: node scripts/test-web-app.mjs dist /vr-snow/
-
+      # Rebuild the preview on production pushes too, so it is not erased.
+      - name: Find inquiry preview
+        id: preview
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          preview_sha=$(git ls-remote origin refs/heads/codex/inquiry-next | cut -f1)
+          echo "sha=$preview_sha" >> "$GITHUB_OUTPUT"
+      - name: Checkout inquiry at the resolved revision
+        if: steps.preview.outputs.sha != ''
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.preview.outputs.sha }}
+          path: inquiry-source
+      - name: Validate and build inquiry preview
+        if: steps.preview.outputs.sha != ''
+        working-directory: inquiry-source
+        env:
+          VITE_BASE_PATH: /vr-snow/preview/inquiry/
+        run: |
+          npm ci
+          npm run test:walkable
+          npm run build
+          node scripts/test-web-app.mjs dist /vr-snow/preview/inquiry/
+      - name: Assemble publication
+        if: steps.preview.outputs.sha != ''
+        run: |
+          mkdir -p dist/preview/inquiry
+          cp -a inquiry-source/dist/. dist/preview/inquiry/
+          printf '%s\n' '${{ steps.preview.outputs.sha }}' > dist/preview/inquiry/revision.txt
       - name: Configure Pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
-
-      - name: Upload artifact
+      - name: Upload production and preview together
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
         with:
           path: ./dist
 
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/inquiry-next')
     needs: build
     runs-on: ubuntu-latest
     environment:
