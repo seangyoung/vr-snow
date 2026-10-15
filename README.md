@@ -2,60 +2,50 @@
 
 Design workspace for **The Broad Street Inquiry**, an educational WebXR mystery game about the 1854 Soho cholera outbreak and John Snow's investigation.
 
-The current deliverable is a vertical slice prototype plus a source-backed game design document:
+The main app is a walkable WebXR inquiry with desktop keyboard and mouse support. The source-backed game design document is available here:
 
 - [docs/game-design.md](docs/game-design.md)
 
-## Run the Prototype
+## Run the App
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
 Open the local Vite URL, usually `http://127.0.0.1:5173/`.
 
-## Published Versions
+## Published App and Development History
 
-The GitHub Pages deployment builds two branches into one site:
+The current app is published from `main` at <https://seangyoung.github.io/vr-snow/>.
+The former `/vr-snow/walkable/` address redirects there. Pushes to `main` run the interaction tests, production build and web app checks before deployment. Pull requests run the same checks without publishing.
 
-- Stable experience from `main`: <https://seangyoung.github.io/vr-snow/>
-- Walkable prototype from `walkable-prototype`: <https://seangyoung.github.io/vr-snow/walkable/>
+Earlier experiences are frozen milestones, not maintained branches. See the [development milestone record](docs/development-milestones.md) for named source tags, downloadable runnable snapshots, presentation screenshots and reproduction instructions.
 
-Pushes to `main` publish both versions immediately. Pushes to `walkable-prototype` first run its build check; a successful check then triggers the `main` deployment workflow to rebuild and publish both versions. Shared fixes should normally be committed to `main`, then brought into the prototype with:
+## Walkable street and interiors
 
-```bash
-git switch walkable-prototype
-git merge main
-git push
-```
-
-Walkable-only work remains on `walkable-prototype` until it is deliberately merged into `main`.
-
-## Walkable branch: street and interiors
-
-On `walkable-prototype`, Broad Street is a textured, source-informed reconstruction of the pump junction, with an editable Blender environment and a selectable pump. Snow’s office is a compact furnished 3D room with desk interaction and a doorway to Broad Street; see [office scope and headset checks](docs/walkable-office.md). The [registrar’s records room](docs/walkable-registrar.md) also supports walking, ledger interaction and doorway return to Snow. The [household interior](docs/walkable-household.md) adds a compact domestic room, a marked interview chair and a return doorway to Broad Street. The [workhouse courtyard](docs/walkable-workhouse.md) adds an open-air yard, steward interview and a Poland Street exit back to Broad Street. The [brewery interior](docs/walkable-brewery.md) supports walking around copper vessels, the owners’ interview and a doorway back to Broad Street. The Board scene retains its panorama. See [the reconstruction sources and asset workflow](docs/broad-street-reconstruction.md) and [the headset test card](docs/walkable-pump-test.md) for controls, scope, and acceptance checks.
+Broad Street is a textured, source-informed reconstruction of the pump junction, with an editable Blender environment and a selectable pump. Snow’s office is a compact furnished 3D room with desk interaction and a doorway to Broad Street; see [office scope and headset checks](docs/walkable-office.md). The [registrar’s records room](docs/walkable-registrar.md) also supports walking, ledger interaction and doorway return to Snow. The [household interior](docs/walkable-household.md) adds a compact domestic room, a marked interview chair and a return doorway to Broad Street. The [workhouse courtyard](docs/walkable-workhouse.md) adds an open-air yard, steward interview and a Poland Street exit back to Broad Street. The [brewery interior](docs/walkable-brewery.md) supports walking around copper vessels, the owners’ interview and a doorway back to Broad Street. The Board scene retains its panorama. See [the reconstruction sources and asset workflow](docs/broad-street-reconstruction.md) and [the headset test card](docs/walkable-pump-test.md) for controls, scope, and acceptance checks.
 
 Desktop keyboard controls: WASD moves, all four arrows look, and Space/Enter selects the centered target. M opens the map; N opens the notebook. Panels use Tab/Shift+Tab or arrows to choose, Enter/Space to activate, Escape to close, and Page Up/Down to scroll. See [keyboard controls and test card](docs/desktop-keyboard.md).
 
 The [interior visual pass](docs/interior-visual-pass.md) adds textured plaster, timber and fabrics plus precomputed contact shading to the office, registrar and household. The [office and registrar identity pass](docs/office-and-registrar-identity.md) distinguishes Snow’s medical study from the larger registrar’s records room. Snow’s [window and instrument pass](docs/snow-office-window-and-instruments.md) adds a view with perspective depth and period medical props. All six walkable scenes use [baked lighting and material reflections](docs/walkable-baked-lighting.md). The [brewery detail, seated Snow and sound pass](docs/presence-and-sound.md) adds refined brewery props, a selectable seated Snow figure, subtle idle motion and optional spatial ambience/interaction sounds. The [scene ambience pass](docs/ambience-pass.md) adds recorded foley, sparse moving street sounds and reduced ambience while reading, with [audio source credits](public/audio/credits.html). Sound settings are available from the desktop tool rail or chapter panel and the VR panel header, with mute and separate ambience/effects levels. The [VR controller pass](docs/vr-controls.md) adds left-stick walking, seated height adjustment, profile-aware map/notebook/settings shortcuts, compact menus and Exit VR. The [scene figure pass](docs/scene-figures.md) adds the registrar, household survivor, workhouse steward, both brewery owners and two Broad Street residents, with hover labels and existing interview actions.
 
-Run `npm run test:walkable` for movement, obstruction, input mapping, and evidence regression checks. The walkable validation workflow runs these checks before deployment eligibility.
+Run `npm run test:walkable` for movement, obstruction, input mapping, and evidence regression checks. The deployment workflow runs these checks before publishing.
 
 Scene instructions identify selectable people and the pump. Snow's review shows only the strongest collected support and challenge for each theory; the Field Notebook retains the full evidence. Choose a theory, prepare the argument, then present it—there is no confidence-level selection. The desktop and VR reviews share the same evidence summaries and progression rules.
 
 ## Save as a web app
 
-The walkable build includes a web app manifest, install icons, maskable icon and Apple touch icon. Supporting browsers can save it as **The Broad Street Inquiry**, launching directly into the walkable URL. See [installation details and icon workflow](docs/web-app-installation.md). Network access is still required; Quest library installation and relaunch should be checked on device after deployment.
+The app includes a web app manifest, install icons, maskable icon and Apple touch icon. Supporting browsers can save it as **The Broad Street Inquiry**, launching directly into the main app. See [installation details and icon workflow](docs/web-app-installation.md). Network access is still required; Quest library installation and relaunch should be checked on device after deployment.
 
 ## Concept
 
-Players are an apprentice to John Snow during the 1854 Broad Street outbreak. In immersive 360 scenes, they interview residents, collect case records, compare hypotheses, build a map, and present evidence to the parish authorities. The goal is to teach field epidemiology, historical uncertainty, public health decision-making, and the power of visualizing data.
+Players are an apprentice to John Snow during the 1854 Broad Street outbreak. In walkable 3D scenes and the final Board panorama, they interview residents, collect case records, compare hypotheses, build a map, and present evidence to the parish authorities. The goal is to teach field epidemiology, historical uncertainty, public health decision-making, and the power of visualizing data.
 
 ## Design Direction
 
 - WebXR-first, with desktop browser fallback.
-- Stationary 360 environments with interactive hotspots for VR comfort.
+- Walkable environments with teleportation, smooth movement and desktop fallback.
 - Plain Three.js, TypeScript, Vite, and DOM overlays for implementation.
 - Authored interviews where player questions unlock source-tagged evidence.
 - Snow's Desk synthesis board for comparing theories before presenting to the Board.

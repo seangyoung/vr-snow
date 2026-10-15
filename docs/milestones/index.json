@@ -1,0 +1,50 @@
+[
+  {
+    "slug": "01-panorama",
+    "title": "Panorama experience",
+    "tag": "milestone/01-panorama",
+    "commit": "c84f246d535beb95b20bd4d6d1d008ce0d88f4ba",
+    "commitDate": "2026-09-24",
+    "description": "Stationary panorama scenes, map travel and evidence inquiry."
+  },
+  {
+    "slug": "02-first-walkable-street",
+    "title": "First walkable street",
+    "tag": "milestone/02-first-walkable-street",
+    "commit": "e346826bc0a472dc471d4c70ec1663b5248a23be",
+    "commitDate": "2026-09-24",
+    "description": "Early geometric pump courtyard with desktop and WebXR movement; includes the initial headset-freeze fix."
+  },
+  {
+    "slug": "03-walkable-interiors",
+    "title": "Walkable interiors",
+    "tag": "milestone/03-walkable-interiors",
+    "commit": "ea3ab44c1d7243a7b9975438d709051cd87c9d8e",
+    "commitDate": "2026-09-28",
+    "description": "Broad Street plus the office, registrar, household, workhouse and brewery interiors."
+  },
+  {
+    "slug": "04-baked-lighting",
+    "title": "Baked lighting",
+    "tag": "milestone/04-baked-lighting",
+    "commit": "575793ad7210fad38be235302fefe383ed9c458c",
+    "commitDate": "2026-10-01",
+    "description": "Textured period interiors, depth beyond the office window and baked lighting across six scenes."
+  },
+  {
+    "slug": "05-anatomical-characters",
+    "title": "Anatomical characters",
+    "tag": "milestone/05-anatomical-characters",
+    "commit": "b9b97b8cd3fdf9bd82338cde33e9ad1e39bfc6e6",
+    "commitDate": "2026-10-15",
+    "description": "MakeHuman-based people, revised poses and plausible workhouse and brewery staging."
+  },
+  {
+    "slug": "06-tactile-interactions",
+    "title": "Tactile interactions",
+    "tag": "milestone/06-tactile-interactions",
+    "commit": "f7016949c777dc6eaf1f625ea4fc5b9fa1bf68c6",
+    "commitDate": "2026-10-15",
+    "description": "Working pump, returning inspectable props and subtle character idle movement."
+  }
+]
