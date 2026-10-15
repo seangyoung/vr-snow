@@ -7,7 +7,7 @@ Seven MakeHuman-based figures accompany the portrait-inspired Snow model:
 | Registrar | Standing registrar with a long, lean face, receding hair and older skin detail |
 | Household | Seated adult survivor with softer cheeks, brown eyes, swept-back hair and a low bun; plain long dress |
 | Workhouse | Standing steward at the courtyard doorway with a ledger, broader jaw and nose, fuller cheeks and grey hair |
-| Brewery | Edward has a rounder, mature face and fuller swept hair; John has a longer, younger face and narrower nose |
+| Brewery | Two standing owners beside the side-wall accounts table. Edward has a rounder, mature face and fuller swept hair; John has a longer, younger face and narrower nose |
 | Broad Street | One broad-jawed resident with fuller dark hair and one older, leaner resident with a receding hairline |
 
 These are interpretive characters, not verified likenesses. The household witness

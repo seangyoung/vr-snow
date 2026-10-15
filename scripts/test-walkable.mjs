@@ -705,7 +705,7 @@ test('brewery controller interview retains the workers evidence and returns thro
   const camera=new THREE.PerspectiveCamera();camera.position.set(0,1.62,0);
   const rig=new THREE.Group();rig.add(camera);teleportViewer(rig,camera,brewerySpawn);
   const controller=new THREE.Group();controller.position.copy(brewerySpawn).setY(1.62);
-  controller.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),breweryOwnersTarget.clone().setY(.8).sub(controller.position).normalize());
+  controller.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),breweryOwnersTarget.clone().setY(1.55).sub(controller.position).normalize());
   const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
   const scene=Object.create(BroadStreetScene.prototype);
   Object.assign(scene,{camera,playerRig:rig,courtyard:new PumpCourtyard(),office:new SnowOffice(),registrar:new RegistrarRoom(),household:new HouseholdRoom(),workhouse:new WorkhouseCourtyard(),brewery:room,worldTravel:targets,gameState:game,
@@ -729,14 +729,22 @@ test('brewery has an accessible interview, exit and central aisle while vessels 
   const zone=returnTravelRoutes.find(r=>r.id==='brewery-return').zone;
   assert.ok(breweryArea.canWalkBetween(brewerySpawn,new THREE.Vector3(0,0,2.1)));
   assert.ok(breweryArea.canWalkBetween(brewerySpawn,new THREE.Vector3(zone.x,0,zone.z)));
-  const aisle=[[1.1,4.25],[2.1,2.2],[2.1,-.4],[0,-.8],[0,-4.8]].map(([x,z])=>new THREE.Vector3(x,0,z));
-  for(let i=1;i<aisle.length;i++) assert.ok(breweryArea.canWalkBetween(aisle[i-1],aisle[i]),'route around table and between copper vessels');
+  const aisle=[[1.1,4.25],[0,3.2],[0,1.1],[0,-.8],[0,-4.8]].map(([x,z])=>new THREE.Vector3(x,0,z));
+  for(let i=1;i<aisle.length;i++) assert.ok(breweryArea.canWalkBetween(aisle[i-1],aisle[i]),'clear central floor and route between copper vessels');
   assert.ok(Math.hypot(brewerySpawn.x-zone.x,brewerySpawn.z-zone.z)>zone.radius+.5);
   for(const f of breweryLayout.furniture) assert.equal(breweryArea.isValidDestination(new THREE.Vector3(f.x,0,f.z)),false,f.id);
   assert.equal(breweryArea.canWalkBetween(new THREE.Vector3(2.35,0,-.7),new THREE.Vector3(2.35,0,-4.5)),false,'no crossing the copper between valid endpoints');
   const keys=new DesktopMovement();keys.press('w');let p=new THREE.Vector3(0,1.62,2.2);
   for(let i=0;i<100;i++) p=keys.update(p,0,.05,breweryArea.canWalkBetween).position;
-  assert.ok(p.z>=1.825 && p.z<1.95,'stop before owners table');
+  assert.ok(p.z< -4.8,'the former central table no longer blocks forward movement');
+  const room=new BreweryRoom();room.characters.group.userData.characterStatus='ready';
+  const approach=new THREE.Vector3(-2.45,0,3.2);
+  assert.ok(room.canWalkBetween(brewerySpawn,approach),'clear approach to the owners');
+  assert.ok(room.canWalkBetween(approach,new THREE.Vector3(0,0,3.2)),'return to the central floor');
+  for(const actor of characterDefinitions.brewery.actors) {
+    const destination=new THREE.Vector3(...actor.position);
+    assert.equal(room.canWalkBetween(approach,destination),false,'loaded owners cannot be walked through');
+  }
 });
 
 test('brewery seated and standing rays select owners, floor and door but not equipment as evidence',()=>{
@@ -745,7 +753,7 @@ test('brewery seated and standing rays select owners, floor and door but not equ
   const ray=new THREE.Raycaster();
   for(const eyeHeight of [1.15,1.62]) {
     const from=brewerySpawn.clone().setY(eyeHeight);
-    for(const y of [.8,1.45]) {
+    for(const y of [1.4,1.65]) {
       ray.set(from,breweryOwnersTarget.clone().setY(y).sub(from).normalize());
       const hit=room.pick(ray);assert.equal(room.hotspotFor(hit.object),'broad-street-brewery');assert.equal(room.canTeleport(hit),false);
     }
@@ -755,6 +763,16 @@ test('brewery seated and standing rays select owners, floor and door but not equ
   const hit=targets.pick(ray,'brewery',room.pick(ray));assert.equal(targets.routeFor(hit.object).to,'broad-street');
   ray.set(new THREE.Vector3(2.35,1.62,-.6),new THREE.Vector3(0,-.2,-1).normalize());
   const copper=room.pick(ray);assert.equal(room.canTeleport(copper),false);assert.equal(room.hotspotFor(copper.object),undefined);
+  room.characters.group.userData.characterStatus='ready';
+  for(const actor of characterDefinitions.brewery.actors)for(const eyeHeight of [1.15,1.62]) {
+    const from=brewerySpawn.clone().setY(eyeHeight);
+    ray.set(from,new THREE.Vector3(...actor.position).setY(1.4).sub(from).normalize());
+    const person=room.pick(ray);
+    assert.equal(person.object.name,actor.id);
+    assert.equal(room.hotspotFor(person.object),'broad-street-brewery');
+  }
+  ray.set(new THREE.Vector3(-3.2,1.2,3.45),new THREE.Vector3(-1,-.35,0).normalize());
+  const table=room.pick(ray);assert.equal(room.hotspotFor(table.object),undefined,'side table is scenery, not an extra conversation target');
   room.group.visible=false;assert.equal(room.pick(ray),undefined);
 });
 

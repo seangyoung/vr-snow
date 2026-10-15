@@ -4,42 +4,44 @@
     {
       "id": "edward",
       "position": [
-        -0.6,
-        0.1,
-        0.05
+        -3.1,
+        0,
+        2
       ],
-      "pose": "table",
+      "pose": "standing",
       "coat": "59483b",
       "vest": "827a66",
-      "labelHeight": 1.61,
-      "height": 1.45
+      "labelHeight": 1.96,
+      "height": 1.8,
+      "yaw": 0.65
     },
     {
       "id": "john",
       "position": [
-        0.6,
-        0.1,
-        0.05
+        -1.85,
+        0,
+        2.1
       ],
-      "pose": "table",
+      "pose": "standing",
       "coat": "414b43",
       "vest": "81715d",
-      "labelHeight": 1.61,
-      "height": 1.45
+      "labelHeight": 1.96,
+      "height": 1.8,
+      "yaw": 0.45
     }
   ],
   "anatomicalBase": "MakeHuman hm08 / MPFB",
   "sources": {
-    "edward": "9814be6c88af0cc71acafe4516f1d0059999f45d8c4c56cb4e91932f69a341ab",
-    "john": "0826a913243327969a91a49302db86d4c7c10444f179570bdd81b2d1bd4f8381"
+    "edward": "7d960b14b97f19cdd46b08409367589372bce193a529204ff235f207b3be7667",
+    "john": "3506b379734fdfe9e5b8331c4c275ddcd655b3c6ec695101adc0281aabad72fa"
   },
   "runtimeSkeleton": false,
-  "triangles": 56930,
+  "triangles": 56931,
   "materialBatches": 24,
   "bakedLighting": {
     "size": 1024,
     "normalization": 4,
-    "diffusePeak999": 1.6936,
+    "diffusePeak999": 1.4714,
     "environmentSize": [
       256,
       128

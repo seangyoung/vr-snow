@@ -2,13 +2,13 @@
   "bakedLighting": {
     "size": 2048,
     "normalization": 4,
-    "diffusePeak999": 12.1028,
+    "diffusePeak999": 13.231,
     "environmentSize": [
       512,
       256
     ]
   },
-  "triangles": 23332,
+  "triangles": 22984,
   "materialBatches": 13,
   "layout": {
     "width": 10,
@@ -20,9 +20,9 @@
       4.25
     ],
     "deskTarget": [
-      0,
-      1.1,
-      1.1
+      -2.475,
+      1.2,
+      2.05
     ],
     "door": [
       1.8,
@@ -32,10 +32,10 @@
     "furniture": [
       {
         "id": "owners-table",
-        "x": 0,
-        "z": 1.1,
-        "width": 2,
-        "depth": 0.95,
+        "x": -4.4,
+        "z": 3.45,
+        "width": 0.95,
+        "depth": 2,
         "height": 0.84
       },
       {
@@ -73,34 +73,10 @@
       {
         "id": "sacks",
         "x": -4.25,
-        "z": 3,
+        "z": -5,
         "width": 1,
         "depth": 1.8,
         "height": 1.1
-      },
-      {
-        "id": "bench",
-        "x": -2.4,
-        "z": 4.9,
-        "width": 1.9,
-        "depth": 0.5,
-        "height": 0.52
-      },
-      {
-        "id": "west-stool",
-        "x": -0.6,
-        "z": 0.05,
-        "width": 0.5,
-        "depth": 0.5,
-        "height": 0.6
-      },
-      {
-        "id": "east-stool",
-        "x": 0.6,
-        "z": 0.05,
-        "width": 0.5,
-        "depth": 0.5,
-        "height": 0.6
       }
     ]
   }

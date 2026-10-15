@@ -31,7 +31,9 @@ if key!='street':
  layout=json.loads((root/f'src/walkable/{key if key!="registrar" else "registrar"}-layout.json').read_text())
  sx,_,sz=layout['spawn'];views.insert(0,('room',(sx,1.62,sz),(x,y+1.1,z),32))
 else:views.insert(0,('room',(-6,1.62,-1),(-10,1,-7),32))
-if key=='brewery':views.append(('both',(0,1.62,3.7),(0,1.0,.1),42))
+if key=='brewery':
+ views.append(('both',(1,1.62,4.3),(-2.65,1.0,2.5),32))
+ views.append(('working-floor',(3.0,2.5,5.25),(-.5,1.3,-1.3),22))
 if key=='workhouse':views.append(('encounter',(sx,1.62,sz),(.5,1.35,-7.8),24))
 for name,pos,target,lens in ([] if '--anatomy-only' in sys.argv else views):
  cam.location=(pos[0],-pos[2],pos[1]);cam.rotation_euler=(Vector((target[0],-target[2],target[1]))-cam.location).to_track_quat('-Z','Y').to_euler();camdata.lens=lens

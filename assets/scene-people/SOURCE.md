@@ -78,3 +78,11 @@ the one-time edit of the approved anatomical source. His face, hair, clothing an
 packed textures are retained. The ledger reuses existing brown, linen and metal
 materials to preserve the per-person batch budget. Normal exports read this saved
 pose; they do not regenerate it from `appearance.json` or the earlier seated pose.
+
+## Brewery standing revision
+
+Edward and John stand beside a side-wall accounts table instead of sitting at a
+desk in the center of the brewhouse. `pose_brewery_owners.py` resets the saved rig
+to a settled standing stance, with relaxed wrists and hands beside the thighs.
+Their distinct faces, hair, clothing and packed textures are preserved. Normal
+exports read these saved sources rather than recreating the earlier seated pose.

@@ -155,8 +155,10 @@ for y in [.18,1.25]:
         from mathutils import Matrix,Vector
         transform=Matrix.Translation(Vector((x,-(z+zz),y+.46))) @ Matrix.Rotation(math.pi/2,4,'Y')
         for ob in set(bpy.context.scene.objects)-before:ob.matrix_world=transform @ ob.matrix_world
-# Interview table and two low stools; no new action on vessels or barrels.
-f=furniture('owners-table');x,z=f['x'],f['z']
+# A compact accounts table against the side wall leaves the working floor clear.
+# Build along local X, then turn the whole table and its contents along the wall.
+before_table=set(bpy.context.scene.objects)
+f=furniture('owners-table');x,z=0,0
 for dz in [-.354,-.118,.118,.354]:
     box('Table top board',x,.795,z+dz,2,.09,.232,'Timber',.008)
 for dx in [-.86,.86]:
@@ -170,9 +172,9 @@ for xx in [.1,.53]:
     lathe('Drinking mug',x+xx,.84,z+.05,[(0,0),(.08,0),(.09,.15),(.083,.16),(.075,.15),(.065,.025),(0,.025)],'Pottery',24)
     points=[(x+xx+.078+.043*math.sin(a),.92+.052*math.cos(a),z+.05) for a in [i*math.pi/8 for i in range(9)]]
     tube('Mug handle',points,.012,'Pottery')
-for id in ['west-stool','east-stool']:
-    f=furniture(id);x,z=f['x'],f['z'];cylinder('Stool seat',x,.555,z,.25,.09,'Timber')
-    for dx,dz in [(-.15,-.15),(.15,-.15),(0,.18)]:box('Stool leg',x+dx,.26,z+dz,.065,.52,.065,'Timber')
+from mathutils import Matrix,Vector
+transform=Matrix.Translation(Vector((f['x'],-f['z'],0))) @ Matrix.Rotation(math.pi/2,4,'Z')
+for ob in set(bpy.context.scene.objects)-before_table:ob.matrix_world=transform @ ob.matrix_world
 f=furniture('sacks');x,z=f['x'],f['z']
 box('Sack pallet',x,.06,z,1,.12,1.8,'Timber')
 for dz in [-.52,.3]:
@@ -183,10 +185,6 @@ for dz in [-.52,.3]:
         local.x=x+(local.x-x)*crease;local.y=-(z+dz)+(local.y+z+dz)*crease
     tube('Sack stitched seam',[(x+.04,.16,z+dz-.35),(x+.03,.38,z+dz-.40),(x+.02,.68,z+dz-.31),(x+.01,.90,z+dz-.10)],.004,'Sacking')
     lathe('Sack tie',x,.94,z+dz,[(.08,0),(.09,.02),(.09,.05),(.08,.06)],'Iron',12)
-f=furniture('bench');x,z=f['x'],f['z']
-box('Waiting bench',x,.475,z,1.9,.09,.5,'Timber',.015)
-for dx in [-.78,.78]:
-    for dz in [-.17,.17]:box('Bench leg',x+dx,.22,z+dz,.08,.44,.08,'Timber')
 # Flush drainage grate is scenery, with no hidden step in the walking surface.
 box('Floor drain',0,.002,-4.8,.6,.006,.42,'Recess')
 for dx in [-.24,-.16,-.08,0,.08,.16,.24]:box('Drain bar',dx,.008,-4.8,.025,.008,.40,'Iron')

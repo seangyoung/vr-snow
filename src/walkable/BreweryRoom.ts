@@ -11,6 +11,6 @@ export class BreweryRoom extends FurnishedRoom {
   constructor() {
     super({characters: "brewery", name: "Lion Brewery brewhouse", asset: "brewery-room.glb", layout, area: breweryArea,
       bakedLighting: {lightMap: "brewery-room-lightmap.png", environment: "brewery-room-environment.png"},
-      interactionFurniture: "owners-table", hotspot: "broad-street-brewery", daylight: "#e7e6d9", fill: 5});
+      hotspot: "broad-street-brewery", daylight: "#e7e6d9", fill: 5});
   }
 }
