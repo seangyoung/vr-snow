@@ -1,0 +1,80 @@
+{
+  "scene": "board",
+  "actors": [
+    {
+      "id": "board-snow",
+      "position": [
+        2.2,
+        0,
+        2.2
+      ],
+      "pose": "standing",
+      "coat": "303336",
+      "vest": "4e4b43",
+      "height": 1.8,
+      "labelHeight": 1.96,
+      "yaw": -0.55
+    },
+    {
+      "id": "board-chair",
+      "position": [
+        0,
+        0,
+        -4.5
+      ],
+      "pose": "lap",
+      "coat": "363b42",
+      "vest": "676363",
+      "height": 1.45,
+      "labelHeight": 1.62
+    },
+    {
+      "id": "board-tradesman",
+      "position": [
+        -1.85,
+        0,
+        -1.7
+      ],
+      "pose": "lap",
+      "coat": "4c392e",
+      "vest": "82694d",
+      "height": 1.45,
+      "labelHeight": 1.62,
+      "yaw": 1.5708
+    },
+    {
+      "id": "board-guardian",
+      "position": [
+        1.85,
+        0,
+        -2.5
+      ],
+      "pose": "lap",
+      "coat": "34463d",
+      "vest": "7c7b61",
+      "height": 1.45,
+      "labelHeight": 1.62,
+      "yaw": -1.5708
+    }
+  ],
+  "anatomicalBase": "MakeHuman hm08 / MPFB",
+  "sources": {
+    "board-snow": "7886690412ade4bd576f72d71203b444dfa4406955a2f70ffd2632716d8dd94b",
+    "board-chair": "474d39201fdf4ff4036e9e728f416b964424cc9baa60755993fd67efac396721",
+    "board-tradesman": "d1706c902bbe9382aeae99b002fe5468aea3d3bc084aa5318bc6ea68b3783278",
+    "board-guardian": "3452ac1966fe79a76d62b5f4df0928b1ddf4beae843bcd35c17ef2db59b7573d"
+  },
+  "runtimeSkeleton": false,
+  "triangles": 111298,
+  "materialBatches": 48,
+  "bakedLighting": {
+    "size": 1024,
+    "normalization": 4,
+    "diffusePeak999": 3.1377,
+    "environmentSize": [
+      256,
+      128
+    ]
+  },
+  "interpretive": true
+}

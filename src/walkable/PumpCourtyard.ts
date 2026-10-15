@@ -202,6 +202,7 @@ export class PumpCourtyard {
 
   readonly canWalkBetween = (from: THREE.Vector3,to: THREE.Vector3): boolean => canWalkBetween(from,to) && !this.characters.blocksPath(from,to);
   hotspotFor(object: THREE.Object3D): string | undefined {
+    if (this.characters.owns(object) && object.name === "whitehead") return "whitehead";
     return this.isPump(object) && !this.pumpAction.owns(object) ? "broad-street-pump" : undefined;
   }
 

@@ -41,7 +41,7 @@ for side,suffix in [(1,'l'),(-1,'r')]:
   target=(side*.19,-.525 if actor=='snow' else -.49,.849 if actor=='snow' else .775)
   forward=Vector((-side*.32 if actor=='snow' else -side*.16,-1,-.015));across=Vector((-side,.1,0))
  else:
-  lap_height={'steward':(.669,.676),'edward':(.692,.691),'john':(.692,.691),'survivor':(.663,.660)}[actor][0 if side==1 else 1]
+  lap_height={'board-chair':(.669,.676),'board-tradesman':(.689,.696),'board-guardian':(.679,.686),'steward':(.669,.676),'edward':(.692,.691),'john':(.692,.691),'survivor':(.663,.660)}[actor][0 if side==1 else 1]
   target=(side*.14,-.23+rig.location.y,lap_height)
   # Hands follow the slope of the thighs. A little asymmetry avoids a paired gesture.
   if side==-1:target=(side*.15,target[1]-.025,target[2])

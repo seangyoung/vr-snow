@@ -1805,3 +1805,19 @@ button:focus-visible, [role="dialog"]:focus-visible {
 .sound-level > span { flex: 1; }
 .sound-level > button { min-width: 2.75rem; min-height: 2.75rem; }
 .sound-settings p { color: #c1cfca; line-height: 1.5; }
+
+/* Short authored exchanges keep the speaker visible above the reading surface. */
+.dialogue-panel.conversation-panel {
+  left: 50%; right: auto; bottom: 18px; transform: translateX(-50%);
+  width: min(900px, calc(100vw - 36px)); max-height: 36vh;
+  background: rgba(17, 22, 22, .98); overflow-y: auto;
+}
+.conversation-panel .dialogue-header { padding: 8px 14px 0; }
+.conversation-beat { margin: 6px 18px 12px; font-size: 18px; line-height: 1.45; }
+.conversation-choices { display: flex; gap: 8px; padding: 0 14px 14px; }
+.conversation-choices .question-button { flex: 1; min-width: 0; padding: 10px; }
+@media (max-width: 650px) {
+  .dialogue-panel.conversation-panel { max-height: 48vh; bottom: 8px; }
+  .conversation-choices { flex-direction: column; }
+  .conversation-beat { font-size: 16px; }
+}

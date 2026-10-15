@@ -86,3 +86,23 @@ desk in the center of the brewhouse. `pose_brewery_owners.py` resets the saved r
 to a settled standing stance, with relaxed wrists and hands beside the thighs.
 Their distinct faces, hair, clothing and packed textures are preserved. Normal
 exports read these saved sources rather than recreating the earlier seated pose.
+
+## Inquiry prototype: Whitehead and the Board
+
+`whitehead.blend` adds a younger, dark-haired local curate with a distinct face;
+this is an interpretive figure, not a claimed portrait reconstruction. The three
+`board-chair`, `board-tradesman` and `board-guardian` sources are unnamed
+representative officials with distinct profiles and lap-resting seated poses.
+Their individual wrist heights are recorded in `refine_character_poses.py`.
+Whitehead uses the relaxed standing pose from `pose_brewery_owners.py`.
+
+`board-snow.blend` derives from the approved `assets/snow-character/snow-source.blend`,
+reposed to stand with relaxed hands using `pose_brewery_owners.py`; it preserves
+Snow's portrait-derived anatomy and textures. Hair has an explicit neutral .95
+multiplicative export tint. It is not generated from another person's profile.
+
+Export with `build_scene_characters.py -- board` or `-- street`. Board lighting
+comes from the interpretive `assets/board-room/board-room.blend`, generated with
+`build_board_room.py`. The saved sources, including packed textures, remain the
+editable authority; one-time authoring scripts are not rerun for routine exports.
+See `docs/inquiry-next.md` for historical boundaries and the pending Quest review.

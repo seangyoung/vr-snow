@@ -8,14 +8,14 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from "(\.\.?\/[^".]+)"/g, 'from "$1.js"');
   await mkdir(resolve(output, name, ".."), { recursive: true });
   await writeFile(resolve(output, `${name}.js`), compiled);
 }
-for (const name of ["controller-buttons", "scene-characters", "office-layout", "registrar-layout", "household-layout", "workhouse-layout", "brewery-layout"]) await copyFile(`src/walkable/${name}.json`, resolve(output, `walkable/${name}.json`));
+for (const name of ["board-layout", "controller-buttons", "scene-characters", "office-layout", "registrar-layout", "household-layout", "workhouse-layout", "brewery-layout"]) await copyFile(`src/walkable/${name}.json`, resolve(output, `walkable/${name}.json`));
 await writeFile(resolve(output, "package.json"), '{"type":"module"}');
 const load = (name) => import(pathToFileURL(resolve(output, `${name}.js`)).href);
 const { teleportViewer, turnViewer, standardTurnAxis } = await load("walkable/locomotion");
@@ -450,7 +450,9 @@ test('actual office controller path selects desk, respects panels, teleports and
   assert.equal(game.getCurrentLocation().id,'broad-street');
 });
 
-test('office/street/panorama lifecycle restores scene geometry, lighting and arrival',()=>{
+test('all walkable rooms restore scene geometry, lighting and arrival',async()=>{
+  const {BoardRoom}=await load('walkable/BoardRoom');
+  const board=new BoardRoom();board.loadVisuals=async()=>{};board.characters.loadVisuals=async()=>{};
   const game=fieldGame(true),scene=Object.create(BroadStreetScene.prototype);
   for (const [location,hotspot,questions] of [
     ['household','broad-street-household',['household-water-question','household-pattern-question']],
@@ -464,7 +466,7 @@ test('office/street/panorama lifecycle restores scene geometry, lighting and arr
   const rig=new THREE.Group(),camera=new THREE.PerspectiveCamera();camera.position.y=1.62;rig.add(camera);
   const courtyard=new PumpCourtyard(),office=new SnowOffice(),registrar=new RegistrarRoom(),household=new HouseholdRoom(),workhouse=new WorkhouseCourtyard(),brewery=new BreweryRoom();
   for(const room of [courtyard,registrar,household,workhouse,brewery])room.characters.loadVisuals=async()=>{};
-  Object.assign(scene,{gameState:game,playerRig:rig,camera,courtyard,office,registrar,household,workhouse,brewery,desktopMovement:new DesktopMovement(),
+  Object.assign(scene,{gameState:game,playerRig:rig,camera,courtyard,office,registrar,household,workhouse,brewery,board,desktopMovement:new DesktopMovement(),
     travelZones:new TravelZoneTracker(),scene:new THREE.Scene(),panoramaLighting:new THREE.Group(),panoramaSky:new THREE.Group(),
     renderer:{xr:{isPresenting:false}},primeMotionLookReference:()=>{},applyPanorama:()=>{},refreshLocationObjects:()=>{},
     refreshHotspots:()=>{},markVrPanelDirty:()=>{}});
@@ -473,14 +475,14 @@ test('office/street/panorama lifecycle restores scene geometry, lighting and arr
     else assert.ok(game.travelToLocation(id).traveled);
     scene.applyCurrentLocation();
     assert.equal(office.group.visible,id==='snow-desk');assert.equal(courtyard.group.visible,id==='broad-street');assert.equal(registrar.group.visible,id==='registrar');assert.equal(household.group.visible,id==='household');assert.equal(workhouse.group.visible,id==='workhouse');assert.equal(brewery.group.visible,id==='brewery');
-    assert.equal(scene.panoramaSky.visible,id==='board-room');assert.equal(scene.panoramaLighting.visible,id==='board-room');
-    const spawn=id==='snow-desk'?officeSpawn:id==='broad-street'?streetSpawn:id==='registrar'?registrarSpawn:id==='household'?householdSpawn:id==='workhouse'?workhouseSpawn:id==='brewery'?brewerySpawn:new THREE.Vector3();
+    assert.equal(board.group.visible,id==='board-room');assert.equal(scene.panoramaSky.visible,false);assert.equal(scene.panoramaLighting.visible,false);
+    const spawn=id==='snow-desk'?officeSpawn:id==='broad-street'?streetSpawn:id==='registrar'?registrarSpawn:id==='household'?householdSpawn:id==='workhouse'?workhouseSpawn:id==='brewery'?brewerySpawn:board.spawn;
     const viewer=camera.getWorldPosition(new THREE.Vector3());assert.ok(Math.hypot(viewer.x-spawn.x,viewer.z-spawn.z)<1e-10);
     assert.equal(scene.worldTravelPending,false);
     scene.renderer.xr.isPresenting=true;scene.vrHeightOffset=.47;
     scene.applyCurrentLocation();assert.equal(rig.position.y,.47,`${id}: retain the seated height correction`);
     scene.renderer.xr.isPresenting=false;scene.applyCurrentLocation();assert.equal(rig.position.y,0);
-    if(id==='board-room') game.finishBoard();
+    if(id==='board-room') { game.beginHearing(); game.finishBoard(); }
   }
 });
 
@@ -1434,7 +1436,7 @@ for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} 
         assert.ok(hand.length>50,'complete hand is present');
         const bounds=new THREE.Box3().setFromPoints(hand),size=bounds.getSize(new THREE.Vector3());
         assert.ok(bounds.min.y>.67&&bounds.max.y<1.01,'hand rests beside thigh below wrist');
-        assert.ok(size.y>.15&&size.x<.085&&size.z<.15,'hand points down with the palm facing the thigh');
+        assert.ok(size.y>.15&&size.x<.09&&size.z<.15,`${actor.id}: hand points down with the palm facing the thigh (under 9cm wide)`);
         assert.ok(hand.every(p=>p.x*side>.20),'relaxed hand stays outside the trouser silhouette');
         assert.ok([.07,.10,.13].some(z=>cast(side*.40,.86,z,[-side,0,0],skin)),'wrist-to-palm surface remains connected');
       }
@@ -1497,6 +1499,9 @@ test('each theory can be prepared and presented without a confidence step; other
     game.selectHypothesis(theory.id);assert.ok(game.prepareBoardArgument().prepared);
     assert.ok(game.presentToBoard().accepted);
     assert.equal(game.getBoardFindings().length,2);
+    assert.equal(game.boardPresented,false,'arrival is not presentation');
+    game.finishBoard(); assert.equal(game.getStage(),'board','cannot skip hearing');
+    game.beginHearing();
     assert.ok(game.getCurrentSceneBody().join(' ').includes(theory.boardAction));
     game.finishBoard();assert.equal(game.getStage(),'complete');
     game.reset();assert.equal(game.selectedHypothesisId,undefined);assert.equal(game.preparedForBoard,false);
@@ -1537,6 +1542,8 @@ test('desktop review shows two points per theory, full-note links and no confide
   assert.ok(game.prepareBoardArgument().prepared);
   assert.match(renderSynthesisPanel(game),/data-action="present"/);
   game.presentToBoard();
+  assert.match(renderChapterPanel(game.getCurrentScene(),'board',game),/begin-hearing/);
+  game.beginHearing();
   const board=renderChapterPanel(game.getCurrentScene(),'board',game);
   assert.equal((board.match(/<li>/g)||[]).length,2);
   assert.equal((board.match(/Prepared theory/g)||[]).length,0);
@@ -1589,6 +1596,7 @@ test('MakeHuman scene figures embed masked textures and match their editable sou
     }
     const report=JSON.parse(await readFile(`assets/${definition.asset}/build-report.json`,'utf8'));
     assert.equal(report.anatomicalBase,'MakeHuman hm08 / MPFB');
+    assert.deepEqual(report.actors,definition.actors,'exported positions match interaction and collision manifest');
     for(const actor of definition.actors) {
       const source=await readFile(`assets/scene-people/${actor.id}.blend`);
       assert.equal(report.sources[actor.id],createHash('sha256').update(source).digest('hex'),'export matches authored anatomy');
@@ -2091,4 +2099,93 @@ test('real XR event handlers hold until release and suppress click-through in bo
       assert.equal(scene.propHold.prop,undefined);assert.equal(prop.returning,true);assert.equal(clicked,0);
     }
   } finally {globalThis.document=oldDocument;globalThis.window=oldWindow;}
+});
+
+const { conversations, ConversationProgress } = await load('simulation/conversations');
+for (const definition of conversations) test(`${definition.id}: all choices reconverge, resume and conclude exactly once`, () => {
+  const paths = [];
+  function visit(id, path = [], seen = new Set()) {
+    assert.ok(!seen.has(id), 'ordinary conversation must not trap the player in a cycle');
+    const beat = definition.beats.find(b => b.id === id); assert.ok(beat, 'choice destination exists');
+    assert.ok(beat.choices.length <= 3);
+    if (beat.conclusion !== undefined) { assert.equal(beat.choices.length, 0); paths.push(path); }
+    else { assert.ok(beat.choices.length); for (const c of beat.choices) visit(c.next, [...path, [id,c.id]], new Set([...seen,id])); }
+  }
+  visit(definition.start);
+  const endings = new Set();
+  for (const path of paths) {
+    const progress = new ConversationProgress(); progress.open(definition.id);
+    let conclusions = 0;
+    for (const [beat,choice] of path) {
+      const before = progress.view(); progress.close(); assert.equal(progress.view(),undefined);
+      progress.open(definition.id); assert.deepEqual(progress.view(),before,'resume preserves current exchange');
+      const result = progress.choose(beat,choice); assert.ok(result.advanced);
+      conclusions += result.conclusion !== undefined ? 1 : 0;
+      assert.equal(progress.choose(beat,choice).advanced,false,'stale click cannot skip another beat');
+    }
+    assert.equal(conclusions,1); assert.ok(progress.view().complete); endings.add(progress.view().beatId);
+    progress.close(); progress.open(definition.id); assert.ok(progress.view().complete);
+    assert.equal(progress.choose(progress.view().beatId,'bogus').advanced,false);
+    progress.reset(); progress.open(definition.id); assert.equal(progress.view().beatId,definition.start);
+  }
+  assert.equal(endings.size,1);
+});
+
+test('Snow graph grants the assignment only at its shared conclusion; Whitehead never grants evidence', () => {
+  const game = new GameState(); game.inspectHotspot('john-snow');
+  assert.equal(game.getConversationView().beatId,'opening');
+  game.chooseConversation('opening','doubt'); game.closeDialogue(); game.inspectHotspot('john-snow');
+  assert.equal(game.getConversationView().beatId,'skepticism'); assert.equal(game.hasFieldAssignment(),false);
+  game.chooseConversation('skepticism','compare'); game.chooseConversation('method','proof');
+  assert.equal(game.hasFieldAssignment(),false);
+  game.chooseConversation('limits','undertake'); assert.ok(game.hasFieldAssignment());
+  game.closeDialogue(); assert.ok(game.travelToLocation('broad-street').traveled);
+  game.inspectHotspot('whitehead'); assert.equal(game.getActiveDialogue().speaker,'Reverend Henry Whitehead');
+  game.chooseConversation('opening','water'); game.closeDialogue(); game.inspectHotspot('whitehead');
+  assert.equal(game.getConversationView().beatId,'skepticism'); game.chooseConversation('skepticism','exceptions');
+  assert.ok(game.getConversationView().complete); assert.equal(game.getCollectedEvidence().length,0);
+  game.travelToLocation('snow-desk'); assert.equal(game.getConversationView(),undefined);
+  game.reset(); assert.equal(game.hasFieldAssignment(),false);
+});
+
+test('Board room circulation permits the complete aisle and blocks the table and chairs', async () => {
+  const { BoardRoom } = await load('walkable/BoardRoom'); const room = new BoardRoom();
+  assert.ok(room.canWalkBetween(room.spawn,new THREE.Vector3(-2.8,0,4.55)));
+  const loop=[[-2.8,4.55],[-2.8,-4.5],[-2.8,-5.5],[2.8,-5.5],[2.8,4.55],[0,4.55]];
+  for(let i=1;i<loop.length;i++) assert.ok(room.canWalkBetween(new THREE.Vector3(loop[i-1][0],0,loop[i-1][1]),new THREE.Vector3(loop[i][0],0,loop[i][1])));
+  assert.equal(room.canWalkBetween(room.spawn,new THREE.Vector3(0,0,0)),false);
+  assert.equal(room.canWalkBetween(new THREE.Vector3(-2.8,0,.8),new THREE.Vector3(-1.85,0,.8)),false);
+});
+
+test('Board inspection and premature finish cannot complete the inquiry', () => {
+  const game=new GameState(); game.finishBoard(); assert.equal(game.getStage(),'field');
+  game.previewBoardRoom(); assert.equal(game.getCurrentLocation().id,'board-room');
+  game.beginHearing(); game.finishBoard(); assert.equal(game.getStage(),'board');
+  assert.equal(game.boardPresented,false); assert.equal(game.getCollectedEvidence().length,0);
+});
+
+test('VR opens the graph before positioning its panel, and choice changes do not reposition it', () => {
+  const game=new GameState(),scene=Object.create(BroadStreetScene.prototype);let placements=0;
+  Object.assign(scene,{gameState:game,vrPanelVisible:false,showVrPanel:(place=true)=>{
+    assert.ok(game.getConversationView(),'anchor is available before panel placement'); if(place)placements++;
+  },refreshHotspots:()=>{},markVrPanelDirty:()=>{}});
+  scene.activateVrHotspot(game.getHotspot('john-snow')); assert.equal(placements,1);
+  scene.handleVrButton({type:'conversation-choice',beatId:'opening',choiceId:'begin'});
+  assert.equal(placements,1); assert.equal(game.getConversationView().beatId,'records');
+});
+
+test('conversation VR panel adapts to seated and standing eye heights and sits beside the speaker', () => {
+  const game=new GameState();game.inspectHotspot('john-snow');
+  for(const height of [1.1,1.65]) {
+    const scene=Object.create(BroadStreetScene.prototype),camera=new THREE.PerspectiveCamera();camera.position.set(0,height,1);
+    Object.assign(scene,{gameState:game,camera,vrPanelMode:'home',vrPanel:new THREE.Group(),
+      vrPanelWorldPosition:new THREE.Vector3(),vrPanelWorldDirection:new THREE.Vector3(),vrPanelLookTarget:new THREE.Vector3()});
+    scene.placeVrPanelInFront(); const position=scene.vrPanel.position.clone();
+    const toActor=new THREE.Vector3(...game.getConversationView().anchor).sub(camera.position);toActor.y=0;toActor.normalize();
+    const right=new THREE.Vector3(-toActor.z,0,toActor.x);
+    assert.ok(scene.vrPanel.position.clone().sub(camera.position).dot(right)>1.5,'panel clears the line toward the character');
+    assert.ok(Math.abs(position.y-height)<.2);
+    camera.rotation.y=.6;camera.position.x+=.2;
+    assert.deepEqual(scene.vrPanel.position,position,'head motion cannot move a world-positioned panel');
+  }
 });

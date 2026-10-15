@@ -247,6 +247,9 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       return;
     }
 
+    if (action === "conversation-choice") {
+      gameState.chooseConversation(actionTarget.dataset.beatId ?? "", actionTarget.dataset.choiceId ?? "");
+    }
     if (action === "ask") {
       const questionId = actionTarget.dataset.questionId;
       if (!questionId) {
@@ -312,6 +315,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       overlayMode = "none";
       message = result.message;
     }
+    if (action === "begin-hearing") gameState.beginHearing();
     if (action === "finish-board") {
       gameState.finishBoard();
       overlayMode = "none";
@@ -347,11 +351,11 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     root.innerHTML = `
       <div class="hud" data-overlay="${overlayMode}" data-stage="${stage}" data-synthesis-panel="${showSynthesisPanel}">
         <section class="objective-chip" aria-label="Current objective">
-          <span class="objective-kicker">Broad Street Inquiry</span>
+          <span class="objective-kicker">Inquiry preview · Conversation prototype</span>
           <strong>${escapeHtml(gameState.getObjective())}</strong>
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
           <span class="location-line">${escapeHtml(gameState.getInteractionHint())}</span>
-          ${currentLocation.id !== "board-room" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select clear ground to teleport · Marked exits or map to travel</span>' : ""}
+          <span class="location-line">WASD to move · Arrow keys to look<br>Select clear ground to teleport · Marked exits or map to travel</span>
           <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Objects: click / Space to inspect or return · Q / E: rotate<br>Panels: Tab / arrows, Enter to choose<br>Click outside / Esc: close · Page Up / Down: read more</span>
         </section>
 
@@ -432,6 +436,16 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 }
 
 function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): string {
+  const view = gameState.getConversationView();
+  if (view) return `
+    <aside class="dialogue-panel conversation-panel" aria-label="${escapeHtml(view.speaker)} conversation">
+      <div class="dialogue-header"><strong>${escapeHtml(view.speaker)}</strong>
+        <button class="icon-button" data-action="close-dialogue" aria-label="Close conversation"><i data-lucide="x"></i></button></div>
+      <p class="conversation-beat" aria-live="polite">${escapeHtml(view.text)}</p>
+      <div class="conversation-choices">${view.choices.map(choice => `<button class="question-button" data-action="conversation-choice" data-beat-id="${escapeHtml(view.beatId)}" data-choice-id="${escapeHtml(choice.id)}">${escapeHtml(choice.label)}</button>`).join("")}
+      ${view.complete ? '<button class="question-button" data-action="close-dialogue">Return to the scene</button>' : ""}</div>
+    </aside>`;
+
   const activeAnswer = gameState.getActiveDialogueAnswer();
   const availableQuestions = gameState
     .getAvailableDialogueQuestions(dialogue)
@@ -527,7 +541,7 @@ function renderMotionLookToggle(controls?: MotionLookControls): string {
 export function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gameState: GameState): string {
   const body = gameState.getCurrentSceneBody().map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
   const boardFindings =
-    stage === "board"
+    stage === "board" && gameState.boardPresented
       ? `<ol class="findings-list">${gameState
           .getBoardFindings()
           .map((finding) => `<li>${escapeHtml(finding)}</li>`)
@@ -541,9 +555,9 @@ export function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gam
           Begin field inquiry
         </button>`
       : stage === "board"
-        ? `<button class="primary-action wide-action" data-action="finish-board">
+        ? `<button class="primary-action wide-action" data-action="${gameState.boardPresented ? "finish-board" : "begin-hearing"}" ${!gameState.preparedForBoard ? "disabled" : ""}>
             <i data-lucide="check-circle-2"></i>
-            Continue after meeting
+            ${gameState.boardPresented ? "Continue after meeting" : "Begin hearing"}
           </button>`
         : `<button class="primary-action wide-action" data-action="reset">
             <i data-lucide="rotate-ccw"></i>

@@ -12,6 +12,8 @@ if (!canvas || !app) {
 }
 
 const gameState = new GameState();
+// Explicit review link bypasses fieldwork only for visual inspection, never awards evidence.
+if (new URLSearchParams(location.search).get("review") === "board") gameState.previewBoardRoom();
 const ui = createUi(app, gameState);
 const scene = new BroadStreetScene(canvas, gameState);
 const sound = new Soundscape();

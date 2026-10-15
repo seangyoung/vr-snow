@@ -1,3 +1,4 @@
+import { ConversationProgress, type ConversationView } from "./conversations";
 import {
   boardThreshold,
   chapterScenes,
@@ -26,6 +27,16 @@ import type {
 type ChangeHandler = () => void;
 
 export class GameState {
+  private readonly conversations = new ConversationProgress();
+  getConversationView(): ConversationView | undefined { return this.conversations.view(); }
+  chooseConversation(beatId: string, choiceId: string): void {
+    const result = this.conversations.choose(beatId, choiceId);
+    if (!result.advanced) return;
+    if (result.conclusion?.assignment) this.askedQuestions.add("snow-method-question");
+    if (result.conclusion?.evidenceId) this.collectedEvidence.add(result.conclusion.evidenceId);
+    this.emitChange();
+  }
+
   private inspectedHotspots = new Set<string>();
   private collectedEvidence = new Set<string>();
   private askedQuestions = new Set<string>();
@@ -53,7 +64,10 @@ export class GameState {
     }
 
     this.inspectedHotspots.add(hotspot.id);
-    const dialogue = this.getDialogueForLocation(hotspot.locationId);
+    this.conversations.close();
+    if (hotspot.id === "john-snow" && !this.hasFieldAssignment()) this.conversations.open("snow-introduction");
+    if (hotspot.id === "whitehead") this.conversations.open("whitehead-local-knowledge");
+    const dialogue = hotspot.id === "whitehead" ? this.conversationDialogue() : this.getDialogueForLocation(hotspot.locationId);
     this.activeDialogueQuestionId = undefined;
     if (dialogue) {
       this.activeDialogueId = dialogue.id;
@@ -76,6 +90,7 @@ export class GameState {
       return { message: "That question is not available here." };
     }
 
+    this.conversations.close();
     const alreadyAsked = this.askedQuestions.has(question.id);
     this.askedQuestions.add(question.id);
     this.activeDialogueQuestionId = question.id;
@@ -135,7 +150,7 @@ export class GameState {
     }
 
     if (this.stage === "board") {
-      return "State the case honestly: strong pattern, urgent action, incomplete proof.";
+      return this.boardPresented ? "The hearing is complete. Review the conclusion." : "Explore the Board room, then begin the hearing when ready.";
     }
 
     if (this.stage === "complete") {
@@ -188,6 +203,10 @@ export class GameState {
     const scene = this.getCurrentScene();
     const hypothesis = this.getSelectedHypothesis();
 
+    if (this.stage === "board" && !this.boardPresented) {
+      return ["The Guardians await the presentation. You may look around before beginning.",
+        "This room and the three unnamed officials are an interpretation inspired by the original panorama, not a documented reconstruction."];
+    }
     if (this.stage === "board" && hypothesis) {
       if (hypothesis.id === "waterborne") {
         return [
@@ -246,18 +265,31 @@ export class GameState {
     this.currentLocationId = "board-room";
     this.activeDialogueId = undefined;
     this.activeDialogueQuestionId = undefined;
-    this.boardPresented = true;
+    this.boardPresented = false;
+    this.conversations.close();
     this.emitChange();
     return {
       accepted: true,
-      message:
-        this.selectedHypothesisId === "waterborne"
-          ? "The Board agrees to remove the pump handle while the inquiry continues."
-          : "The Board hears the argument, but the pump intervention remains unresolved.",
+      message: "Arrived at the Board room. Begin the hearing when you are ready.",
     };
   }
 
+  /** Preview-only room inspection, with no evidence or hearing credit. */
+  previewBoardRoom(): void {
+    this.closeDialogue();
+    this.stage = "board"; this.currentLocationId = "board-room";
+    this.boardPresented = false;
+    this.emitChange();
+  }
+
+  beginHearing(): void {
+    if (this.stage !== "board" || !this.preparedForBoard || !this.selectedHypothesisId) return;
+    this.boardPresented = true;
+    this.emitChange();
+  }
+
   finishBoard(): void {
+    if (this.stage !== "board" || !this.boardPresented) return;
     this.stage = "complete";
     this.currentLocationId = "board-room";
     this.activeDialogueId = undefined;
@@ -275,6 +307,7 @@ export class GameState {
       return { traveled: false, message: `${location.title} is not available for field travel yet.` };
     }
 
+    this.conversations.close();
     this.currentLocationId = locationId;
     this.activeDialogueId = undefined;
     this.activeDialogueQuestionId = undefined;
@@ -289,6 +322,7 @@ export class GameState {
   }
 
   closeDialogue(): void {
+    this.conversations.close();
     this.activeDialogueId = undefined;
     this.activeDialogueQuestionId = undefined;
     this.emitChange();
@@ -404,7 +438,14 @@ export class GameState {
     return dialogueNodes.find((dialogue) => dialogue.locationId === locationId);
   }
 
+  private conversationDialogue(): DialogueNode | undefined {
+    const view = this.getConversationView();
+    return view ? {id: view.id, locationId: this.currentLocationId, speaker: view.speaker,
+      role: view.title, intro: view.text, questions: []} : undefined;
+  }
+
   getActiveDialogue(): DialogueNode | undefined {
+    if (this.getConversationView()?.actorId === "whitehead") return this.conversationDialogue();
     return this.activeDialogueId ? dialogueNodes.find((dialogue) => dialogue.id === this.activeDialogueId) : undefined;
   }
 
@@ -462,6 +503,7 @@ export class GameState {
   }
 
   getInteractionHint(): string {
+    if (this.currentLocationId === "board-room" && !this.boardPresented) return "Walk around the table. Open the chapter panel when ready to begin.";
     return locationInteractionHints[this.currentLocationId];
   }
 
@@ -589,6 +631,7 @@ export class GameState {
   }
 
   reset(): void {
+    this.conversations.reset();
     this.inspectedHotspots.clear();
     this.collectedEvidence.clear();
     this.askedQuestions.clear();

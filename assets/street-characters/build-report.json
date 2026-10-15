@@ -28,20 +28,35 @@
       "labelHeight": 1.96,
       "height": 1.8,
       "yaw": -0.5
+    },
+    {
+      "id": "whitehead",
+      "position": [
+        -6.5,
+        -0.135,
+        -5.6
+      ],
+      "pose": "standing",
+      "coat": "292b2c",
+      "vest": "3b3a37",
+      "labelHeight": 1.96,
+      "height": 1.8,
+      "yaw": 0.25
     }
   ],
   "anatomicalBase": "MakeHuman hm08 / MPFB",
   "sources": {
     "resident-west": "2b56b4c8c00de84c36e11fa6cdc56ea1c966b7e880c36781ce412e46776a1b8f",
-    "resident-east": "c65885c6f423a2263c1f45aebe2b3383af601c4d0ae53d4629b3fb3cf5b55904"
+    "resident-east": "c65885c6f423a2263c1f45aebe2b3383af601c4d0ae53d4629b3fb3cf5b55904",
+    "whitehead": "6421a481c31d9caeef50a56300cec06bedb61766295d9c9b5d3f8909be5e4984"
   },
   "runtimeSkeleton": false,
-  "triangles": 56901,
-  "materialBatches": 24,
+  "triangles": 83897,
+  "materialBatches": 36,
   "bakedLighting": {
     "size": 1024,
     "normalization": 4,
-    "diffusePeak999": 0.6839,
+    "diffusePeak999": 0.684,
     "environmentSize": [
       256,
       128

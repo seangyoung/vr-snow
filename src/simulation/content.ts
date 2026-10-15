@@ -114,7 +114,7 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
 
 export const locationInteractionHints: Record<LocationId, string> = {
   "snow-desk": "Select John Snow at his desk to speak with him.",
-  "broad-street": "Select the pump to investigate the water. Street residents are background figures.",
+  "broad-street": "Select the pump to investigate the water. Speak with Whitehead across the street; the other residents are background figures in this preview.",
   household: "Select the seated household survivor to interview her.",
   registrar: "Select the registrar or the open ledger to review the death returns.",
   workhouse: "Select the steward to ask about the workhouse water supply.",
@@ -429,6 +429,8 @@ export const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
 };
 
 export const hotspots: Hotspot[] = [
+  { id: "whitehead", locationId: "broad-street", label: "Reverend Henry Whitehead", shortLabel: "Whitehead",
+    description: "Speak with the local curate about the neighborhood and how to question an explanation.", position: [-6.5, 1.82, -5.6] },
   {
     id: "broad-street-pump",
     locationId: "broad-street",
