@@ -2,12 +2,12 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, codex/inquiry-next]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
   workflow_run:
-    workflows: [Deploy to GitHub Pages]
+    workflows: [Validate inquiry preview]
     branches: [codex/inquiry-next]
     types: [completed]
 
