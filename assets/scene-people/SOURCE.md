@@ -95,6 +95,12 @@ this is an interpretive figure, not a claimed portrait reconstruction. The three
 representative officials with distinct profiles and lap-resting seated poses.
 Their individual wrist heights are recorded in `refine_character_poses.py`.
 Whitehead uses the relaxed standing pose from `pose_brewery_owners.py`.
+His corrected profile uses the adult part of MakeHuman's age slider (.54): .30
+blended child and young-adult targets, shortening the anatomy beneath adult-sized
+clothing and invalidating the standing wrist targets. The figure represents a
+29-year-old adult; the slider is not a fraction of a century. Adult head, collar
+and shoulder alignment are checked in the exported GLB, alongside front/side
+portrait and runtime idle review.
 
 `board-snow.blend` derives from the approved `assets/snow-character/snow-source.blend`,
 reposed to stand with relaxed hands using `pose_brewery_owners.py`; it preserves

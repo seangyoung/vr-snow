@@ -137,7 +137,9 @@ remove the temporary trigger and provide the preview redirect in production.
 - Existing `public/panoramas/board-room.jpg` supplies visual inspiration only.
   Architecture and unnamed officials are interpretations, not documented likenesses.
 - Whitehead's dialogue is authored reconstruction informed by his local familiarity
-  and skepticism. His appearance is interpretive; Snow reuses the approved portrait
+  and initial opposition: he expected investigation to refute Snow. The opening
+  and common conclusion preserve that disagreement on every dialogue path; his
+  later conversion remains outside this opening encounter. His appearance is interpretive; Snow reuses the approved portrait
   study. Sources, editable rigs and licenses: `assets/scene-people/SOURCE.md` and
   `assets/snow-character/SOURCE.md`.
 

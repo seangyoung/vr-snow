@@ -1413,6 +1413,23 @@ for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} 
         assert.ok(gap>=-.004&&gap<.045,`${actor.id}: palm/lap clearance ${gap.toFixed(3)}m`);
       }
     }
+    if(actor.id==='whitehead') {
+      // Adult clothing and fixed standing wrist targets must not be placed on a
+      // child-sized macro mesh. Check the exported result, not profile values.
+      const boundsFor=name=>{
+        const mesh=scene.getObjectByName(name),points=[];
+        const matrix=root.matrixWorld.clone().invert().multiply(mesh.matrixWorld);
+        const positions=mesh.geometry.getAttribute('position');
+        for(let i=0;i<positions.count;i++)points.push(new THREE.Vector3().fromBufferAttribute(positions,i).applyMatrix4(matrix));
+        return new THREE.Box3().setFromPoints(points);
+      };
+      const face=boundsFor('whitehead_head_Skin'),eyes=boundsFor('whitehead_head_Eyes');
+      const hair=boundsFor('whitehead_head_Hair'),coat=boundsFor('whitehead_upper_Coat');
+      assert.ok(face.max.y>1.68&&face.max.y<1.85,'Whitehead has adult stature');
+      assert.ok(eyes.min.y>1.57,'eyes align with an adult head above the collar');
+      assert.ok(coat.max.y<eyes.min.y-.05,'coat cannot engulf the face');
+      assert.ok(hair.min.y>1.50&&hair.getSize(new THREE.Vector3()).y<.25,'short hair stays on the scalp');
+    }
     if(actor.pose==='standing') {
       const skin=scene.getObjectByName(actor.id+'_upper_Skin');
       const matrix=new THREE.Matrix4().multiplyMatrices(root.matrixWorld.clone().invert(),skin.matrixWorld);
