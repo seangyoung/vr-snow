@@ -32,8 +32,8 @@ export const chapterScenes: ChapterScene[] = [
   },
   {
     id: "complete",
-    title: "Late September",
-    subtitle: "Three weeks after the meeting",
+    title: "After the Meeting",
+    subtitle: "The Board’s decision",
     body: [
       "The pump handle was removed on September 8. By late September the Broad Street outbreak has spent itself, leaving the parish to count its dead and argue over what the pattern means.",
       "Snow keeps the notebook open. The addresses, exceptions, and parish returns still need to be checked against new testimony from the streets around Broad Street.",

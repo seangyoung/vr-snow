@@ -35,8 +35,15 @@ acceptance; automated or desktop results do not establish headset readiness.
   close, deliberate outside dismissal and head movement remain available.
 - The walkable Board has Snow and three representative officials. Arrival,
   beginning the hearing and submitting the recommendation are separate events.
-  Three objections cover foul air, unaffected neighbors and distant cases. Snow
-  corrects unsupported answers; every hypothesis reaches its labeled conclusion.
+  Four objections cover foul air, unaffected neighbors, distant cases and the
+  declining deaths. Snow consistently urges pump closure. Alternative player
+  recommendations persuade the Board against his advice; he does not adopt them.
+  Supporting Snow leads to Broad Street on September 8, with the handle removed
+  and a hanging Board of Guardians closure notice. Other outcomes remain at the
+  Board and are explicitly fictional. Legacy completed water saves relocate to
+  the pump. The precautionary reply and notice wording are authored, informed by
+  Snow’s account of the September 7 meeting, September 8 removal, and uncertainty
+  about renewed contamination; neither is presented as a documentary quotation.
 
 ## Pump-access exercise and reproducibility
 

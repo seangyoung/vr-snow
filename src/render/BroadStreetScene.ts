@@ -420,7 +420,8 @@ export class BroadStreetScene {
     this.renderer.setAnimationLoop((time: number) => {
       if (this.pendingXrSpawn && this.renderer.xr.isPresenting) {
         this.pendingXrSpawn = false;
-        if (this.walkable) teleportViewer(this.playerRig, this.camera, this.walkable.spawn);
+        const spawn=this.arrivalSpawn;
+        if (spawn) teleportViewer(this.playerRig, this.camera, spawn);
         if (this.vrPanelVisible) this.placeVrPanelInFront();
       }
       const timeSeconds = time * 0.001;
@@ -466,6 +467,10 @@ export class BroadStreetScene {
     this.applyCameraOrientation();
   }
 
+  private get arrivalSpawn(): THREE.Vector3 | undefined {
+    return this.gameState.isPumpClosed() && this.gameState.getCurrentLocation().id === "broad-street" ? new THREE.Vector3(-3.8,0,-1.6) : this.walkable?.spawn;
+  }
+
   applyCurrentLocation(): void {
     this.resetTactileInteractions();
     this.desktopMovement.clear();
@@ -474,7 +479,7 @@ export class BroadStreetScene {
     this.focusedTravel = undefined;
     this.travelZones.reset();
     const location = this.gameState.getCurrentLocation();
-    const target = locationLookTargets[location.id] ?? [0, 0, -4];
+    const target = this.gameState.isPumpClosed() && location.id === "broad-street" ? [-3.8, 1.4, 1.3] : locationLookTargets[location.id] ?? [0, 0, -4];
     this.courtyard.group.visible = location.id === "broad-street";
     this.office.group.visible = location.id === "snow-desk";
     this.registrar.group.visible = location.id === "registrar";
@@ -501,12 +506,12 @@ export class BroadStreetScene {
     if (this.panoramaSky) this.panoramaSky.visible = !this.walkable;
     this.playerRig.position.set(0, this.renderer.xr.isPresenting ? (this.vrHeightOffset??0) : 0, 0);
     this.applyPanorama(location.id);
-    const spawn = this.walkable?.spawn;
+    const spawn = this.arrivalSpawn;
     this.yaw = Math.atan2((spawn?.x ?? 0)-target[0], (spawn?.z ?? 0)-target[2]);
     this.pitch = THREE.MathUtils.clamp((target[1] - cameraHeight) * 0.12, -0.18, 0.18);
     this.primeMotionLookReference();
     this.applyCameraOrientation();
-    if (this.walkable) teleportViewer(this.playerRig, this.camera, this.walkable.spawn);
+    if (spawn) teleportViewer(this.playerRig, this.camera, spawn);
     this.focusedHotspot = undefined;
     this.onFocusChange?.(undefined);
     this.refreshLocationObjects();
@@ -518,6 +523,7 @@ export class BroadStreetScene {
   }
 
   refreshHotspots(): void {
+    this.courtyard?.setPumpClosed?.(this.gameState.isPumpClosed());
     this.courtyard?.characters.setDay(this.gameState.day);
     this.worldTravel?.refresh(this.gameState);
     const activeHotspotIds = new Set(this.gameState.getHotspots().map((hotspot) => hotspot.id));
@@ -869,6 +875,7 @@ export class BroadStreetScene {
   }
 
   private get activePump() {
+    if(this.gameState.isPumpClosed())return undefined;
     if(this.courtyard?.group.visible)return {action:this.courtyard.pumpAction,location:'broad-street' as const};
     if(this.workhouse?.group.visible)return {action:this.workhouse.pumpAction,location:'workhouse' as const};
     return undefined;
@@ -881,7 +888,8 @@ export class BroadStreetScene {
     this.propHold?.release(true);
     for(const room of [this.office,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery])
       for(const prop of room?.props??[])prop.release(true);
-    this.courtyard?.pumpAction?.reset(this.gameState.getStage()!=="complete");
+    this.courtyard?.setPumpClosed?.(this.gameState.isPumpClosed());
+    this.courtyard?.pumpAction?.reset(!this.gameState.isPumpClosed());
     this.workhouse?.pumpAction?.reset();
     if(this.tactileLabel)this.tactileLabel.visible=false;
   }
@@ -1464,7 +1472,7 @@ export class BroadStreetScene {
       case "finish-board":
         this.gameState.finishBoard();
         this.vrPanelMode = "synthesis";
-        this.vrStatus = "The meeting is over. The parish waits to see what follows.";
+        this.vrStatus = this.gameState.isPumpClosed() ? "September 8: the handle has been removed. Close this panel to see the notice on the pump." : "The Board leaves the pump open, against Snow’s advice.";
         break;
       case "reset":
         this.gameState.reset();

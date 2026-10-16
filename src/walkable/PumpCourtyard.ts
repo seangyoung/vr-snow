@@ -41,6 +41,53 @@ export class PumpCourtyard {
   readonly pump = new THREE.Group();
   readonly pumpAction = new PumpAction(this.pump);
   readonly spawn = streetSpawn.clone();
+  readonly closureNotice = new THREE.Group();
+  private pumpClosed = false;
+  private environment?: THREE.Texture;
+  private noticeBuilt = false;
+
+  /** Outcome scenery follows narrative state; repeated UI refreshes must not reset a working pump. */
+  setPumpClosed(closed: boolean): void {
+    if(closed && !this.noticeBuilt)this.buildClosureNotice();
+    this.closureNotice.visible=closed;
+    this.closureNotice.traverse(object=>object.layers.mask=closed?1:0);
+    if(this.pumpClosed===closed)return;
+    this.pumpClosed=closed;
+    this.pumpAction.reset(!closed);
+  }
+
+  private buildClosureNotice(): void {
+    this.noticeBuilt=true;
+    this.closureNotice.name="Closure notice · Board of Guardians";
+    const board=new THREE.Mesh(new THREE.BoxGeometry(.78,.9,.025),new THREE.MeshStandardMaterial({color:'#a79573',roughness:1,envMap:this.environment,envMapIntensity:1.4}));
+    board.position.set(0,1.37,-.52);
+    this.closureNotice.add(board);
+    const cordMaterial=new THREE.MeshStandardMaterial({color:'#746347',roughness:1,envMap:this.environment,envMapIntensity:1.4});
+    for(const x of [-.29,.29]) {
+      const start=new THREE.Vector3(x*.4,1.98,-.14),end=new THREE.Vector3(x,1.8,-.52);
+      const cord=new THREE.Mesh(new THREE.CylinderGeometry(.008,.008,start.distanceTo(end),6),cordMaterial);
+      cord.position.copy(start).add(end).multiplyScalar(.5);
+      cord.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),end.sub(start).normalize());
+      this.closureNotice.add(cord);
+    }
+    if(typeof document!=='undefined') {
+      const canvas=document.createElement('canvas');canvas.width=768;canvas.height=896;
+      const context=canvas.getContext('2d');
+      if(context) {
+        context.fillStyle='#eadfc4';context.fillRect(0,0,768,896);
+        context.strokeStyle='#554732';context.lineWidth=5;context.strokeRect(24,24,720,848);
+        context.fillStyle='#302a23';context.textAlign='center';
+        for(const [text,y,size] of [
+          ['PUMP CLOSED',150,65],['Handle removed',286,48],['by order of the',356,43],
+          ['BOARD OF',468,53],['GUARDIANS',535,58],['St. James’s Parish',670,43],['8 September 1854',770,42],
+        ] as const) { context.font=`${size}px Georgia, serif`;context.fillText(text,384,y); }
+        const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+        const paper=new THREE.Mesh(new THREE.PlaneGeometry(.75,.875),new THREE.MeshBasicMaterial({map:texture,color:'#cfc4ac'}));
+        paper.rotation.y=Math.PI;paper.position.set(0,1.37,-.535);this.closureNotice.add(paper);
+      }
+    }
+    this.pump.add(this.closureNotice);
+  }
   private readonly solids: THREE.Object3D[] = [];
   private readonly fallback = new THREE.Group();
   private readonly lighting = new THREE.Group();
@@ -113,6 +160,7 @@ export class PumpCourtyard {
           // Street vertex colors also contain authored weathering, not just contact AO.
           preserveVertexColors: true,
         });
+        this.environment=environment;
         // The interactive pump is procedural. Illuminate it with the same captured sky.
         this.pump.traverse(object => {
           if (!(object instanceof THREE.Mesh)) return;

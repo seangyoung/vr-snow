@@ -38,6 +38,12 @@ export class GameState {
       const tasks=remaining.length>1?`${remaining.slice(0,-1).join(', ')}, and ${remaining.at(-1)}`:remaining[0];
       view={...view,text:`Please ${tasks}. Bring your notes back this evening, and we’ll discuss what you found.`};
     }
+    if(view?.id==='board-hearing' && this.selectedHypothesisId!=='waterborne') {
+      const hypothesis=this.getSelectedHypothesis();
+      if(hypothesis && view.beatId==='recommendation')view={...view,choices:view.choices.map(choice=>({...choice,label:`Recommend instead: ${hypothesis.boardAction}`}))};
+      if(view.beatId==='snow-response')view={...view,text:'I cannot agree. These accounts still point to the Broad Street water. I ask the Guardians to close the pump, whatever other measures they undertake.'};
+      if(hypothesis && view.beatId==='conclusion')view={...view,text:`We are persuaded by your recommendation to ${hypothesis.boardAction.charAt(0).toLowerCase()+hypothesis.boardAction.slice(1)} Despite Dr. Snow’s objection, we shall leave the pump in use.`};
+    }
     const placement=view && streetPlacement(this.day,view.actorId);
     if(view && placement)view={...view,anchor:[placement.position[0],1.45,placement.position[2]]};
     if(view?.complete && ((view.id==='workhouse-sample' && this.hasEvidence('pump-water-inspection')) || (view.id==='pump-sample' && this.hasWorkhouseSample())))
@@ -79,6 +85,8 @@ export class GameState {
   private objectives = new Set<ObjectiveId>();
   private recaps = new Set<InquiryDay>();
   dayIntroOpen = true;
+  isPumpClosed(): boolean { return this.stage==='complete' && this.boardPresented && this.selectedHypothesisId==='waterborne'; }
+  getDisplayDate(): string { return this.isPumpClosed()?'September 8, 1854':this.getDay().date; }
   getDay() { return dayDefinition(this.day); }
   getAssignments() { return this.getDay().objectives.map(item=>({...item,complete:this.objectives.has(item.id)})); }
   hasCurrentAssignment(): boolean { return this.assignedDays.has(this.day); }
@@ -240,28 +248,28 @@ export class GameState {
     if (this.stage === "board" && hypothesis) {
       if (hypothesis.id === "waterborne") {
         return [
-          `Historical course: Snow asks the Guardians to close the pump. Our recommendation is based on ${hypothesis.title.toLowerCase()}.`,
+          "Historical course: you support Snow’s argument. The Guardians order the pump handle removed tomorrow morning.",
           `Recommended action: ${hypothesis.boardAction}`,
         ];
       }
 
       return [
-        `Alternate teaching conclusion: our recommendation favors ${hypothesis.title.toLowerCase()}, departing from Snow’s call to close the pump.`,
+        `Alternate teaching conclusion: you persuade the Guardians to favor ${hypothesis.title.toLowerCase()} and leave the pump open, against Snow’s advice.`,
         `Recommended action: ${hypothesis.boardAction}`,
-        "The pump handle case is not yet strong under this theory, so Snow urges more inquiry before a pump-specific intervention.",
+        "Snow continues to argue that the water carries the poison and urges the Board to close the pump.",
       ];
     }
 
     if (this.stage === "complete" && hypothesis) {
       if (hypothesis.id === "waterborne") {
         return [
-          "Historical outcome: the pump handle was removed on September 8. The outbreak was already declining, so its decline cannot by itself establish the effect of removing the handle.",
+          "Historical outcome — September 8: the handle is gone. A notice on the pump records the Guardians’ order. The outbreak was already declining, so its decline cannot by itself establish the effect of removing the handle.",
           "Whitehead later changed his mind. His inquiries at 40 Broad Street, together with parish investigations of defective drainage beside the well, helped explain how the water became contaminated.",
         ];
       }
 
       return [
-        "Alternate course — a fictional teaching outcome: the Board delays pump-specific action. Historically, the handle was removed on September 8, when the outbreak was already declining.",
+        "Alternate course — a fictional teaching outcome: your argument persuades the Board to leave the pump open despite Snow’s continuing objection. Historically, the handle was removed on September 8, when the outbreak was already declining.",
         "Whitehead later changed his mind. His inquiries at 40 Broad Street and the parish investigation of drainage beside the well strengthened the water explanation.",
       ];
     }
@@ -324,7 +332,7 @@ export class GameState {
     if (this.stage !== "board" || !this.boardPresented) return;
     this.conversations.close();
     this.stage = "complete";
-    this.currentLocationId = "board-room";
+    this.currentLocationId = this.isPumpClosed() ? "broad-street" : "board-room";
     this.activeDialogueId = undefined;
     this.activeDialogueQuestionId = undefined;
     this.emitChange();
@@ -761,7 +769,8 @@ export class GameState {
       if(water.length && (value.day<2 || !assigned.has(2)))return false;
       const ready=recaps.has(3);
       if(value.prepared && (!ready||!value.hypothesis))return false;
-      if(['board','complete'].includes(value.stage) && (!value.prepared||value.location!=='board-room'))return false;
+      if(['board','complete'].includes(value.stage) && !value.prepared)return false;
+      if(value.stage==='board' && value.location!=='board-room')return false;
       if(value.stage==='complete'&&!hearing)return false;
       if(hearing&&!['board','complete'].includes(value.stage))return false;
       if((value.routes.length||value.selectedRoute)&&!assigned.has(3))return false;
@@ -773,6 +782,8 @@ export class GameState {
       this.stage=value.stage;this.objectives=objectives;this.recaps=recaps;this.assignedDays=assigned;this.collectedEvidence=evidence;
       this.askedQuestions=new Set(assigned.has(1)?['snow-method-question']:[]);this.inspectedHotspots.clear();
       this.selectedHypothesisId=value.hypothesis;this.preparedForBoard=value.prepared;this.boardPresented=hearing;
+      // Move legacy water-outcome saves from the meeting room to the closed pump.
+      if(this.isPumpClosed() && this.currentLocationId==="board-room")this.currentLocationId="broad-street";
       this.pumpedWater=new Set(water);this.recordedRoutes=new Set(value.routes);this.selectedRoute=value.selectedRoute;this.activeSurvey=undefined;
       this.dayIntroOpen=value.dayIntro;this.activeDialogueId=undefined;this.activeDialogueQuestionId=undefined;
       // Older previews allowed an unbriefed player to leave on days two and three.

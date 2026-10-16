@@ -339,7 +339,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     if (action === "finish-board") {
       gameState.finishBoard();
       overlayMode = "none";
-      message = "Late September records are open. Review the notebook or replay the inquiry.";
+      message = gameState.isPumpClosed() ? "September 8: the handle has been removed. Close this panel to see the notice on the pump." : "The Board leaves the pump open, against Snow’s advice.";
     }
     render();
   });
@@ -372,7 +372,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     root.innerHTML = `
       <div class="hud" data-overlay="${overlayMode}" data-stage="${stage}" data-synthesis-panel="${showSynthesisPanel}">
         <section class="objective-chip" aria-label="Current objective">
-          <span class="objective-kicker">Inquiry preview · ${escapeHtml(gameState.getDay().date)}</span>
+          <span class="objective-kicker">Inquiry preview · ${escapeHtml(gameState.getDisplayDate())}</span>
           <strong>${escapeHtml(gameState.getObjective())}</strong>
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
           <span class="location-line">${escapeHtml(gameState.getInteractionHint())}</span>

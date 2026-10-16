@@ -134,13 +134,17 @@ const objections = [
  ['distant','Board member · guardian','And what of people who fell ill at more distant addresses?',
   ['Work, errands and carried water can connect a distant home to Broad Street.','We should discard any address that does not fit.','Walking time proves what each household drank.'],
   'The man whose household we visited worked near Broad Street and drank there. He also carried water home: the water could reach beyond the neighboring streets.'],
+ ['declining','Chair of the Board','The deaths are already declining. Why remove the pump handle now?',
+  ['The well could be poisoned again; closing it would prevent further exposure.','The decline proves that the pump is now safe.','Removing the handle will prove what caused the outbreak.'],
+  'We have not yet found how the poison entered the well. Whatever poisoned it before could do so again. We must stop people drawing this water and prevent the poison from spreading any farther.'],
 ] as const;
 objections.forEach(([id,speaker,text,answers,clarification],i)=>{
- hearing.push({id,speaker,text,actorId:(['board-chair','board-tradesman','board-guardian'] as const)[i],choices:answers.map((a,j)=>choice(`response-${j}`,a,`${id}-${j===0?'supported':'clarify'}`))});
- for(const branch of ['supported','clarify'])hearing.push({id:`${id}-${branch}`,speaker:'John Snow',actorId:'john-snow',text:(branch==='clarify'?'Let us correct that claim. ':'')+clarification,choices:[choice('continue','Continue the hearing.',i<2?objections[i+1][0]:'recommendation')]});
+ hearing.push({id,speaker,text,actorId:(['board-chair','board-tradesman','board-guardian'] as const)[i % 3],choices:answers.map((a,j)=>choice(`response-${j}`,a,`${id}-${j===0?'supported':'clarify'}`))});
+ for(const branch of ['supported','clarify'])hearing.push({id:`${id}-${branch}`,speaker:'John Snow',actorId:'john-snow',text:(branch==='clarify'?'Let us correct that claim. ':'')+clarification,choices:[choice('continue','Continue the hearing.',i<objections.length-1?objections[i+1][0]:'recommendation')]});
 });
-hearing.push({id:'recommendation',speaker:'John Snow',text:'Gentlemen, you have heard the accounts. We ask you to consider the recommendation we have prepared.',choices:[choice('submit','Submit our prepared recommendation.','conclusion')]},
- {id:'conclusion',speaker:'Chair of the Board',text:'Thank you, Dr. Snow. The Guardians will now consider your recommendation.',choices:[],terminalAction:'board-decision',conclusion:{hearing:true}});
+hearing.push({id:'recommendation',actorId:'john-snow',speaker:'John Snow',text:'Gentlemen, I believe the Broad Street water carries the poison. I ask you to remove the handle and close the pump while the inquiry continues.',choices:[choice('submit','Support Snow: close the pump.','snow-response')]},
+ {id:'snow-response',speaker:'John Snow',actorId:'john-snow',text:'Thank you. Closing the pump is a precaution we can take now, while we continue to seek the source of the poison.',choices:[choice('decision','Hear the Board’s decision.','conclusion')]},
+ {id:'conclusion',speaker:'Chair of the Board',actorId:'board-chair',text:'We shall follow Dr. Snow’s advice. The pump handle is to be removed tomorrow morning.',choices:[],terminalAction:'board-decision',conclusion:{hearing:true}});
 campaignConversations.push({id:'board-hearing',actorId:'board-chair',locationId:'board-room',title:'Board hearing',anchor:[0,1.4,-4.5],start:'air',sourceNote:source+' The officials and objections are representative teaching interpretations.',beats:hearing});
 
 campaignConversations.push({id:'walking-review',actorId:'survey',locationId:'broad-street',title:'Walking-access comparison',anchor:[-8.5,1.3,-2],start:'opening',sourceNote:source,beats:[

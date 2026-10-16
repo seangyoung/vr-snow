@@ -2606,3 +2606,49 @@ test('Snow welcomes unfinished visits each day without advancing evidence, recap
  assert.equal(game.getConversationView().id,'snow-recap-1');assert.equal(game.canEndDay(),false);
  finishConversation(game);assert.equal(game.canEndDay(),true);
 });
+
+
+test('Snow maintains the water case and addresses declining deaths for every recommendation and response path',()=>{
+ for(const {id} of new GameState().getHypotheses())for(const branch of [0,1,2]) {
+  let game=reviewGame();game.selectHypothesis(id);game.prepareBoardArgument();game.presentToBoard();game.beginHearing();
+  const seen=new Set();
+  for(let i=0;i<40;i++) {
+   const view=game.getConversationView();seen.add(view.beatId);
+   if(view.beatId==='declining')assert.match(view.text,/deaths are already declining/);
+   if(view.beatId.startsWith('declining-'))assert.match(view.text,/not yet found.*poison.*could do so again.*prevent/s);
+   if(view.beatId==='recommendation') {
+    assert.match(view.text,/I believe.*water.*remove the handle/);
+    assert.match(view.choices[0].label,id==='waterborne'?/Support Snow/:/Recommend instead/);
+   }
+   if(view.beatId==='snow-response')assert.match(view.text,id==='waterborne'?/precaution/:/cannot agree.*close the pump/);
+   if(view.complete) {assert.match(view.text,id==='waterborne'?/follow Dr. Snow.*removed tomorrow/:/Despite Dr. Snow.*leave the pump in use/);break;}
+   assert.equal(game.boardPresented,false);game.finishBoard();assert.equal(game.getStage(),'board');
+   game.chooseConversation(view.beatId,view.choices[Math.min(branch,view.choices.length-1)].id);
+   // Reopening from a real save on each beat must retain the same recommendation and decision.
+   const restored=new GameState();assert.ok(restored.restoreSave(game.serializeSave()));restored.beginHearing();game=restored;
+  }
+  assert.ok(seen.has('declining'));assert.ok(seen.has('snow-response'));assert.ok(game.boardPresented);
+  game.finishBoard();assert.equal(game.isPumpClosed(),id==='waterborne');
+  assert.equal(game.getCurrentLocation().id,id==='waterborne'?'broad-street':'board-room');
+  assert.equal(game.getDisplayDate(),id==='waterborne'?'September 8, 1854':'September 7, 1854');
+  const restored=new GameState();assert.ok(restored.restoreSave(game.serializeSave()));assert.equal(restored.getCurrentLocation().id,game.getCurrentLocation().id);assert.equal(restored.isPumpClosed(),game.isPumpClosed());
+ }
+});
+
+test('legacy completed water saves resume at the closed pump, and a new inquiry restores normal state',()=>{
+ const game=reviewGame();game.selectHypothesis('waterborne');game.prepareBoardArgument();game.presentToBoard();game.beginHearing();finishConversation(game);game.finishBoard();
+ const legacy=JSON.parse(game.serializeSave());legacy.location='board-room';
+ const restored=new GameState();assert.ok(restored.restoreSave(JSON.stringify(legacy)));assert.equal(restored.getCurrentLocation().id,'broad-street');assert.ok(restored.isPumpClosed());
+ assert.ok(restored.travelToLocation('brewery').traveled);const revisited=new GameState();assert.ok(revisited.restoreSave(restored.serializeSave()));assert.equal(revisited.getCurrentLocation().id,'brewery');assert.ok(revisited.isPumpClosed());
+ restored.reset();assert.equal(restored.isPumpClosed(),false);
+});
+
+test('pump closure removes handle interaction and water, shows the hanging notice, and reverses cleanly',()=>{
+ const street=new PumpCourtyard();assert.ok(street.pumpAction.stroke());street.setPumpClosed(true);
+ assert.equal(street.pumpAction.handle.visible,false);assert.equal(street.pumpAction.water.visible,false);assert.equal(street.pumpAction.stroke(),false);assert.equal(street.closureNotice.visible,true);
+ street.pumpAction.handle.traverse(o=>assert.equal(o.layers.mask,0));
+ const noticeCount=street.closureNotice.children.length;street.setPumpClosed(true);assert.equal(street.closureNotice.children.length,noticeCount);
+ street.setPumpClosed(false);assert.equal(street.closureNotice.visible,false);street.closureNotice.traverse(o=>assert.equal(o.layers.mask,0));assert.equal(street.pumpAction.handle.visible,true);assert.ok(street.pumpAction.stroke());
+ for(let i=0;i<6;i++)street.pumpAction.update(.05,false);
+ street.setPumpClosed(false);assert.equal(street.pumpAction.stroke(),false,'ordinary UI refresh must not reset an ongoing stroke');
+});
