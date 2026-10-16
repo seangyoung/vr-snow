@@ -1,6 +1,6 @@
 # Authored MakeHuman scene figures
 
-The seven `.blend` files in this folder are the authoritative, editable sources.
+The `.blend` files in this folder are the authoritative, editable sources.
 They contain MakeHuman anatomy, individual facial shape keys, fitted clothing,
 packed textures, and an editable FK rig. They open in Blender without MPFB.
 Normal exports do not regenerate or overwrite them.
@@ -48,8 +48,8 @@ geometry or reference-room geometry is exported.
 Generated outputs live under `assets/<scene>-characters/` and `public/models/`.
 Build reports record a SHA-256 for each authored source so stale exports can be
 detected. The per-person limits are 30,000 triangles, 12 mesh batches, and 3 MiB
-of GLB data. Each scene retains a 1024-square lighting atlas and small reflection
-capture. Embedded skin/hair textures add memory compared with the former
+of GLB data. The seven-person street cast uses a 2048-square lighting atlas; smaller casts
+retain 1024-square atlases. Each has a small reflection capture. Embedded skin/hair textures add memory compared with the former
 procedural figures; headset frame rate and scene-entry stalls need device review.
 
 ## Optional initial authoring
@@ -131,5 +131,17 @@ original authored geometry (`scripts/assets/refine_whitehead_clerical.py`). The
 beard strand image is generated deterministically and packed into the source.
 The full-beard reference is the [1884 Scott and Sons photograph](https://commons.wikimedia.org/wiki/File:Whitehead_henry1884.jpg),
 not a photograph from the outbreak; this remains an interpretive younger figure.
-Four runtime background residents share the two street residents' geometry and
-textures; daily placements and garment tints are separate from the source models.
+The four former background clones now have independent authored sources: an adult
+seamstress, an older laundress, a stockier porter, and a slimmer messenger. Their
+profiles vary face shape, nose, cheeks, eyes, hair and clothing. The women have
+continuous standing dresses, fitted opaque buns, and a plain plum bodice or linen apron;
+the men wear work caps. These are composite residents, not portrait likenesses.
+`refine_street_wardrobe.py` records the initial wardrobe authoring, followed by
+`fit_street_accessories.py` for fitting. Normal exports read the saved sources.
+
+`refit_whitehead_face.py` replaces the detached beard forms with a continuous,
+face-fitted beard and moustache. Dense facial hair shares nearby cheek lighting
+to avoid black bake artifacts. Whitehead retains his skeptical conversations.
+All seven street figures use the same daily placement and interaction manifest;
+there are no extra runtime clones. Their optional conversations vary by day and
+never grant evidence cards or advance required objectives.

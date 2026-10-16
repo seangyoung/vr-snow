@@ -42,21 +42,83 @@
       "labelHeight": 1.96,
       "height": 1.8,
       "yaw": 0.25
+    },
+    {
+      "id": "seamstress",
+      "position": [
+        -0.4,
+        -0.135,
+        -6.7
+      ],
+      "pose": "standing",
+      "coat": "61525f",
+      "vest": "a8a296",
+      "height": 1.8,
+      "labelHeight": 1.96,
+      "yaw": 0.1,
+      "dress": true
+    },
+    {
+      "id": "laundress",
+      "position": [
+        0.8,
+        -0.135,
+        -6.5
+      ],
+      "pose": "standing",
+      "coat": "4b6264",
+      "vest": "bdb29a",
+      "height": 1.8,
+      "labelHeight": 1.96,
+      "yaw": 0.1,
+      "dress": true
+    },
+    {
+      "id": "porter",
+      "position": [
+        6.6,
+        -0.135,
+        8.8
+      ],
+      "pose": "standing",
+      "coat": "6d5840",
+      "vest": "8c7857",
+      "height": 1.8,
+      "labelHeight": 1.96,
+      "yaw": 0.1
+    },
+    {
+      "id": "messenger",
+      "position": [
+        -12,
+        -0.135,
+        -3.6
+      ],
+      "pose": "standing",
+      "coat": "48566b",
+      "vest": "91816b",
+      "height": 1.8,
+      "labelHeight": 1.96,
+      "yaw": 0.1
     }
   ],
   "anatomicalBase": "MakeHuman hm08 / MPFB",
   "sources": {
     "resident-west": "2b56b4c8c00de84c36e11fa6cdc56ea1c966b7e880c36781ce412e46776a1b8f",
     "resident-east": "c65885c6f423a2263c1f45aebe2b3383af601c4d0ae53d4629b3fb3cf5b55904",
-    "whitehead": "20b93fda6a0069734217a8458dfa1f71937f2d2b9a69eda9c5149c5a3bc65940"
+    "whitehead": "6c7a70820979d4db089ef46860fba61b3588c031140b3b028438877b21bcd8fa",
+    "seamstress": "8c38fa9efafdfed3b7a8a5433fcd8e935525cf7dbdfa177c7d85bbfa27ea8952",
+    "laundress": "c5d2613e4fb88187d09efedaace019ad69aeebe304c04e5475bffb73d92c6f78",
+    "porter": "ac9b337c621f5c418abdda1b5e4208566be2618073370cd20846b5e31626ee29",
+    "messenger": "b99a452c3eb041b432ea62a21996406584520cde887a1b233ab81de598d22ba0"
   },
   "runtimeSkeleton": false,
-  "triangles": 88291,
-  "materialBatches": 36,
+  "triangles": 196569,
+  "materialBatches": 83,
   "bakedLighting": {
-    "size": 1024,
+    "size": 2048,
     "normalization": 4,
-    "diffusePeak999": 0.6829,
+    "diffusePeak999": 0.663,
     "environmentSize": [
       256,
       128

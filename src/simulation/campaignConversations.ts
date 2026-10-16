@@ -161,3 +161,45 @@ campaignConversations.push({id:'workhouse-sample',actorId:'workhouse-pump',locat
  {id:'inspect',speaker:'Workhouse pump inspection',text:'Nothing unusual is visible in the sample. Its appearance gives no explanation for the workhouse’s few deaths.',choices:[choice('record','Record the inspection.','conclusion')]},
  {id:'conclusion',speaker:'Workhouse pump inspection',text:'You record clear-looking water and an inconclusive inspection. The result can be compared with your Broad Street sample notes.',choices:[],conclusion:{}},
 ]});
+
+// Optional neighbors report their own work and worries, without advancing assignments.
+const additionalNeighbors: {actor:ActorId;speaker:string;openings:[string,string,string];topics:[string,string][];closing:string}[] = [
+ {actor:'seamstress',speaker:'Seamstress',openings:[
+  'I have a bundle of mending to take home. Half the doors I called at this morning were shut.',
+  'A customer has asked me to finish a mourning dress. I keep putting the work down to listen for news from next door.',
+  'I am trying to deliver the work I promised. Some families have gone, and I do not know where to leave it.'],topics:[
+  ['Has your work changed?','There are fewer ordinary orders. I mend what people bring, and sometimes they ask me to leave it on the step instead of coming inside.'],
+  ['Are your neighbors helping one another?','Those who can go out carry a message or a parcel for those who cannot. I knock before I leave, in case there is something they need.'],
+  ['How are you managing?','By keeping my hands occupied. Sitting idle and listening to every footstep is worse.']],closing:'If you call on the families, give them a little time to answer. Some have been awake all night.'},
+ {actor:'laundress',speaker:'Laundress',openings:[
+  'I am waiting to hear whether another bundle is ready. There has been so much linen to wash, and so little rest in those rooms.',
+  'A woman asked me for clean cloths before I had even finished the last bundle. I wish I had another pair of hands.',
+  'There is still washing to be done in the houses where people have been ill. A quieter street does not mean their work is over.'],topics:[
+  ['What have the families needed?','Clean sheets and cloths, mostly. Sometimes a neighbor brings the bundle because the person nursing cannot leave the bedside.'],
+  ['Have you been going into the houses?','Usually someone brings things to the door. I do not linger; there is scarcely room for the family and whoever is helping.'],
+  ['Has anyone been helping you?','A neighbor has carried bundles when I could not manage them all. We do what we can, but everyone is tired.']],closing:'I must go back for the next bundle. I hope the people you visit have better news today.'},
+ {actor:'porter',speaker:'Porter',openings:[
+  'Mind your step. I have been carrying bundles through here since early morning; several families are sending their things away.',
+  'There are fewer carts coming through. The people who stop me mostly want a parcel carried or news of someone in the next street.',
+  'I have work again today, though many shutters are still closed. I would rather see the shops busy than hear another rumor.'],topics:[
+  ['Are people leaving the neighborhood?','Some are. They ask me to take a box or bedding to a cart. Others cannot leave someone who is ill, however much they wish to go.'],
+  ['What are people saying about the street?','Everyone has an explanation, and no two agree. I can tell you which door I carried a bundle from, but not what caused the illness inside.'],
+  ['Is the lime troublesome?','The smell catches you as you pass. The roadway has been washed and treated, but I still have to carry my loads through it.']],closing:'You will learn more by knocking at the doors than by taking every story in the street as true.'},
+ {actor:'messenger',speaker:'Messenger',openings:[
+  'I am taking a message to a family near here. The person who sent it asked me to wait until someone answered.',
+  'I have doubled back twice already. A name on a note is not much help when nobody knows whether the family is still at home.',
+  'I am carrying word to relatives outside these streets. They want to know who is well enough to write back.'],topics:[
+  ['Are you having trouble finding people?','Some doors are shut and some people have gone away. I ask a neighbor rather than leave the note where it may never be found.'],
+  ['Do your errands take you far?','Across several streets, sometimes farther. I go where the message must go, then return for an answer if one is wanted.'],
+  ['What kind of news are you carrying?','Requests for help, mostly, and word for relatives. I would rather the families told you their own affairs.']],closing:'Excuse me; I should not keep them waiting for this note.'},
+];
+for(const person of additionalNeighbors)for(const day of [1,2,3] as const)campaignConversations.push({
+ id:`${person.actor}-day-${day}`,actorId:person.actor,locationId:'broad-street',title:'Neighborhood conversation',anchor:[0,1.45,0],
+ sourceNote:'Authored composite street resident. Everyday work, disrupted errands and mutual aid are interpretive context; this is not testimony from a named historical witness.',start:'opening',beats:[
+  {id:'opening',speaker:person.speaker,text:person.openings[day-1],choices:person.topics.map(([label],i)=>choice(`ask-${i}`,label,`answer-${i}`))},
+  ...person.topics.map(([,text],i)=>({id:`answer-${i}`,speaker:person.speaker,text,choices:[choice('another','May I ask something else?','followup'),choice('thanks','Thank you. I will let you get on.','conclusion')]})),
+  {id:'followup',speaker:person.speaker,text:'Of course. What did you want to know?',choices:person.topics.map(([label],i)=>choice(`ask-${i}`,label,`detail-${i}`))},
+  ...person.topics.map(([,text],i)=>({id:`detail-${i}`,speaker:person.speaker,text,choices:[choice('thanks','Thank you for speaking with me.','conclusion')]})),
+  {id:'conclusion',speaker:person.speaker,text:person.closing,choices:[],conclusion:{}},
+ ]
+});

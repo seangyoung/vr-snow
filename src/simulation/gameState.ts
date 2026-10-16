@@ -1,4 +1,4 @@
-import { streetPlacement } from './streetPopulation';
+import { streetPlacement, streetExtras } from './streetPopulation';
 import { surveyRoutes, observation, pumpName, walkingTime, pairName, type SurveyProgress, type GuidedSurveyView, type RouteId, type FieldworkView } from "./fieldwork";
 import { days, dayDefinition, locationDay, chronologyNote, type InquiryDay, type ObjectiveId } from "./campaign";
 import { conversations } from "./conversations";
@@ -208,7 +208,7 @@ export class GameState {
       else if(this.isDayFieldworkComplete())id=`snow-recap-${this.day}`;
       else id='snow-progress';
     } else if(hotspotId==='whitehead')id=this.day===1?'whitehead-local-knowledge':`whitehead-day-${this.day}`;
-    else if(hotspotId==='resident-west'||hotspotId==='resident-east')id=`${hotspotId}-day-${this.day}`;
+    else if(hotspotId==='resident-west'||hotspotId==='resident-east'||streetExtras.some(p=>p.id===hotspotId))id=`${hotspotId}-day-${this.day}`;
     else if(hotspotId==='board-hearing') { this.beginHearing();return {dialogue:this.getActiveDialogue(),message:'The Board awaits your response.'}; }
     else {
       const source: Record<string,string>={'registrar-ledger':'registrar-records','broad-street-household':'household-first',

@@ -55,7 +55,7 @@ for index,spec in enumerate(config['actors']):
                     bpy.ops.object.modifier_apply(modifier=dec.name)
             bpy.data.objects.remove(ob,do_unlink=True)
         else:
-            group=head if role in ['Snow eyes','Snow swept hair','Snow eyebrows','Snow sideburns','Snow hair bun','Whitehead beard','Whitehead moustache -1','Whitehead moustache 1'] else (root if role in ['Snow leather shoes','Snow gathered skirt'] else upper)
+            group=head if role in ['Snow eyes','Snow swept hair','Snow eyebrows','Snow sideburns','Snow hair bun','Whitehead beard','Whitehead moustache -1','Whitehead moustache 1','Street cap','Street cap peak'] else (root if role in ['Snow leather shoes','Snow gathered skirt','Street apron'] else upper)
             attach(ob,group)
             ratio=.44 if role=='Snow tailored coat and trousers' else (.35 if role=='Snow leather shoes' else (.5 if role in ['Snow high waistcoat','Snow gathered skirt'] else 1))
             if ratio<1:
@@ -109,9 +109,9 @@ for index,spec in enumerate(config['actors']):
 
 M={m.name:m for ob in all_parts for m in ob.data.materials}
 probe=config['actors'][0]['position'];probe=(probe[0],1.45,probe[2]+.4)
-report=bake_lighting(M,ROOT,asset=asset,size=1024,environment_width=256,character_charts=True,
+report=bake_lighting(M,ROOT,asset=asset,size=2048 if key=='street' else 1024,environment_width=256,character_charts=True,
                     lights=[],occluders={o for o in room if o.type=='MESH'},probe=probe,island_margin=.01)
-# Eye meshes are recessed beneath lids. Reuse neighboring cheek illumination
+# Eyes and dense facial hair sit against skin. Reuse neighboring cheek illumination
 # rather than baking small eye islands into their own occluded socket shadows.
 from mathutils.bvhtree import BVHTree
 for spec,root,upper,head,parts in actors:
@@ -119,13 +119,14 @@ for spec,root,upper,head,parts in actors:
     coords=[face.matrix_world@v.co for v in face.data.vertices]
     tree=BVHTree.FromPolygons(coords,[tuple(p.vertices) for p in face.data.polygons])
     for ob in parts:
-        if not ob.name.startswith('Snow eyes'):continue
+        if not ob.name.startswith(('Snow eyes','Whitehead beard','Whitehead moustache')):continue
         uv=ob.data.uv_layers['Lightmap'];faceuv=face.data.uv_layers['Lightmap']
         for side in [-1,1]:
             vertices=[ob.matrix_world@v.co for v in ob.data.vertices if v.co.x*side>0]
+            if not vertices:continue
             center=sum(vertices,Vector())/len(vertices)
             # Aim below the eyelid toward the exposed upper cheek.
-            query=center+root.matrix_world.to_3x3()@Vector((0,-.008,-.022))
+            query=(root.matrix_world@Vector((-.045,-.14,1.62))) if ob.name.startswith('Whitehead') else center+root.matrix_world.to_3x3()@Vector((0,-.008,-.022))
             hit,normal,pi,_=tree.find_nearest(query)
             poly=face.data.polygons[pi]
             sample=sum((faceuv.data[i].uv for i in poly.loop_indices),Vector((0,0)))/len(poly.loop_indices)

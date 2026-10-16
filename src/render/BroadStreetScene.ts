@@ -1,4 +1,4 @@
-import { streetPlacement } from '../simulation/streetPopulation';
+import { streetPlacement, streetActorIds } from '../simulation/streetPopulation';
 import { AdditionalHousehold } from "../walkable/AdditionalHousehold";
 import { BoardRoom } from "../walkable/BoardRoom";
 import * as THREE from "three";
@@ -527,8 +527,8 @@ export class BroadStreetScene {
       const active = activeHotspotIds.has(mesh.userData.hotspot.id);
       if(ground)ground.visible=active;
       const inspected = this.gameState.hasInspected(mesh.userData.hotspot.id);
-      mesh.visible = active && !["broad-street-pump", "workhouse-pump", "john-snow", "registrar-ledger", "broad-street-household", "poland-workhouse", "broad-street-brewery", "whitehead", "resident-west", "resident-east", "routines-household", "away-household", "board-hearing"].includes(mesh.userData.hotspot.id);
-      label.visible = active && !["workhouse-pump","john-snow","registrar-ledger","broad-street-household","poland-workhouse","broad-street-brewery","whitehead","resident-west","resident-east","routines-household","away-household","board-hearing"].includes(mesh.userData.hotspot.id);
+      mesh.visible = active && !["broad-street-pump", "workhouse-pump", "john-snow", "registrar-ledger", "broad-street-household", "poland-workhouse", "broad-street-brewery", ...streetActorIds, "routines-household", "away-household", "board-hearing"].includes(mesh.userData.hotspot.id);
+      label.visible = active && !["workhouse-pump","john-snow","registrar-ledger","broad-street-household","poland-workhouse","broad-street-brewery",...streetActorIds,"routines-household","away-household","board-hearing"].includes(mesh.userData.hotspot.id);
       mesh.material.color.set(inspected ? "#89d6ba" : "#f3d37a");
       mesh.material.emissive.set(inspected ? "#1b7e62" : "#8b621a");
     });
@@ -765,7 +765,7 @@ export class BroadStreetScene {
       }
       const extra=hotspot.id==='routines-household'?this.routines:hotspot.id==='away-household'?this.away:undefined;
       if(extra?.characters){label.position.copy(extra.characters.labelPosition);label.scale.set(.95,.32,1);label.visible=false;}
-      if(hotspot.id==='resident-west'||hotspot.id==='resident-east'){label.scale.set(.95,.32,1);label.visible=false;}
+      if(streetActorIds.includes(hotspot.id) && hotspot.id!=='whitehead'){label.scale.set(.95,.32,1);label.visible=false;}
       this.scene.add(label);
       let ground: THREE.Mesh | undefined;
       if(hotspot.id==='survey-marlborough'||hotspot.id==='survey-rupert') {
@@ -2578,7 +2578,7 @@ export class BroadStreetScene {
     const entries = [
       {id:"whitehead", visible:!!this.courtyard?.group.visible, ready:!!this.courtyard?.characters.ready, targets:this.courtyard?.characters.targets.filter(target=>target.name==="whitehead") ?? []},
       {id:"john-snow", visible:this.office.group.visible, ready:this.office.character.group.userData.characterStatus==="ready", targets:[this.office.character.target]},
-      ...(['resident-west','resident-east'].map(id=>({id,visible:!!this.courtyard?.group.visible,ready:!!this.courtyard?.characters.ready,targets:this.courtyard?.characters.targets.filter(t=>t.name===id)??[]}))),
+      ...(streetActorIds.filter(id=>id!=='whitehead').map(id=>({id,visible:!!this.courtyard?.group.visible,ready:!!this.courtyard?.characters.ready,targets:this.courtyard?.characters.targets.filter(t=>t.name===id)??[]}))),
       ...([["registrar-ledger",this.registrar],["broad-street-household",this.household],["routines-household",this.routines],["away-household",this.away],
         ["poland-workhouse",this.workhouse],["broad-street-brewery",this.brewery]] as const)
         .filter(([,room])=>!!room?.characters).map(([id,room])=>({id,visible:room!.group.visible,ready:room!.characters!.ready,targets:room!.characters!.targets})),

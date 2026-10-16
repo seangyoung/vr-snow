@@ -146,6 +146,64 @@
         "labelHeight": 1.96,
         "height": 1.8,
         "yaw": 0.25
+      },
+      {
+        "id": "seamstress",
+        "position": [
+          -0.4,
+          -0.135,
+          -6.7
+        ],
+        "pose": "standing",
+        "coat": "61525f",
+        "vest": "a8a296",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": 0.1,
+        "dress": true
+      },
+      {
+        "id": "laundress",
+        "position": [
+          0.8,
+          -0.135,
+          -6.5
+        ],
+        "pose": "standing",
+        "coat": "4b6264",
+        "vest": "bdb29a",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": 0.1,
+        "dress": true
+      },
+      {
+        "id": "porter",
+        "position": [
+          6.6,
+          -0.135,
+          8.8
+        ],
+        "pose": "standing",
+        "coat": "6d5840",
+        "vest": "8c7857",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": 0.1
+      },
+      {
+        "id": "messenger",
+        "position": [
+          -12,
+          -0.135,
+          -3.6
+        ],
+        "pose": "standing",
+        "coat": "48566b",
+        "vest": "91816b",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": 0.1
       }
     ]
   },

@@ -270,3 +270,26 @@ checks pass. Quest performance and seated/standing review remain pending.
   (26%, 61%) is outside; it is explicitly highlighted at the reveal. VR panel
   textures were inspected for map, text and button overlap. These checks do not
   establish Quest readability, comfort or performance; device review is pending.
+
+## Street residents and Whitehead — 16 October 2026
+
+All seven Broad Street figures now have individual conversation targets. The four
+former background clones are a seamstress, laundress, porter and messenger, with
+optional day-specific openings and follow-up topics. These add neighborhood
+context without evidence rewards or assignment gates. Choices and interruption
+use the shared desktop/VR conversation and save system. Existing daily placements
+now move the figures, hover labels, conversation anchors and collision targets
+together.
+
+Four independent MakeHuman sources replace the clones, including two adult women
+with standing dresses and fitted buns, an apron, two work caps, and varied facial
+profiles, ages and colors. Whitehead has a face-fitted full beard and moustache,
+short hair and clerical clothing; his opposition to the water theory is retained.
+The street remains seven figures: 196,569 triangles and 83 mesh batches, within the existing 30,000-triangle-per-person budget. The atlas is now
+2048 square for legible face lighting. Independent textures increase asset memory;
+Quest scene-entry and frame-rate checks remain necessary.
+
+Validation includes all optional branches across three days, interruption/resume
+without rewards, actor/target/anchor agreement, exported source hashes, geometry
+budgets, browser rendering, and the existing campaign regression suite. Full
+headset acceptance remains pending.

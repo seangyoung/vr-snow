@@ -2,7 +2,7 @@ import { campaignConversations } from "./campaignConversations";
 import type { InquiryDay, ObjectiveId } from "./campaign";
 import type { LocationId } from "./types";
 
-export type ActorId = "john-snow" | "whitehead" | "resident-west" | "resident-east" | "registrar" | "survivor" | "water-householder" | "away-householder" | "steward" | "brewery-owner" | "pump" | "workhouse-pump" | "board-chair" | "board-tradesman" | "board-guardian" | "survey";
+export type ActorId = "seamstress" | "laundress" | "porter" | "messenger" | "john-snow" | "whitehead" | "resident-west" | "resident-east" | "registrar" | "survivor" | "water-householder" | "away-householder" | "steward" | "brewery-owner" | "pump" | "workhouse-pump" | "board-chair" | "board-tradesman" | "board-guardian" | "survey";
 export type ConversationId = string;
 export interface ConversationChoice { id: string; label: string; next: string }
 export interface ConversationBeat {

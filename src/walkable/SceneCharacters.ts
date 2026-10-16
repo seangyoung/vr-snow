@@ -1,4 +1,4 @@
-import { streetPlacement, streetExtras } from '../simulation/streetPopulation';
+import { streetPlacement } from '../simulation/streetPopulation';
 import type { InquiryDay } from '../simulation/campaign';
 import * as THREE from "three";
 import { CharacterIdle } from "./CharacterIdle";
@@ -18,7 +18,6 @@ export class SceneCharacters {
   private loading?: Promise<void>;
   private day: InquiryDay = 1;
   private model?: THREE.Group;
-  private extras: THREE.Object3D[] = [];
   private idles: CharacterIdle[] = [];
   private readonly footprints: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }> = [];
   constructor(readonly key: CharacterScene) {
@@ -43,16 +42,6 @@ export class SceneCharacters {
       model=(await new GLTFLoader().loadAsync(`${basePath}models/${asset}.glb`)).scene;
       await loadBakedRoomLighting(model,basePath,{lightMap:`${asset}-lightmap.png`,environment:`${asset}-environment.png`,preserveVertexColors:true});
       this.model=model;
-      if(this.key=== "street")for(const [index,spec] of streetExtras.entries()) {
-        const source=model.getObjectByName(`${spec.source}_root`);if(!source)continue;
-        const extra=source.clone(true);extra.name=`street-extra-${index}`;extra.scale.multiplyScalar(spec.scale);
-        extra.traverse(object=>{if(object instanceof THREE.Mesh) {
-          const tint=(m:THREE.Material)=>{const copy=m.clone();if(copy instanceof THREE.MeshStandardMaterial && /Coat|Waistcoat/.test(object.name))copy.color.multiply(new THREE.Color(spec.tint));return copy;};
-          object.material=Array.isArray(object.material)?object.material.map(tint):tint(object.material);
-        }});
-        model.add(extra);this.extras.push(extra);
-        this.idles.push(new CharacterIdle(extra,9.1+index*2.7,false));
-      }
       this.setDay(this.day);
       for (const [index, actor] of actors.entries()) {
         const root=model.getObjectByName(`${actor.id}_root`);
@@ -79,9 +68,6 @@ export class SceneCharacters {
       const root=this.model?.getObjectByName(`${actor.id}_root`);
       if(root) { root.position.set(x,y,z);root.rotation.set(0,placement.yaw,0); }
     }
-    this.extras.forEach((extra,index)=>{
-      const [x,z,yaw]=streetExtras[index].days[day-1];extra.position.set(x,-.135,z);extra.rotation.set(0,yaw,0);footprint(x,z);
-    });
     this.group.updateMatrixWorld(true);
   }
   pick(raycaster: THREE.Raycaster): THREE.Intersection | undefined {

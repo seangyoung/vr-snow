@@ -1,3 +1,4 @@
+import { streetExtras } from './streetPopulation';
 import type {
   ChapterScene,
   DialogueNode,
@@ -284,6 +285,7 @@ export const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
 };
 
 export const hotspots: Hotspot[] = [
+  ...streetExtras.map(person=>({id:person.id,locationId:'broad-street' as const,label:person.label,shortLabel:person.label,description:'Speak about life in the neighborhood.',position:[person.days[0][0],1.82,person.days[0][1]] as [number,number,number]})),
   {id:'workhouse-pump',locationId:'workhouse',label:'Workhouse pump',shortLabel:'Water sample',description:'Work the handle, then select the pump to inspect its water.',position:[3,1.4,-5.8]},
   {id:"resident-west",locationId:"broad-street",label:"Street shopkeeper",shortLabel:"Shopkeeper",description:"Ask about the chloride of lime and the neighborhood.",position:[-10,1.82,-7]},
   {id:"resident-east",locationId:"broad-street",label:"Street neighbor",shortLabel:"Neighbor",description:"Ask about the neighborhood’s disrupted routines.",position:[11,1.82,-7]},

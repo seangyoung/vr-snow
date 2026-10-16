@@ -1371,7 +1371,7 @@ for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} 
       assert.ok(new THREE.Raycaster(origin,direction).intersectObjects(clothes,false)[0],`${actor.id} torso hole at ${x}, ${y}`);
     }
   }
-  const atlas=await readFile(`public/models/${definition.asset}-lightmap.png`);assert.equal(atlas.readUInt32BE(16),1024);assert.equal(atlas.readUInt32BE(20),1024);
+  const atlas=await readFile(`public/models/${definition.asset}-lightmap.png`);assert.equal(atlas.readUInt32BE(16),key==='street'?2048:1024);assert.equal(atlas.readUInt32BE(20),key==='street'?2048:1024);
 });
 
 // Check exported geometry in actor coordinates, including rotated street residents.
@@ -1453,10 +1453,10 @@ for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} 
         }
         assert.ok(hand.length>50,'complete hand is present');
         const bounds=new THREE.Box3().setFromPoints(hand),size=bounds.getSize(new THREE.Vector3());
-        assert.ok(bounds.min.y>.67&&bounds.max.y<1.01,'hand rests beside thigh below wrist');
+        assert.ok(bounds.min.y>.67&&bounds.max.y<(actor.dress?1.05:1.01),`${actor.id}: hand rests beside thigh below wrist (${bounds.min.y}, ${bounds.max.y})`);
         assert.ok(size.y>.15&&size.x<.09&&size.z<.15,`${actor.id}: hand points down with the palm facing the thigh (under 9cm wide)`);
         assert.ok(hand.every(p=>p.x*side>.20),'relaxed hand stays outside the trouser silhouette');
-        assert.ok([.07,.10,.13].some(z=>cast(side*.40,.86,z,[-side,0,0],skin)),'wrist-to-palm surface remains connected');
+        assert.ok([.07,.10,.13].some(z=>cast(side*.40,actor.dress?.94:.86,z,[-side,0,0],skin)),'wrist-to-palm surface remains connected');
       }
     }
   }
@@ -2716,5 +2716,42 @@ test('Continue resumes the mandatory table or Snow assignment with travel still 
   assert.ok(!game.startupOpen);assert.equal(game.currentLocationId,'snow-desk');assert.ok(!game.canUseMap());
   assert.ok(game.getFieldworkView() || game.getConversationView()?.id==='walking-review');
   assert.equal(game.travelToLocation('household-away').traveled,false);
+ }
+});
+
+test('every street figure has a daily conversation, matching target and clear approach',async()=>{
+ const {streetActorIds,streetPlacement}=await load('simulation/streetPopulation');
+ assert.deepEqual(new Set(characterDefinitions.street.actors.map(a=>a.id)),new Set(streetActorIds));
+ const people=new SceneCharacters('street');people.group.userData.characterStatus='ready';
+ for(const day of [1,2,3]) {
+  const game=gameAtDay(day);game.travelToLocation('broad-street');people.setDay(day);
+  for(const id of streetActorIds) {
+   const p=streetPlacement(day,id),target=people.targets.find(t=>t.name===id);
+   assert.ok(target,`${id} has its own selectable body`);assert.ok(game.getHotspots().some(h=>h.id===id));
+   assert.deepEqual([target.position.x,target.position.z],[p.position[0],p.position[2]+.08]);
+   const ray=new THREE.Raycaster(target.position.clone().add(new THREE.Vector3(0,0,1)),new THREE.Vector3(0,0,-1));
+   people.group.updateMatrixWorld(true);assert.equal(people.pick(ray)?.object,target);
+   game.inspectHotspot(id);assert.equal(game.getConversationView().actorId,id);
+   assert.deepEqual(game.getConversationView().anchor,[p.position[0],1.45,p.position[2]]);game.closeDialogue();
+  }
+ }
+ assert.equal(characterDefinitions.street.actors.filter(a=>a.dress).length,2);
+});
+
+test('new residents support follow-up choices and interruption without evidence or progression rewards',async()=>{
+ const {streetExtras}=await load('simulation/streetPopulation');
+ for(const day of [1,2,3])for(const {id} of streetExtras)for(const first of [0,1,2])for(const follow of [-1,0,1,2]) {
+  let game=gameAtDay(day);game.travelToLocation('broad-street');
+  const evidence=game.getCollectedEvidence().map(c=>c.id),assignments=game.getAssignments();
+  game.inspectHotspot(id);let v=game.getConversationView();assert.equal(v.choices.length,3);
+  game.chooseConversation(v.beatId,v.choices[first].id);const beat=game.getConversationView().beatId;
+  game.closeDialogue();const restored=new GameState();assert.ok(restored.restoreSave(game.serializeSave()));game=restored;
+  game.inspectHotspot(id);assert.equal(game.getConversationView().beatId,beat);
+  v=game.getConversationView();game.chooseConversation(v.beatId,follow<0?'thanks':'another');
+  if(follow>=0){v=game.getConversationView();game.chooseConversation(v.beatId,v.choices[follow].id);}
+  finishConversation(game);assert.ok(game.getConversationView().complete);game.closeDialogue();game.inspectHotspot(id);
+  assert.ok(game.getConversationView().complete,'a finished conversation does not replay');
+  assert.deepEqual(game.getCollectedEvidence().map(c=>c.id),evidence);assert.deepEqual(game.getAssignments(),assignments);
+  assert.ok(game.hasCurrentAssignment());assert.equal(game.stage,'field');
  }
 });
