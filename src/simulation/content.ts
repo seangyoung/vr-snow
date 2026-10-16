@@ -114,10 +114,10 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
 
 export const locationInteractionHints: Record<LocationId, string> = {
   "snow-desk": "Select John Snow at his desk to speak with him.",
-  "broad-street": "Select the pump to investigate the water. Speak with Whitehead and both street residents. Day 3 survey origins are marked on the pavement.",
+  "broad-street": "Use the pump handle to draw water, then select the pump to inspect it. Speak with Whitehead and both street residents. Day 3 survey origins are marked on the pavement.",
   household: "Select the seated household survivor to interview her.",
   registrar: "Select the registrar or the open ledger to review the death returns.",
-  workhouse: "Select the steward to ask about the workhouse water supply.",
+  workhouse: "Select the steward to ask about the water supply. You can also work the pump handle and inspect its water.",
   brewery: "Select either brewery owner to ask about the workers' drinking water.",
   "household-routines": "Select the householder to ask about water preferences and errands.",
   "household-away": "Select the householder to trace a connection to Broad Street.",
@@ -286,6 +286,7 @@ export const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
 };
 
 export const hotspots: Hotspot[] = [
+  {id:'workhouse-pump',locationId:'workhouse',label:'Workhouse pump',shortLabel:'Water sample',description:'Work the handle, then select the pump to inspect its water.',position:[3,1.4,-5.8]},
   {id:'survey-marlborough',locationId:'broad-street',label:'Survey A · western origin',shortLabel:'Survey A',description:'Compare both routes from this same marked origin.',position:[-8.5,1.25,-2]},
   {id:'survey-rupert',locationId:'broad-street',label:'Survey B · eastern origin',shortLabel:'Survey B',description:'Compare both routes from this same marked origin.',position:[8,1.25,-2]},
   {id:'survey-broad-pump',locationId:'broad-street',label:'Record Broad Street route',shortLabel:'Survey stop',description:'Record the selected walk at the pump.',position:[-3.0,1.2,1.9]},
@@ -303,7 +304,7 @@ export const hotspots: Hotspot[] = [
     locationId: "broad-street",
     label: "Broad Street pump",
     shortLabel: "Pump",
-    description: "Snow can inspect whether the pump water itself gives any visible sign of danger.",
+    description: "Work the handle, then select the pump to inspect the water.",
     evidenceId: "pump-water-inspection",
     position: [-3.8, 1.45, 1.3],
   },

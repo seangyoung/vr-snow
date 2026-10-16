@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["simulation/campaign", "simulation/campaignConversations", "simulation/fieldwork", "walkable/AdditionalHousehold", "walkable/PumpSurveyStop", "walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["walkable/WorkhousePump", "simulation/campaign", "simulation/campaignConversations", "simulation/fieldwork", "walkable/AdditionalHousehold", "walkable/PumpSurveyStop", "walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from (["'])(\.\.?\/[^"'.]+)\1/g, 'from "$2.js"');
@@ -137,7 +137,7 @@ test("standard thumbstick and touchpad inputs work without vendor or hand assump
 
 test("pump inspection waits for day two and rewards once across revisits", () => {
  const early=fieldGame();assert.equal(early.inspectHotspot('broad-street-pump').dialogue,undefined);
- const game=gameAtDay(2);game.travelToLocation('broad-street');game.inspectHotspot('broad-street-pump');
+ const game=gameAtDay(2);game.travelToLocation('broad-street');game.recordPumpedWater('broad-street');game.inspectHotspot('broad-street-pump');
  const count=game.getCollectedEvidence().length;finishConversation(game);assert.ok(game.hasEvidence('pump-water-inspection'));
  talk(game,'snow-desk','john-snow');talk(game,'broad-street','broad-street-pump');
  assert.equal(game.getCollectedEvidence().length,count+1);game.reset();assert.equal(game.hasEvidence('pump-water-inspection'),false);
@@ -277,7 +277,7 @@ function finishConversation(game, branch=0) {
   for(let i=0;i<40;i++) {const view=game.getConversationView();if(!view || view.complete)return;const c=view.choices[Math.min(branch,view.choices.length-1)];assert.ok(c,'conversation has a path forward');game.chooseConversation(view.beatId,c.id);}
   assert.fail('conversation did not terminate');
 }
-function talk(game,location,hotspot,branch=0) {if(game.currentLocationId!==location)assert.ok(game.travelToLocation(location).traveled);game.inspectHotspot(hotspot);finishConversation(game,branch);game.closeDialogue();}
+function talk(game,location,hotspot,branch=0) {if(game.currentLocationId!==location)assert.ok(game.travelToLocation(location).traveled);if(hotspot==='broad-street-pump'||hotspot==='workhouse-pump')game.recordPumpedWater(location);game.inspectHotspot(hotspot);finishConversation(game,branch);game.closeDialogue();}
 function beginDay(game) {game.dismissDayIntroduction();talk(game,'snow-desk','john-snow');}
 function finishDay(game) {talk(game,'snow-desk','john-snow');assert.ok(game.endDay());beginDay(game);}
 function gameAtDay(day) {
@@ -688,7 +688,7 @@ test('workhouse seated and standing rays select steward, exit and ground but can
   ray.set(new THREE.Vector3(0,1.3,7.8),new THREE.Vector3(0,0,1));
   const hit=targets.pick(ray,'workhouse',room.pick(ray));assert.equal(targets.routeFor(hit.object).to,'broad-street');
   ray.set(new THREE.Vector3(3,1.62,-3.5),new THREE.Vector3(0,-.15,-1).normalize());
-  const well=room.pick(ray);assert.equal(room.canTeleport(well),false);assert.equal(room.hotspotFor(well.object),undefined,'well is scenery, not a second evidence source');
+  const well=room.pick(ray);assert.equal(room.canTeleport(well),false);assert.equal(room.hotspotFor(well.object),'workhouse-pump','well offers a separate sample inspection');
   room.group.visible=false;assert.equal(room.pick(ray),undefined);
 });
 
@@ -2211,6 +2211,7 @@ test('all three days complete in every assignment visit order, with choice saves
   let game=new GameState();
   function exchange(location,hotspot,branch) {
    if(game.currentLocationId!==location)assert.ok(game.travelToLocation(location).traveled);
+   if(hotspot==='broad-street-pump')game.recordPumpedWater(location);
    game.inspectHotspot(hotspot);
    for(let n=0;n<40;n++) {
     const view=game.getConversationView();assert.ok(view);if(view.complete)break;
@@ -2375,4 +2376,95 @@ test('VR notebook contains assignments and evidence without historical or source
   assert.equal(cards.length,game.getAllEvidence().length+1);
   assert.equal(cards.filter(c=>c.studyGoal).length,1);
   assert.doesNotMatch(cards.map(c=>[c.eyebrow,c.title,c.body,c.meta].join(' ')).join(' '),/Historical notes|Chronology and reconstruction|Table I|composite|teaching reconstruction/i);
+});
+
+
+test('water inspection requires flow from the local handle, not a pump click or an interrupted stroke',()=>{
+  for(const location of ['broad-street','workhouse']) {
+    const game=gameAtDay(2);game.travelToLocation(location);
+    const street=new PumpCourtyard(),workhouse=new WorkhouseCourtyard(),scene=Object.create(BroadStreetScene.prototype);
+    street.group.visible=location==='broad-street';workhouse.group.visible=location==='workhouse';
+    const action=location==='workhouse'?workhouse.pumpAction:street.pumpAction;
+    Object.assign(scene,{gameState:game,courtyard:street,workhouse,reducedCharacterMotion:{matches:false}});
+    const hotspot=location==='workhouse'?'workhouse-pump':'broad-street-pump';
+    assert.match(game.inspectHotspot(hotspot).message,/handle/);assert.equal(game.getConversationView(),undefined);
+    action.stroke();for(let i=0;i<5;i++)scene.updatePumpInteractions(.05);
+    assert.equal(game.hasPumpedWater(location),false);action.reset();scene.updatePumpInteractions(.05);
+    assert.equal(game.hasPumpedWater(location),false,'cancelled stroke cannot supply a sample');
+    action.stroke();for(let i=0;i<12;i++)scene.updatePumpInteractions(.05);
+    assert.ok(action.water.visible);assert.equal(game.hasPumpedWater(location),true);
+    assert.equal(game.hasPumpedWater(location==='workhouse'?'broad-street':'workhouse'),false,'supplies remain separate');
+    assert.equal(game.hasEvidence('pump-water-inspection'),false,'drawing water alone never awards evidence');
+    assert.ok(game.inspectHotspot(hotspot).dialogue);finishConversation(game);
+    assert.equal(location==='workhouse'?game.hasWorkhouseSample():game.hasEvidence('pump-water-inspection'),true);
+  }
+});
+
+test('both sample orders yield the same inconclusive comparison without extra objectives or cards',()=>{
+  for(const order of [['broad-street','workhouse'],['workhouse','broad-street']]) {
+    let game=gameAtDay(2);
+    for(const location of order) {
+      game.travelToLocation(location);game.recordPumpedWater(location);
+      const restored=new GameState();assert.ok(restored.restoreSave(game.serializeSave()));game=restored;
+      const hotspot=location==='workhouse'?'workhouse-pump':'broad-street-pump';
+      game.inspectHotspot(hotspot);const view=game.getConversationView();game.chooseConversation(view.beatId,view.choices[0].id);
+      const resumed=new GameState();assert.ok(resumed.restoreSave(game.serializeSave()));game=resumed;game.inspectHotspot(hotspot);finishConversation(game);
+    }
+    assert.match(game.getConversationView().text,/no notable difference/);
+    assert.match(game.getEvidence('pump-water-inspection').summary,/neither|either sample/);
+    assert.match(game.getAllEvidence().find(c=>c.id==='pump-water-inspection').sourceLabel,/workhouse/);
+    assert.equal(game.getAllEvidence().length,9);assert.equal(game.getCollectedEvidence().length,4);
+    assert.equal(game.getAssignments().find(o=>o.id==='workhouse').complete,false,'sample cannot replace steward interview');
+    game.reset();assert.equal(game.hasWorkhouseSample(),false);assert.equal(game.hasPumpedWater('workhouse'),false);
+  }
+});
+
+test('sample save validation preserves old inspections but rejects invalid or prematurely drawn water',()=>{
+  const early=gameAtDay(1);early.travelToLocation('broad-street');assert.equal(early.recordPumpedWater('broad-street'),false);
+  const game=gameAtDay(2);game.travelToLocation('broad-street');assert.equal(game.recordPumpedWater('workhouse'),false);
+  game.recordPumpedWater('broad-street');game.inspectHotspot('broad-street-pump');
+  const old=JSON.parse(game.serializeSave());delete old.pumpedWater;
+  const restored=new GameState();assert.ok(restored.restoreSave(JSON.stringify(old)));assert.ok(restored.hasPumpedWater('broad-street'));
+  for(const water of [[],['workhouse'],['brewery'],['broad-street','broad-street'],null]) {
+    const invalid={...old,pumpedWater:water};
+    assert.equal(new GameState().restoreSave(JSON.stringify(invalid)),false);
+  }
+  const invalid=JSON.parse(early.serializeSave());invalid.pumpedWater=['broad-street'];
+  assert.equal(new GameState().restoreSave(JSON.stringify(invalid)),false);
+});
+
+test('workhouse pump replaces static geometry without moving the well, buckets or collision envelope',async()=>{
+  const room=new WorkhouseCourtyard(),model=await exportedRoom('workhouse-courtyard.glb');
+  room.group.visible=true;model.updateMatrixWorld(true);
+  const ray=new THREE.Raycaster(new THREE.Vector3(3,1.5,-3.5),new THREE.Vector3(0,0,-1));
+  assert.ok(ray.intersectObject(model,true)[0].distance<3,'authored pump initially present');
+  const environment=new THREE.Texture();model.traverse(o=>{if(o.isMesh)o.material.envMap=environment;});
+  const before=triangles(model);room.prepareVisuals(model);const after=triangles(model);
+  const material=room.pump.group.children.find(o=>o.isMesh).material;
+  assert.equal(material.envMap,environment);assert.equal(material.envMapIntensity,1.4);assert.equal(material.lightMap,null);
+  assert.ok(before-after>100 && before-after<5000,'only pump triangles removed');
+  assert.ok((ray.intersectObject(model,true)[0]?.distance??Infinity)>4,'old pump cannot overlap or flicker');
+  room.group.add(model);room.group.updateMatrixWorld(true);
+  assert.equal(room.hotspotFor(room.pick(ray).object),'workhouse-pump');
+  assert.equal(room.canTeleport({object:room.floor,point:new THREE.Vector3(3,0,-5.8)}),false);
+  const origin=new THREE.Vector3(5.1,1.15,-5.8),target=new THREE.Vector3(3.9,.72,-5.8);
+  ray.set(origin,target.sub(origin).normalize());const handle=room.pick(ray);
+  assert.ok(room.pumpAction.owns(handle.object),'handle reachable from outside the well collision area');
+  assert.ok(handle.distance<2.4);assert.equal(room.canTeleport(handle),false);assert.equal(room.hotspotFor(handle.object),undefined);
+});
+
+test('both pumps work through the same mouse, keyboard and controller tactile path with reach limits',()=>{
+  for(const location of ['broad-street','workhouse'])for(const controller of [undefined,new THREE.Group()]) {
+    const game=gameAtDay(2);game.travelToLocation(location);
+    const street=new PumpCourtyard(),workhouse=new WorkhouseCourtyard(),scene=Object.create(BroadStreetScene.prototype);
+    street.group.visible=location==='broad-street';workhouse.group.visible=location==='workhouse';
+    const room=location==='workhouse'?workhouse:street,action=room.pumpAction;
+    Object.assign(scene,{gameState:game,courtyard:street,workhouse,camera:new THREE.PerspectiveCamera(),propHold:new PropHold(),reducedCharacterMotion:{matches:true}});
+    let distance=3;room.pick=()=>({object:action.handle.children[0],distance});
+    const ray=new THREE.Raycaster();assert.equal(scene.activateTactile(ray,controller),true);
+    for(let i=0;i<15;i++)scene.updatePumpInteractions(.05);assert.equal(game.hasPumpedWater(location),false);
+    distance=1;assert.equal(scene.activateTactile(ray,controller),true);
+    for(let i=0;i<15;i++)scene.updatePumpInteractions(.05);assert.equal(game.hasPumpedWater(location),true);
+    scene.resetTactileInteractions();assert.equal(action.water.visible,false);assert.equal(action.handle.rotation.z,0);
+  }
 });

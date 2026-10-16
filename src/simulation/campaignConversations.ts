@@ -59,7 +59,7 @@ export const campaignConversations: ConversationDefinition[] = [
  ['Where do you obtain drinking water?','We have our own supply here. There is no need to send out to the Broad Street pump for the inmates’ drinking water.'],
  ['Have there been many cholera deaths?','Very few here, thank goodness. We hear dreadful accounts from the streets just outside.']],
  'With over five hundred inmates, we have had very few deaths. Our drinking water comes from our separate supply, here within the institution.',
- ['Do the inmates fetch water from Broad Street?','Not for our ordinary supply. Water is provided here with the other necessities.'],
+ ['May I draw some water to inspect?','Certainly. The pump is over there by the covered well; you may draw what you need.'],
  ['How has the outbreak affected your work?','There is constant concern for the wards. I have the inmates and staff to attend to, whatever is happening outside.'],
  'You have the particulars, then. If you’ll excuse me, I must get back to my round.'),
  interview('brewery-supply','brewery-owner','brewery','Edward and John Huggins',[-2.65,1.4,2.5],'brewery','brewery-exception',
@@ -144,4 +144,12 @@ campaignConversations.push({id:'walking-review',actorId:'survey',locationId:'bro
  {id:'preferences',speaker:'Route notes',text:'The route to Rupert Street winds through the streets. A shorter walk may be convenient, but the household’s preference for Broad Street water also matters.',choices:[choice('limits','What does that mean for our evidence?','limits')]},
  {id:'limits',speaker:'Route notes',text:'The routes show which pump is easier to reach from each starting point. The interviews also describe water carried on errands and drunk at work.',choices:[choice('record','Record the route comparison.','conclusion')]},
  {id:'conclusion',speaker:'Route notes',text:'The walking-access finding is in the notebook. Return to Snow when the day’s remaining assignments are complete.',choices:[],conclusion:{objective:'walking-access',evidenceId:'walking-access'}}
+]});
+
+
+campaignConversations.push({id:'workhouse-sample',actorId:'workhouse-pump',locationId:'workhouse',
+ title:'Workhouse water inspection',anchor:[3,1.3,-5.8],start:'opening',sourceNote:source+' Optional reconstructed sample comparison, not a documented test by Snow.',beats:[
+ {id:'opening',speaker:'Workhouse pump inspection',text:'You hold the freshly drawn water up to the light. It looks clear.',choices:[choice('look','Look for visible material.','inspect'),choice('compare','Examine its appearance closely.','inspect')]},
+ {id:'inspect',speaker:'Workhouse pump inspection',text:'Nothing unusual is visible in the sample. Its appearance gives no explanation for the workhouse’s few deaths.',choices:[choice('record','Record the inspection.','conclusion')]},
+ {id:'conclusion',speaker:'Workhouse pump inspection',text:'You record clear-looking water and an inconclusive inspection. The result can be compared with your Broad Street sample notes.',choices:[],conclusion:{}},
 ]});

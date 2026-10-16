@@ -148,3 +148,34 @@ checks the notebook and witness follow-ups.
 
 The editorial revision also preserves all 24 conversation graph structures (IDs,
 choices, edges, conclusion rewards and terminal actions) against the prior preview.
+
+
+## Hands-on water samples — 16 October 2026
+
+Broad Street now requires a handle stroke that actually produces water before the
+sample conversation opens. Select the handle within reach, wait for the water, then
+select the pump body to inspect it. Mouse, keyboard reticle/Space and controller
+selection use the same bounded stroke. Drawing water never awards evidence by itself.
+
+The workhouse’s existing well fitting now has a working handle and water stream.
+Its optional inspection is inconclusive, just like Broad Street. After both samples
+are inspected, the existing water evidence card records their similar appearance;
+there is no tenth card or additional required objective. The steward interview is
+still required. The workhouse inspection is an authored comparison, not a claim of
+a documented sample test by Snow. That provenance stays here and in source metadata.
+
+Water-drawn state is location-specific and saved. Old saves preserve already-started
+Broad Street inspections; new inquiries require pumping. An interrupted stroke before
+flow cannot supply a sample. Scene changes reset animation and controller state.
+The workhouse runtime removes only the old pump triangles from the material-batched
+model and supplies matching interactive geometry, retaining the well, buckets, baked
+courtyard and collision envelope.
+
+Validation covers real exported mesh replacement, physical reach/occlusion, both
+inspection orders, once-only rewards, partial strokes, save/resume and legacy saves.
+Standalone Quest interaction still requires device testing.
+
+All 194 automated checks, both deployment-base builds and manifest/icon checks pass.
+Desktop Chrome testing activated each handle, waited for flowing water, inspected
+both samples and verified saved progress, with no browser errors. Visual review
+confirmed the replacement fitting and its captured-sky lighting.

@@ -523,8 +523,8 @@ export class BroadStreetScene {
       const active = activeHotspotIds.has(mesh.userData.hotspot.id);
       if(ground)ground.visible=active;
       const inspected = this.gameState.hasInspected(mesh.userData.hotspot.id);
-      mesh.visible = active && !["broad-street-pump", "john-snow", "registrar-ledger", "broad-street-household", "poland-workhouse", "broad-street-brewery", "whitehead", "resident-west", "resident-east", "routines-household", "away-household", "board-hearing"].includes(mesh.userData.hotspot.id);
-      label.visible = active && !["john-snow","registrar-ledger","broad-street-household","poland-workhouse","broad-street-brewery","whitehead","resident-west","resident-east","routines-household","away-household","board-hearing"].includes(mesh.userData.hotspot.id);
+      mesh.visible = active && !["broad-street-pump", "workhouse-pump", "john-snow", "registrar-ledger", "broad-street-household", "poland-workhouse", "broad-street-brewery", "whitehead", "resident-west", "resident-east", "routines-household", "away-household", "board-hearing"].includes(mesh.userData.hotspot.id);
+      label.visible = active && !["workhouse-pump","john-snow","registrar-ledger","broad-street-household","poland-workhouse","broad-street-brewery","whitehead","resident-west","resident-east","routines-household","away-household","board-hearing"].includes(mesh.userData.hotspot.id);
       mesh.material.color.set(inspected ? "#89d6ba" : "#f3d37a");
       mesh.material.emissive.set(inspected ? "#1b7e62" : "#8b621a");
     });
@@ -864,11 +864,21 @@ export class BroadStreetScene {
     this.skyMaterial.needsUpdate = true;
   }
 
+  private get activePump() {
+    if(this.courtyard?.group.visible)return {action:this.courtyard.pumpAction,location:'broad-street' as const};
+    if(this.workhouse?.group.visible)return {action:this.workhouse.pumpAction,location:'workhouse' as const};
+    return undefined;
+  }
+  private updatePumpInteractions(delta: number): void {
+    const pump=this.activePump;
+    if(pump?.action.update(delta,this.reducedCharacterMotion.matches))this.gameState.recordPumpedWater(pump.location);
+  }
   private resetTactileInteractions(): void {
     this.propHold?.release(true);
     for(const room of [this.office,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery])
       for(const prop of room?.props??[])prop.release(true);
     this.courtyard?.pumpAction?.reset(this.gameState.getStage()!=="complete");
+    this.workhouse?.pumpAction?.reset();
     if(this.tactileLabel)this.tactileLabel.visible=false;
   }
 
@@ -880,12 +890,13 @@ export class BroadStreetScene {
     const hit=this.walkable?.pick(ray);
     if(!hit)return false;
     const prop=propFor(hit.object);
-    const handle=this.courtyard?.group.visible && this.courtyard.pumpAction?.owns(hit.object);
+    const pump=this.activePump;
+    const handle=pump?.action.owns(hit.object);
     if(!prop && !handle)return false;
     // A distant object stays an object, never a click-through travel destination.
     if(hit.distance>2.4)return true;
     if(handle) {
-      if(this.courtyard.pumpAction.stroke())this.sound?.effect("water");
+      if(pump!.action.stroke())this.sound?.effect("water");
     } else if(prop) {
       this.propHold.begin(prop,controller??this.camera,!controller);
       this.sound?.effect("select");
@@ -899,7 +910,7 @@ export class BroadStreetScene {
     for(const room of [this.office,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery])
       for(const prop of room.props)prop.update(Math.min(.05,delta),this.reducedCharacterMotion.matches);
     this.propHold.update(delta);
-    if(this.courtyard.group.visible)this.courtyard.pumpAction.update(delta,this.reducedCharacterMotion.matches);
+    this.updatePumpInteractions(delta);
     if(this.tactileLabel)this.tactileLabel.visible=false;
     if(blocked)return;
     let text="",point:THREE.Vector3|undefined;
@@ -911,7 +922,7 @@ export class BroadStreetScene {
       if(this.renderer.xr.isPresenting) {
         for(const controller of this.vrControllers)if(this.vrInputSources.has(controller)) {
           const candidate=this.pickVrPointerHit(controller);
-          if(candidate && (propFor(candidate.object)||this.courtyard.pumpAction.owns(candidate.object))) {hit=candidate;break;}
+          if(candidate && (propFor(candidate.object)||this.activePump?.action.owns(candidate.object))) {hit=candidate;break;}
         }
       } else if(this.characterHoverPointer!==null && !this.dragging) {
         if(this.characterHoverPointer)this.pickHotspot(this.characterHoverPointer.x,this.characterHoverPointer.y);
@@ -924,7 +935,9 @@ export class BroadStreetScene {
       if(hit) {
         const prop=propFor(hit.object);
         if(prop)text=hit.distance>2.4?"Move closer to inspect":`${prop.name} · ${this.renderer.xr.isPresenting?"hold trigger":"click / Space"}`;
-        else if(this.courtyard.pumpAction.owns(hit.object))text=hit.distance>2.4?"Move closer to the handle":"Work pump · select handle";
+        else if(this.activePump?.action.owns(hit.object))text=hit.distance>2.4?"Move closer to the handle":"Work pump · select handle";
+        else if(this.activePump && ['broad-street-pump','workhouse-pump'].includes(this.walkable?.hotspotFor(hit.object)??''))
+          text=this.gameState.hasPumpedWater(this.activePump.location)?"Inspect water · select pump":"Draw water first · select the handle";
         if(text)point=prop?prop.group.getWorldPosition(new THREE.Vector3()):hit.point.clone();
       }
     }

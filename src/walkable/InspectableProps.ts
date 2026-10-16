@@ -51,10 +51,10 @@ export class InspectableProp {
 }
 
 /** Split only complete triangles from the material-batched environment, once on load. */
-export function extractProps(model: THREE.Object3D, parent: THREE.Group, asset: string): InspectableProp[] {
+export function extractProps(model: THREE.Object3D, parent: THREE.Group, asset: string, specs = propSpecs[asset] ?? []): InspectableProp[] {
   const result: InspectableProp[] = [];
   model.updateWorldMatrix(true, true);
-  for (const spec of propSpecs[asset] ?? []) {
+  for (const spec of specs) {
     const bounds = new THREE.Box3(new THREE.Vector3(...spec.min), new THREE.Vector3(...spec.max));
     const center = bounds.getCenter(new THREE.Vector3());
     const group = new THREE.Group(); group.name = spec.name; group.position.copy(center);

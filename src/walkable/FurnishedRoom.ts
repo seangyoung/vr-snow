@@ -13,6 +13,7 @@ export interface RoomLayout {
 export interface RoomOptions {
   name: string; asset: string; layout: RoomLayout; area: WalkableArea;
   interactionFurniture?: string; hotspot: string;
+  rayHeights?: Record<string,number>;
   daylight?: string; fill?: number;
   characters?: CharacterScene;
   bakedLighting?: { lightMap: string; environment: string };
@@ -69,7 +70,7 @@ export class FurnishedRoom implements WalkableEnvironment {
     box(0,layout.height/2,layout.depth/2,layout.width,layout.height,.1,plaster);
     let desk: THREE.Mesh | undefined;
     for (const f of layout.furniture) {
-      const height=f.id === "medical-table" ? .825 : f.height;
+      const height=options.rayHeights?.[f.id] ?? (f.id === "medical-table" ? .825 : f.height);
       const proxy=box(f.x,height/2,f.z,f.width,height,f.depth,timber);
       if (f.id === options.interactionFurniture) desk=proxy;
     }
@@ -105,6 +106,7 @@ export class FurnishedRoom implements WalkableEnvironment {
           console.warn(`Using the original lighting for ${this.options.name}.`, error);
         }
       }
+      this.prepareVisuals(gltf.scene);
       this.props.push(...extractProps(gltf.scene,this.group,this.options.asset));
       this.group.add(gltf.scene);this.fallback.visible=false;
       this.group.userData.environmentStatus="ready";
@@ -113,6 +115,7 @@ export class FurnishedRoom implements WalkableEnvironment {
       console.warn(`${this.options.name} model could not load; using the furnished fallback.`,error);
     }
   }
+  protected prepareVisuals(_model: THREE.Group): void {}
   pick(raycaster: THREE.Raycaster): THREE.Intersection | undefined {
     if (!this.group.visible) return undefined;
     this.group.updateMatrixWorld(true);

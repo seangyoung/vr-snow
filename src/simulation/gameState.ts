@@ -30,7 +30,12 @@ type ChangeHandler = () => void;
 
 export class GameState {
   private readonly conversations = new ConversationProgress();
-  getConversationView(): ConversationView | undefined { return this.conversations.view(); }
+  getConversationView(): ConversationView | undefined {
+    const view=this.conversations.view();
+    if(view?.complete && ((view.id==='workhouse-sample' && this.hasEvidence('pump-water-inspection')) || (view.id==='pump-sample' && this.hasWorkhouseSample())))
+      return {...view,text:'Both samples look clear, with no notable difference between them. Neither inspection explains the difference in illness; you record the comparison in your notebook.'};
+    return view;
+  }
   private activeSurvey?: string;
   private selectedRoute?: RouteId;
   private recordedRoutes = new Set<RouteId>();
@@ -98,6 +103,22 @@ export class GameState {
     this.emitChange();
   }
 
+  private pumpedWater = new Set<'broad-street'|'workhouse'>();
+  hasPumpedWater(location: 'broad-street'|'workhouse'): boolean { return this.pumpedWater.has(location); }
+  /** Called by the physical pump only when its stroke actually produces water. */
+  recordPumpedWater(location: 'broad-street'|'workhouse'): boolean {
+    if(this.currentLocationId!==location || this.day<2 || !this.assignedDays.has(2) || !['field','synthesis'].includes(this.stage))return false;
+    if(this.pumpedWater.has(location))return false;
+    this.pumpedWater.add(location);this.emitChange();return true;
+  }
+  hasWorkhouseSample(): boolean { return this.conversations.hasCompleted('workhouse-sample'); }
+  private sampleCard(card: EvidenceCard): EvidenceCard {
+    if(card.id!=='pump-water-inspection' || !this.hasWorkhouseSample())return card;
+    return {...card,title:'Both water samples look unremarkable',
+      summary:'Broad Street and workhouse water both look clear. Ordinary inspection reveals no notable difference or decisive sign of contamination in either sample.',
+      sourceLabel:'Broad Street and workhouse pump inspections'};
+  }
+
   private inspectedHotspots = new Set<string>();
   private collectedEvidence = new Set<string>();
   private askedQuestions = new Set<string>();
@@ -128,12 +149,17 @@ export class GameState {
     else if(hotspotId==='board-hearing') { this.beginHearing();return {dialogue:this.getActiveDialogue(),message:'The Board awaits your response.'}; }
     else {
       const source: Record<string,string>={'registrar-ledger':'registrar-records','broad-street-household':'household-first',
-        'broad-street-pump':'pump-sample','routines-household':'household-routines','away-household':'household-away',
+        'broad-street-pump':'pump-sample','workhouse-pump':'workhouse-sample','routines-household':'household-routines','away-household':'household-away',
         'poland-workhouse':'workhouse-supply','broad-street-brewery':'brewery-supply'};
       id=source[hotspotId];
       const graph=conversations.find(c=>c.id===id),objective=graph?.beats.find(b=>b.conclusion?.objective)?.conclusion?.objective;
       const assigned=days.find(d=>d.objectives.some(o=>o.id===objective));
       if(assigned && (assigned.day>this.day || !this.hasCurrentAssignment()))return {message:'This inquiry belongs to a later assignment. Speak with Snow about today’s work.'};
+    }
+    if(hotspotId==='broad-street-pump' || hotspotId==='workhouse-pump') {
+      if(this.day<2 || !this.assignedDays.has(2))return {message:'Speak with Snow about the water inquiries on September 6.'};
+      const pump=hotspotId==='workhouse-pump'?'workhouse':'broad-street';
+      if(!this.hasPumpedWater(pump))return {message:'Use the pump handle to draw some water first, then select the pump to inspect the sample.'};
     }
     if(!id)return {message:'No conversation is available here.'};
     this.inspectedHotspots.add(hotspotId);this.conversations.open(id);this.activeDialogueId=id;
@@ -157,11 +183,11 @@ export class GameState {
   }
 
   getCollectedEvidence(): EvidenceCard[] {
-    return evidenceCards.filter((card) => this.collectedEvidence.has(card.id));
+    return evidenceCards.filter((card) => this.collectedEvidence.has(card.id)).map(card=>this.sampleCard(card));
   }
 
   getAllEvidence(): EvidenceCard[] {
-    return evidenceCards;
+    return evidenceCards.map(card=>this.sampleCard(card));
   }
 
   getMissingEvidencePrompt(card: EvidenceCard): string {
@@ -392,7 +418,7 @@ export class GameState {
     }
 
     if (this.hasEvidence("pump-water-inspection")) {
-      findings.push("The pump-water sample gives no decisive visible proof of danger.");
+      findings.push(this.hasWorkhouseSample()?"Broad Street and workhouse water look alike; neither inspection is conclusive.":"The pump-water sample gives no decisive visible proof of danger.");
     }
 
     if (this.hasEvidence("attack-timeline")) {
@@ -554,7 +580,7 @@ export class GameState {
   }
 
   getEvidence(id: string): EvidenceCard | undefined {
-    return evidenceCards.find((card) => card.id === id);
+    return this.getAllEvidence().find((card) => card.id === id);
   }
 
   private getEvidenceLocation(evidenceId: string): InvestigationLocation | undefined {
@@ -563,6 +589,7 @@ export class GameState {
   }
 
   private getLocationEvidencePrompt(card: EvidenceCard, location: InvestigationLocation): string {
+    if(card.id==='pump-water-inspection')return 'Use the Broad Street pump handle to draw water, then select the pump to inspect the sample.';
     if (card.id === "household-water-pattern") {
       return `Interview the householder at ${location.title} about water preferences and routines.`;
     }
@@ -628,7 +655,7 @@ export class GameState {
   }
 
   reset(): void {
-    this.startupOpen=false;this.pendingSave=undefined;this.recordedRoutes.clear();this.selectedRoute=undefined;this.activeSurvey=undefined;
+    this.startupOpen=false;this.pendingSave=undefined;this.recordedRoutes.clear();this.pumpedWater.clear();this.selectedRoute=undefined;this.activeSurvey=undefined;
     this.conversations.reset();this.day=1;this.assignedDays.clear();this.objectives.clear();this.recaps.clear();this.dayIntroOpen=true;
     this.inspectedHotspots.clear();
     this.collectedEvidence.clear();
@@ -668,7 +695,7 @@ export class GameState {
   serializeSave(): string {
     return JSON.stringify({version:1,day:this.day,location:this.currentLocationId,stage:this.stage,
       conversation:this.conversations.serialize(),hypothesis:this.selectedHypothesisId,
-      prepared:this.preparedForBoard,dayIntro:this.dayIntroOpen,routes:[...this.recordedRoutes],selectedRoute:this.selectedRoute});
+      pumpedWater:[...this.pumpedWater],prepared:this.preparedForBoard,dayIntro:this.dayIntroOpen,routes:[...this.recordedRoutes],selectedRoute:this.selectedRoute});
   }
   restoreSave(json: string): boolean {
     try {
@@ -679,6 +706,11 @@ export class GameState {
       if(!Array.isArray(value.routes) || new Set(value.routes).size!==value.routes.length || !value.routes.every((id:unknown)=>surveyRoutes.some(r=>r.id===id)) || (value.selectedRoute!==undefined && !surveyRoutes.some(r=>r.id===value.selectedRoute)))return false;
       if(value.day!==3 && (value.routes.length || value.selectedRoute))return false;
       const progress=new ConversationProgress();if(!progress.restore(value.conversation))return false;
+      // Older saves predate physical sample collection; preserve already-started inspections.
+      const sampleLocations = ['broad-street','workhouse'] as const;
+      const water=value.pumpedWater===undefined ? sampleLocations.filter(location=>value.conversation.cursors[location==='workhouse'?'workhouse-sample':'pump-sample']) : value.pumpedWater;
+      if(!Array.isArray(water) || new Set(water).size!==water.length || !water.every(v=>sampleLocations.includes(v)))return false;
+      for(const location of sampleLocations)if(value.conversation.cursors[location==='workhouse'?'workhouse-sample':'pump-sample'] && !water.includes(location))return false;
       const objectives=new Set<ObjectiveId>(),assigned=new Set<InquiryDay>(),recaps=new Set<InquiryDay>(),evidence=new Set<string>();
       let hearing=false;
       for(const graph of conversations)if(progress.hasCompleted(graph.id)) {
@@ -694,6 +726,7 @@ export class GameState {
         if(day.objectives.some(o=>objectives.has(o.id)) && !assigned.has(day.day))return false;
       }
       if(objectives.has("walking-access") && value.routes.length!==surveyRoutes.length)return false;
+      if(water.length && (value.day<2 || !assigned.has(2)))return false;
       const ready=recaps.has(3);
       if(value.prepared && (!ready||!value.hypothesis))return false;
       if(['board','complete'].includes(value.stage) && (!value.prepared||value.location!=='board-room'))return false;
@@ -708,7 +741,7 @@ export class GameState {
       this.stage=value.stage;this.objectives=objectives;this.recaps=recaps;this.assignedDays=assigned;this.collectedEvidence=evidence;
       this.askedQuestions=new Set(assigned.has(1)?['snow-method-question']:[]);this.inspectedHotspots.clear();
       this.selectedHypothesisId=value.hypothesis;this.preparedForBoard=value.prepared;this.boardPresented=hearing;
-      this.recordedRoutes=new Set(value.routes);this.selectedRoute=value.selectedRoute;this.activeSurvey=undefined;
+      this.pumpedWater=new Set(water);this.recordedRoutes=new Set(value.routes);this.selectedRoute=value.selectedRoute;this.activeSurvey=undefined;
       this.dayIntroOpen=value.dayIntro;this.activeDialogueId=undefined;this.activeDialogueQuestionId=undefined;
       return true;
     } catch { return false; }
