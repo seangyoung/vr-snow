@@ -683,6 +683,17 @@ button {
 
 .map-panel {
   width: min(860px, calc(100vw - 36px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scroll-padding-top: 84px;
+}
+
+.map-panel > .panel-header {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  background: #12100c;
 }
 
 .secondary-action {
