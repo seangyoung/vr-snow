@@ -1,5 +1,5 @@
 import { streetPlacement } from './streetPopulation';
-import { surveyRoutes, observation, type RouteId, type FieldworkView } from "./fieldwork";
+import { surveyRoutes, observation, pumpName, walkingTime, pairName, type SurveyProgress, type GuidedSurveyView, type RouteId, type FieldworkView } from "./fieldwork";
 import { days, dayDefinition, locationDay, chronologyNote, type InquiryDay, type ObjectiveId } from "./campaign";
 import { conversations } from "./conversations";
 import { ConversationProgress, type ConversationView } from "./conversations";
@@ -51,33 +51,69 @@ export class GameState {
     return view;
   }
   private activeSurvey?: string;
+  private surveyProgress?: SurveyProgress;
+  fieldworkTravelRevision = 0;
+  canResumePumpComparison(): boolean { return this.day===3 && this.hasCurrentAssignment() && !this.dayIntroOpen && !this.startupOpen && this.stage==='field' && !this.objectives.has('walking-access'); }
+  getPumpComparisonLabel(): string { return this.surveyProgress?.phase==='done'?'Discuss the comparison with Snow':this.surveyProgress || this.recordedRoutes.size || this.selectedRoute ? 'Resume pump comparison' : 'Begin pump comparison'; }
+  private nextSurveyRoute() { return surveyRoutes.find(route=>!this.recordedRoutes.has(route.id)); }
+  getSurveyOrigin(): string | undefined {
+    if(!this.canResumePumpComparison() || this.surveyProgress?.phase==='done')return undefined;
+    return surveyRoutes.find(route=>route.id===this.surveyProgress?.routeId)?.origin ?? this.nextSurveyRoute()?.origin ?? 'survey-rupert';
+  }
+  getFieldworkSpawn(): [number,number,number] | undefined {
+    if(!this.activeSurvey || !this.surveyProgress)return undefined;
+    if(this.surveyProgress.phase==='origin')return this.getHotspot(this.getSurveyOrigin()!)?.position.map((v,i)=>i===1?0:v) as [number,number,number];
+    if(this.currentLocationId==='broad-street')return [-3.8,0,-1.6];
+    return undefined;
+  }
+  private openGuidedSurvey(): void {
+    this.conversations.close();this.activeSurvey='guided';this.activeDialogueId='fieldwork';
+  }
+  resumePumpComparison(): boolean {
+    if(!this.canResumePumpComparison())return false;
+    if(this.surveyProgress?.phase==='done') { this.currentLocationId='snow-desk';this.activeSurvey=undefined;this.conversations.open('walking-review');this.activeDialogueId='walking-review';this.fieldworkTravelRevision++;this.emitChange();return true; }
+    if(!this.surveyProgress) {
+      const next=this.nextSurveyRoute();
+      this.surveyProgress={routeId:next?.id ?? 'rupert-alternative',phase:next?'origin':'compare'};
+      this.selectedRoute=undefined;
+    }
+    const route=surveyRoutes.find(r=>r.id===this.surveyProgress!.routeId)!;
+    this.currentLocationId=this.surveyProgress.phase==='origin'?'broad-street':route.destination;
+    this.openGuidedSurvey();this.fieldworkTravelRevision++;this.emitChange();return true;
+  }
+  private guidedSurveyView(): GuidedSurveyView | undefined {
+    const progress=this.surveyProgress;if(!progress)return undefined;
+    const route=surveyRoutes.find(r=>r.id===progress.routeId)!;
+    const pair=surveyRoutes.filter(r=>r.pair===route.pair),next=pair.find(r=>!this.recordedRoutes.has(r.id));
+    const shortest=pair.reduce((a,b)=>a.seconds<b.seconds?a:b);
+    const results=pair.filter(r=>this.recordedRoutes.has(r.id)).map(r=>({label:pumpName(r),time:walkingTime(r.seconds)}));
+    const base={key:`${progress.routeId}:${progress.phase}`,title:'Which pump is easier to reach?',progress:`Comparison ${route.pair==='marlborough'?1:2} of 2 · ${pairName(route.pair)}`,results};
+    if(progress.phase==='origin')return {...base,text:`From this same starting point, compare Broad Street with ${route.pair==='marlborough'?'Marlborough':'Rupert'} Street. Next, visit ${pumpName(route)}.`,actions:[{id:'visit',label:`Visit ${pumpName(route)}`}]};
+    if(progress.phase==='arrival')return {...base,title:`At ${pumpName(route)}`,text:`Estimated walk from the ${route.pair==='marlborough'?'western':'eastern'} starting point: ${walkingTime(route.seconds)}. Added to your comparison.`,actions:[{id:next?'return':'compare',label:next?`Return and try ${pumpName(next)}`:'Compare the two journeys'}]};
+    if(progress.phase==='compare')return {...base,text:'Both estimates begin at the same point. Which pump is easier to reach from there?',actions:pair.map(r=>({id:r.id,label:pumpName(r)}))};
+    return {...base,text:`${progress.answer===shortest.id?'Yes.':'Look at the two estimates:'} ${pumpName(shortest)} is the shorter walk from this starting point. That does not tell us which water someone actually drank.`,actions:[{id:route.pair==='marlborough'?'next':'finish',label:route.pair==='marlborough'?'Begin the next comparison':'View the pump service area'}]};
+  }
+  advancePumpComparison(action: string, expectedStep?: string): boolean {
+    if(!this.canResumePumpComparison() || !this.activeSurvey || !this.surveyProgress)return false;
+    const progress=this.surveyProgress,route=surveyRoutes.find(r=>r.id===progress.routeId)!;
+    if(expectedStep!==undefined && expectedStep!==this.guidedSurveyView()?.key)return false;
+    if(!this.guidedSurveyView()?.actions.some(a=>a.id===action))return false;
+    if(action==='visit') { this.currentLocationId=route.destination;this.recordedRoutes.add(route.id);progress.phase='arrival';this.fieldworkTravelRevision++; }
+    else if(action==='return') { const next=surveyRoutes.find(r=>r.pair===route.pair&&!this.recordedRoutes.has(r.id))!;this.surveyProgress={routeId:next.id,phase:'origin'};this.currentLocationId='broad-street';this.fieldworkTravelRevision++; }
+    else if(action==='compare')progress.phase='compare';
+    else if(action==='next') { const next=this.nextSurveyRoute();this.surveyProgress={routeId:next?.id??'rupert-alternative',phase:next?'origin':'compare'};this.currentLocationId=next?'broad-street':'rupert-pump';this.fieldworkTravelRevision++; }
+    else if(action==='finish') { progress.phase='done';this.currentLocationId='broad-street';this.activeSurvey=undefined;this.conversations.close();this.activeDialogueId=undefined;this.fieldworkTravelRevision++; }
+    else { progress.answer=action as RouteId;progress.phase='feedback'; }
+    this.emitChange();return true;
+  }
   private selectedRoute?: RouteId;
   private recordedRoutes = new Set<RouteId>();
   getRouteObservations() { return [...this.recordedRoutes].map(observation); }
-  hasWalkingBoundary(): boolean { return this.recordedRoutes.size===surveyRoutes.length; }
+  hasWalkingBoundary(): boolean { return this.recordedRoutes.size===surveyRoutes.length && (!this.surveyProgress || this.surveyProgress.phase==='done'); }
   getFieldworkView(): FieldworkView | undefined {
-    if(!this.activeSurvey)return undefined;
-    const route=surveyRoutes.find(r=>r.id===this.selectedRoute);
-    const choices=surveyRoutes.filter(r=>r.origin===this.activeSurvey);
-    const canRecord=!!route && route.stop===this.activeSurvey && route.destination===this.currentLocationId && !this.recordedRoutes.has(route.id);
-    return {title:choices.length?'Paired pump-access survey':'Pump survey stop',
-      text:choices.length?'Select each route from this same marked origin. Use the map or marked world exits to visit its pump stop, then record the estimate.':
-        canRecord?`${route!.title}: about ${route!.metres} metres; ${route!.seconds} seconds, estimated at 1.2 m/s.`:
-        'Return to the marked origin on Broad Street to select an unrecorded route. Each comparison uses a matched starting point.',
-      routes:choices,canRecord,canConclude:this.hasWalkingBoundary() && this.currentLocationId==='broad-street',observations:this.getRouteObservations()};
-  }
-  startSurveyRoute(id: RouteId): boolean {
-    const route=surveyRoutes.find(r=>r.id===id);
-    if(this.day!==3 || !this.hasCurrentAssignment() || this.currentLocationId!=='broad-street' || route?.origin!==this.activeSurvey || this.recordedRoutes.has(id))return false;
-    this.selectedRoute=id;this.activeSurvey=undefined;this.activeDialogueId=undefined;this.emitChange();return true;
-  }
-  recordSurveyRoute(): boolean {
-    if(!this.getFieldworkView()?.canRecord || !this.selectedRoute)return false;
-    this.recordedRoutes.add(this.selectedRoute);this.selectedRoute=undefined;this.emitChange();return true;
-  }
-  concludeSurvey(): boolean {
-    if(!this.getFieldworkView()?.canConclude)return false;
-    this.activeSurvey=undefined;this.conversations.open('walking-review');this.activeDialogueId='walking-review';this.emitChange();return true;
+    if(!this.activeSurvey || !this.surveyProgress)return undefined;
+    const guided=this.guidedSurveyView()!;
+    return {guided,title:guided.title,text:guided.text};
   }
 
   day: InquiryDay = 1;
@@ -161,11 +197,13 @@ export class GameState {
     this.activeSurvey=undefined;
     if(hotspotId.startsWith('survey-')) {
       if(this.day!==3 || !this.hasCurrentAssignment())return {message:'The pump-access exercise is assigned on September 7.'};
-      this.conversations.close();this.activeSurvey=hotspotId;this.activeDialogueId='fieldwork';this.emitChange();return {dialogue:this.getActiveDialogue(),message:'Survey stop opened.'};
+      this.resumePumpComparison();
+      return {dialogue:this.getActiveDialogue(),message:'Pump comparison opened.'};
     }
     let id: string | undefined;
     if(hotspotId==='john-snow') {
       if(!this.hasCurrentAssignment())id=this.day===1?'snow-introduction':`snow-day-${this.day}`;
+      else if(this.surveyProgress?.phase==='done' && !this.objectives.has('walking-access'))id='walking-review';
       else if(this.isDayFieldworkComplete())id=`snow-recap-${this.day}`;
       else id='snow-progress';
     } else if(hotspotId==='whitehead')id=this.day===1?'whitehead-local-knowledge':`whitehead-day-${this.day}`;
@@ -198,7 +236,9 @@ export class GameState {
   getObjective(): string {
     if(this.stage==='complete')return 'Read the epilogue or revisit your evidence in the Field Notebook.';
     if(this.stage==='board')return this.boardPresented?'Presentation complete. Read the Board’s decision.':'Explore the room, then begin or resume the hearing.';
-    if(this.selectedRoute){const route=surveyRoutes.find(r=>r.id===this.selectedRoute)!;return `${route.title}: visit the marked pump survey stop and record the route. Return to the origin for the paired route.`;}
+    if(this.surveyProgress?.phase==='done' && this.canResumePumpComparison())return 'The pump service area is on the map. Discuss the comparison with Snow.';
+    if(this.surveyProgress && this.canResumePumpComparison())return 'Compare two pumps from the same starting point. Resume the pump comparison whenever you are ready.';
+    if(this.selectedRoute)return 'Resume the pump comparison to continue your earlier route notes.';
     if(this.preparedForBoard)return 'Attend the meeting from Snow’s review panel.';
     if(this.hasEnoughEvidenceForSynthesis())return 'Review the theories with Snow and prepare the Board argument.';
     if(!this.hasCurrentAssignment())return `Day ${this.day}: speak with Snow for today’s assignments.`;
@@ -471,7 +511,7 @@ export class GameState {
       return [];
     }
 
-    return hotspots.filter((hotspot) => hotspot.locationId === this.currentLocationId && (!hotspot.id.startsWith("survey-") || this.day===3 && this.hasCurrentAssignment()));
+    return hotspots.filter((hotspot) => hotspot.locationId === this.currentLocationId && (!hotspot.id.startsWith("survey-") || hotspot.id===this.getSurveyOrigin()));
   }
 
   getAllHotspots(): Hotspot[] {
@@ -557,7 +597,7 @@ export class GameState {
     if(this.currentLocationId==='broad-street')return this.day===1
       ? 'Speak with Whitehead and the street residents. Follow the marked exits or map to today’s interviews.'
       : this.day===2 ? 'Use the pump handle to draw water, then select the pump to inspect it. Speak with Whitehead and the street residents.'
-      : 'Speak with Whitehead and the street residents. Begin the paired pump walks at the marked survey origins.';
+      : 'Speak with Whitehead and the street residents. Select the marked starting point to compare nearby pumps.';
     return locationInteractionHints[this.currentLocationId];
   }
 
@@ -695,7 +735,7 @@ export class GameState {
   }
 
   reset(): void {
-    this.startupOpen=false;this.pendingSave=undefined;this.recordedRoutes.clear();this.pumpedWater.clear();this.selectedRoute=undefined;this.activeSurvey=undefined;
+    this.startupOpen=false;this.pendingSave=undefined;this.recordedRoutes.clear();this.surveyProgress=undefined;this.pumpedWater.clear();this.selectedRoute=undefined;this.activeSurvey=undefined;
     this.conversations.reset();this.day=1;this.assignedDays.clear();this.objectives.clear();this.recaps.clear();this.dayIntroOpen=true;
     this.inspectedHotspots.clear();
     this.collectedEvidence.clear();
@@ -735,7 +775,7 @@ export class GameState {
   serializeSave(): string {
     return JSON.stringify({version:1,day:this.day,location:this.currentLocationId,stage:this.stage,
       conversation:this.conversations.serialize(),hypothesis:this.selectedHypothesisId,
-      pumpedWater:[...this.pumpedWater],prepared:this.preparedForBoard,dayIntro:this.dayIntroOpen,routes:[...this.recordedRoutes],selectedRoute:this.selectedRoute});
+      pumpedWater:[...this.pumpedWater],prepared:this.preparedForBoard,dayIntro:this.dayIntroOpen,routes:[...this.recordedRoutes],selectedRoute:this.selectedRoute,surveyProgress:this.surveyProgress});
   }
   restoreSave(json: string): boolean {
     try {
@@ -745,6 +785,19 @@ export class GameState {
         || typeof value.dayIntro!=='boolean' || (value.hypothesis!==undefined && !this.getHypothesis(value.hypothesis)))return false;
       if(!Array.isArray(value.routes) || new Set(value.routes).size!==value.routes.length || !value.routes.every((id:unknown)=>surveyRoutes.some(r=>r.id===id)) || (value.selectedRoute!==undefined && !surveyRoutes.some(r=>r.id===value.selectedRoute)))return false;
       if(value.day!==3 && (value.routes.length || value.selectedRoute))return false;
+      const guided=value.surveyProgress;
+      if(guided!==undefined) {
+        const route=surveyRoutes.find(r=>r.id===guided?.routeId);
+        if(!route || value.day!==3 || !['origin','arrival','compare','feedback','done'].includes(guided.phase))return false;
+        const pair=surveyRoutes.filter(r=>r.pair===route.pair);
+        if(guided.phase==='origin' && value.routes.includes(route.id))return false;
+        if(guided.phase!=='origin' && !value.routes.includes(route.id))return false;
+        if(['compare','feedback','done'].includes(guided.phase) && !pair.every(r=>value.routes.includes(r.id)))return false;
+        if(guided.phase==='done' && (value.routes.length!==4 || route.pair!=='rupert'))return false;
+        if(guided.answer!==undefined && !pair.some(r=>r.id===guided.answer))return false;
+        if(guided.phase==='feedback' && guided.answer===undefined)return false;
+        if(value.selectedRoute!==undefined)return false;
+      }
       const progress=new ConversationProgress();if(!progress.restore(value.conversation))return false;
       // Older saves predate physical sample collection; preserve already-started inspections.
       const sampleLocations = ['broad-street','workhouse'] as const;
@@ -765,7 +818,7 @@ export class GameState {
         if(recaps.has(day.day) && (!assigned.has(day.day)||!day.objectives.every(o=>objectives.has(o.id))))return false;
         if(day.objectives.some(o=>objectives.has(o.id)) && !assigned.has(day.day))return false;
       }
-      if(objectives.has("walking-access") && value.routes.length!==surveyRoutes.length)return false;
+      if(objectives.has("walking-access") && (value.routes.length!==surveyRoutes.length || (guided && guided.phase!=="done")))return false;
       if(water.length && (value.day<2 || !assigned.has(2)))return false;
       const ready=recaps.has(3);
       if(value.prepared && (!ready||!value.hypothesis))return false;
@@ -773,7 +826,7 @@ export class GameState {
       if(value.stage==='board' && value.location!=='board-room')return false;
       if(value.stage==='complete'&&!hearing)return false;
       if(hearing&&!['board','complete'].includes(value.stage))return false;
-      if((value.routes.length||value.selectedRoute)&&!assigned.has(3))return false;
+      if((value.routes.length||value.selectedRoute||guided)&&!assigned.has(3))return false;
       if(value.selectedRoute&&value.routes.includes(value.selectedRoute))return false;
       if(value.stage==='synthesis'&&!ready)return false;
       if((locationDay[value.location as LocationId]??1)>value.day || (!assigned.has(1) && value.location!=='snow-desk'))return false;
@@ -784,7 +837,7 @@ export class GameState {
       this.selectedHypothesisId=value.hypothesis;this.preparedForBoard=value.prepared;this.boardPresented=hearing;
       // Move legacy water-outcome saves from the meeting room to the closed pump.
       if(this.isPumpClosed() && this.currentLocationId==="board-room")this.currentLocationId="broad-street";
-      this.pumpedWater=new Set(water);this.recordedRoutes=new Set(value.routes);this.selectedRoute=value.selectedRoute;this.activeSurvey=undefined;
+      this.pumpedWater=new Set(water);this.recordedRoutes=new Set(value.routes);this.selectedRoute=value.selectedRoute;this.surveyProgress=guided;this.activeSurvey=undefined;
       this.dayIntroOpen=value.dayIntro;this.activeDialogueId=undefined;this.activeDialogueQuestionId=undefined;
       // Older previews allowed an unbriefed player to leave on days two and three.
       // Resume that day's conversation safely at Snow's office, preserving its cursor.

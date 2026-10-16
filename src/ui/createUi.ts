@@ -1,4 +1,4 @@
-import { surveyRoutes, type RouteId } from "../simulation/fieldwork";
+import { surveyRoutes } from "../simulation/fieldwork";
 import type { SoundControls } from "../audio/Soundscape";
 import { DesktopKeyboard } from "./DesktopKeyboard";
 import { OutsidePanelDismiss } from "./OutsidePanelDismiss";
@@ -177,9 +177,8 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     if(gameState.startupOpen && !['continue-inquiry','new-inquiry'].includes(action))return;
     if(gameState.dayIntroOpen && !gameState.startupOpen && !['dismiss-day','new-inquiry'].includes(action))return;
     if((action==='map' || action==='map-primary') && !gameState.canUseMap())return;
-    if(action==='start-route'){gameState.startSurveyRoute(actionTarget.dataset.routeId as RouteId);render();return;}
-    if(action==='record-route'){gameState.recordSurveyRoute();render();return;}
-    if(action==='conclude-survey'){gameState.concludeSurvey();render();return;}
+    if(action==='resume-survey'){overlayMode='none';gameState.resumePumpComparison();render();return;}
+    if(action==='guided-survey'){if(actionTarget.dataset.step==='finish')overlayMode='map';gameState.advancePumpComparison(actionTarget.dataset.step!,actionTarget.dataset.surveyKey);render();return;}
     if(action==='continue-inquiry'){gameState.continueInquiry();render();return;}
     if(action==='new-inquiry'){ui.onReset?.();render();return;}
     if(action==='dismiss-day'){gameState.dismissDayIntroduction();render();return;}
@@ -381,6 +380,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         </section>
 
         <nav class="tool-rail" aria-label="Investigation tools">
+          ${gameState.canResumePumpComparison()?`<button class="icon-button" data-action="resume-survey"><i data-lucide="footprints"></i><span>${escapeHtml(gameState.getPumpComparisonLabel())}</span></button>`:''}
           ${hasChapterPanel ? '<button class="icon-button" data-action="chapter" aria-label="Open chapter instructions" title="Chapter instructions"><i data-lucide="book-open"></i></button>' : ""}
           <button class="icon-button ${overlayMode === "notebook" ? "is-active" : ""}" data-action="notebook" aria-label="Notebook" aria-keyshortcuts="N" title="Notebook (N)">
             <i data-lucide="notebook-tabs"></i>
@@ -459,7 +459,10 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 
 function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): string {
   const survey=gameState.getFieldworkView();
-  if(survey)return `<aside class="dialogue-panel conversation-panel" aria-label="Pump-access fieldwork"><div class="dialogue-header"><strong>${escapeHtml(survey.title)}</strong><button class="icon-button" data-action="close-dialogue" aria-label="Close survey">×</button></div><p>${escapeHtml(survey.text)}</p><div class="conversation-choices">${survey.routes.map(r=>`<button class="question-button" data-action="start-route" data-route-id="${r.id}" ${survey.observations.some(o=>o.routeId===r.id)?'disabled':''}>${escapeHtml(r.title)}${survey.observations.some(o=>o.routeId===r.id)?' · recorded':''}</button>`).join('')}${survey.canRecord?'<button class="question-button" data-action="record-route">Record this route</button>':''}${survey.canConclude?'<button class="question-button" data-action="conclude-survey">Compare the results</button>':''}<button class="question-button" data-action="close-dialogue">Return to the scene</button></div><small>${survey.observations.length}/4 routes recorded · Estimates use 1.2 m/s, not elapsed playing time.</small></aside>`;
+  if(survey?.guided) {
+    const guide=survey.guided;
+    return `<aside class="dialogue-panel conversation-panel pump-comparison-panel" aria-label="Pump comparison"><div class="dialogue-header"><strong>${escapeHtml(guide.progress)}</strong><button class="icon-button" data-action="close-dialogue" aria-label="Close pump comparison">×</button></div><h3>${escapeHtml(guide.title)}</h3><p>${escapeHtml(guide.text)}</p>${guide.results.length?`<dl class="pump-comparison-results">${guide.results.map(result=>`<div><dt>${escapeHtml(result.label)}</dt><dd>${escapeHtml(result.time)}</dd></div>`).join('')}</dl>`:''}<div class="conversation-choices">${guide.actions.map(action=>`<button class="question-button" data-action="guided-survey" data-step="${action.id}" data-survey-key="${guide.key}">${escapeHtml(action.label)}</button>`).join('')}</div><small>Estimated journeys · Intervening streets skipped · Walking speed: 1.2 m/s</small></aside>`;
+  }
   const view = gameState.getConversationView();
   if (view) return `
     <aside class="dialogue-panel conversation-panel" aria-label="${escapeHtml(view.speaker)} conversation">
@@ -873,7 +876,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
             <div><dt>Snow review</dt><dd>${gameState.preparedForBoard ? "Prepared" : evidenceReady ? "Needed" : "Locked"}</dd></div>
             <div><dt>Action</dt><dd>${escapeHtml(actionText)}</dd></div>
           </dl>
-          ${gameState.day===3?`<div class="layer-summary"><strong>Pump-access exercise</strong><p>Select the marked origin on Broad Street before each route.</p>${gameState.getRouteObservations().map(o=>`<p>${escapeHtml(surveyRoutes.find(r=>r.id===o.routeId)!.title)}: ≈${o.metres} m · ${o.seconds} s</p>`).join('')}<p>Times assume 1.2 m/s. ${gameState.hasWalkingBoundary()?'Green boundary: Broad Street pump service area.':'The pump service area appears after both paired comparisons.'}</p></div>`:''}
+          ${gameState.day===3?`<div class="layer-summary"><strong>Pump-access exercise</strong><p>Compare two pumps from the same starting point. Each visit records its estimate automatically.</p>${gameState.canResumePumpComparison()?`<button class="secondary-action" data-action="resume-survey">${escapeHtml(gameState.getPumpComparisonLabel())}</button>`:''}${gameState.getRouteObservations().map(o=>`<p>${escapeHtml(surveyRoutes.find(r=>r.id===o.routeId)!.title)}: ≈${o.metres} m · ${o.seconds} s</p>`).join('')}<p>Times assume 1.2 m/s. ${gameState.hasWalkingBoundary()?'Green boundary: Broad Street pump service area.':'The pump service area appears after both paired comparisons.'}</p></div>`:''}
           ${evidenceDocket}
         </div>
       </div>

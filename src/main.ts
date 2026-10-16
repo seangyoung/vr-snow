@@ -36,6 +36,7 @@ app.addEventListener("click",(event)=>{
   if(button&&!button.disabled)sound.effect(["map","notebook","close"].includes(button.dataset.action??"")?"paper":"select");
 },{capture:true});
 let lastLocationId = gameState.getCurrentLocation().id;
+let lastFieldworkTravel = gameState.fieldworkTravelRevision;
 
 ui.setMotionLookControls({
   isAvailable: () => scene.isMotionLookAvailable(),
@@ -70,7 +71,8 @@ gameState.onChange(() => {
   evidenceCount=nextCount;
   ui.render();
   const currentLocationId = gameState.getCurrentLocation().id;
-  if (currentLocationId !== lastLocationId) {
+  if (currentLocationId !== lastLocationId || lastFieldworkTravel !== gameState.fieldworkTravelRevision) {
+    lastFieldworkTravel = gameState.fieldworkTravelRevision;
     lastLocationId = currentLocationId;
     scene.applyCurrentLocation();
   } else {

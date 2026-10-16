@@ -3,7 +3,7 @@
 Branch: `codex/inquiry-next`. Production remains `main` at `/vr-snow/`.
 Preview: `/vr-snow/preview/inquiry/`.
 
-## Implementation checkpoint — 15 October 2026
+## Implementation checkpoint — 16 October 2026
 
 The approved conversation prototype now extends through the campaign, fieldwork,
 and hearing. This remains a feature preview pending complete Quest and pacing
@@ -47,10 +47,20 @@ acceptance; automated or desktop results do not establish headset readiness.
 
 ## Pump-access exercise and reproducibility
 
-Select Survey A or B on Broad Street, choose a route, visit the linked pump stop,
-and explicitly record it. Return to the **same origin** for its paired route.
-The compact Marlborough and Rupert stops stand in for intervening streets; travel
-may use the map, marked exits, smooth movement or teleportation.
+The guided comparison presents one marked starting point at a time, western
+then eastern. A single Visit action moves to a pump and records its estimate;
+Return restores the same starting point before the paired journey. The two
+estimates appear together, followed by a question about which pump is nearer.
+Either answer receives feedback and continues. After both pairs, View the pump
+service area opens the map, then Discuss the comparison with Snow returns to his
+office for the concluding exchange and evidence award.
+
+Desktop and VR consume the same step model. Closing, exploring another location
+or reloading preserves the exact step; Resume pump comparison returns to it.
+Version-one saves accept the additional validated cursor. Older route observations
+remain intact and continue from the first missing route. The old recording-marker
+interface is retired. The compact pump stops skip intervening streets, disclosed
+on the result cards; times remain estimates rather than elapsed play time.
 
 `src/simulation/route-data.json` stores polylines separately from scene geometry.
 Six pump anchors register existing SVG percentages to EPSG:27700 British National

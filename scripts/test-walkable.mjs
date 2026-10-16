@@ -1483,11 +1483,11 @@ for(const [key,Room] of Object.entries(witnessRooms))test(`${key} witness namepl
 
 const { renderSynthesisPanel, renderChapterPanel } = await load('ui/createUi');
 function completeSurvey(game) {
- for(const route of surveyRoutes) {
-  game.travelToLocation('broad-street');game.inspectHotspot(route.origin);assert.ok(game.startSurveyRoute(route.id));
-  game.travelToLocation(route.destination);game.inspectHotspot(route.stop);assert.ok(game.recordSurveyRoute());game.closeDialogue();
+ assert.ok(game.resumePumpComparison());
+ for(let i=0;i<25 && game.getFieldworkView();i++) {
+  const guide=game.getFieldworkView().guided;assert.ok(game.advancePumpComparison(guide.actions[0].id));
  }
- game.travelToLocation('broad-street');game.inspectHotspot('survey-marlborough');assert.ok(game.concludeSurvey());finishConversation(game);game.closeDialogue();
+ assert.ok(game.hasWalkingBoundary());assert.ok(game.resumePumpComparison());finishConversation(game);game.closeDialogue();
 }
 function reviewGame() {
  const game=gameAtDay(3);talk(game,'brewery','broad-street-brewery');talk(game,'household-away','away-household');completeSurvey(game);talk(game,'snow-desk','john-snow');return game;
@@ -1597,7 +1597,7 @@ test('scene guidance names selectable figures and current-day street activities'
   game.currentLocationId='broad-street';
   assert.doesNotMatch(game.getInteractionHint(),/inspect|survey/);
   game.day=2;assert.match(game.getInteractionHint(),/pump handle.*inspect/);
-  game.day=3;assert.match(game.getInteractionHint(),/survey origins/);
+  game.day=3;assert.match(game.getInteractionHint(),/starting point/);
 });
 
 test('MakeHuman scene figures embed masked textures and match their editable sources',async()=>{
@@ -2266,10 +2266,10 @@ test('paired routes share origins and use calibrated distances independent of tr
   for(const route of routes){assert.ok(route.metres>20&&route.metres<800);assert.equal(route.seconds,Math.round(route.metres/1.2));}
  }
  const game=gameAtDay(3);const r=surveyRoutes[0];game.travelToLocation('broad-street');game.inspectHotspot(r.origin);
- assert.equal(game.recordSurveyRoute(),false);assert.equal(game.startSurveyRoute(surveyRoutes[2].id),false,'wrong origin');
- assert.ok(game.startSurveyRoute(r.id));game.inspectHotspot('survey-rupert');assert.equal(game.recordSurveyRoute(),false,'origin is not destination');
- const saved=new GameState();assert.ok(saved.restoreSave(game.serializeSave()));saved.inspectHotspot(r.stop);assert.ok(saved.recordSurveyRoute());
- assert.equal(saved.recordSurveyRoute(),false,'once-only observation');assert.deepEqual(saved.getRouteObservations()[0],{routeId:r.id,metres:r.metres,seconds:r.seconds});
+ assert.equal(game.advancePumpComparison('finish'),false,'cannot skip visits');
+ assert.ok(game.advancePumpComparison('visit'));assert.equal(game.advancePumpComparison('visit'),false,'arrival records only once');
+ const saved=new GameState();assert.ok(saved.restoreSave(game.serializeSave()));saved.resumePumpComparison();
+ assert.deepEqual(saved.getRouteObservations()[0],{routeId:r.id,metres:r.metres,seconds:r.seconds});
  assert.equal(saved.hasWalkingBoundary(),false);completeSurvey(game);assert.ok(game.hasWalkingBoundary());
 });
 
@@ -2330,7 +2330,7 @@ test('VR day, route and hearing buttons drive the shared campaign and expose eac
  scene.handleVrButton({type:'end-day'});assert.equal(game.day,2);assert.ok(game.dayIntroOpen);
  scene.handleVrButton({type:'dismiss-day'});assert.equal(game.dayIntroOpen,false);
  const survey=gameAtDay(3);survey.travelToLocation('broad-street');survey.inspectHotspot('survey-marlborough');scene.gameState=survey;
- const route=surveyRoutes[0];scene.handleVrButton({type:'start-route',routeId:route.id});survey.travelToLocation(route.destination);survey.inspectHotspot(route.stop);scene.handleVrButton({type:'record-route'});assert.deepEqual(survey.getRouteObservations()[0],{routeId:route.id,metres:route.metres,seconds:route.seconds});
+ const route=surveyRoutes[0];const place=scene.placeVrPanelInFront;scene.placeVrPanelInFront=()=>{};scene.handleVrButton({type:'guided-survey',action:'visit'});scene.placeVrPanelInFront=place;assert.deepEqual(survey.getRouteObservations()[0],{routeId:route.id,metres:route.metres,seconds:route.seconds});
  const hearing=reviewGame();hearing.selectHypothesis('waterborne');hearing.prepareBoardArgument();hearing.presentToBoard();scene.gameState=hearing;scene.vrPanelMode='synthesis';
  scene.handleVrButton({type:'begin-hearing'});assert.equal(scene.vrPanelMode,'home');assert.equal(placements,1);assert.equal(hearing.boardPresented,false);
  for(let i=0;i<30&&!hearing.getConversationView().complete;i++){const v=hearing.getConversationView();scene.handleVrButton({type:'conversation-choice',beatId:v.beatId,choiceId:v.choices[0].id});}
@@ -2651,4 +2651,56 @@ test('pump closure removes handle interaction and water, shows the hanging notic
  street.setPumpClosed(false);assert.equal(street.closureNotice.visible,false);street.closureNotice.traverse(o=>assert.equal(o.layers.mask,0));assert.equal(street.pumpAction.handle.visible,true);assert.ok(street.pumpAction.stroke());
  for(let i=0;i<6;i++)street.pumpAction.update(.05,false);
  street.setPumpClosed(false);assert.equal(street.pumpAction.stroke(),false,'ordinary UI refresh must not reset an ongoing stroke');
+});
+
+
+test('guided comparisons resume every step, preserve one origin per pair and award evidence only through Snow',()=>{
+ for(const answerIndex of [0,1]) {
+  let game=gameAtDay(3);assert.equal(game.canResumePumpComparison(),true);game.travelToLocation('broad-street');
+  assert.deepEqual(game.getHotspots().filter(h=>h.id.startsWith('survey-')).map(h=>h.id),['survey-marlborough']);
+  game.inspectHotspot('survey-marlborough');const firstStep=game.getFieldworkView().guided.key;
+  const origins=new Map(),seen=new Set();let count=0;
+  while(game.getFieldworkView()) {
+   const view=game.getFieldworkView().guided;seen.add(view.key);
+   assert.ok(view.actions.length<=2);assert.equal(game.hasEvidence('walking-access'),false);
+   const state=JSON.parse(game.serializeSave()).surveyProgress,route=surveyRoutes.find(r=>r.id===state.routeId);
+   if(state.phase==='origin') {const spawn=game.getFieldworkSpawn();if(origins.has(route.pair))assert.deepEqual(spawn,origins.get(route.pair));else origins.set(route.pair,spawn);assert.ok(isValidDestination(new THREE.Vector3(...spawn)));}
+   const action=view.actions[Math.min(answerIndex,view.actions.length-1)].id;
+   assert.ok(game.advancePumpComparison(action,view.key));assert.equal(game.advancePumpComparison(action,view.key),false,'stale click cannot advance another beat');
+   if(game.getFieldworkView()) {
+    const nextView=game.getFieldworkView().guided;
+    game.closeDialogue();assert.equal(game.getFieldworkView(),undefined);game.travelToLocation('brewery');
+    const resumed=new GameState();assert.ok(resumed.restoreSave(game.serializeSave()));assert.ok(resumed.resumePumpComparison());game=resumed;
+    assert.deepEqual(game.getFieldworkView().guided,nextView,'reload and interruption preserve the exact beat');
+    if(nextView.key!==firstStep)assert.equal(game.advancePumpComparison('visit',firstStep),false);
+   }
+   assert.ok(++count<25);
+  }
+  assert.equal(origins.size,2);assert.equal(game.getRouteObservations().length,4);assert.ok(game.hasWalkingBoundary());assert.equal(game.getSurveyOrigin(),undefined);
+  assert.ok(game.resumePumpComparison());assert.equal(game.currentLocationId,'snow-desk');assert.equal(game.getConversationView().speaker,'John Snow');
+  finishConversation(game,answerIndex);assert.equal(game.getCollectedEvidence().filter(e=>e.id==='walking-access').length,1);assert.equal(game.canResumePumpComparison(),false);
+ }
+});
+
+test('guided comparison rejects unavailable days and invalid cursors, and migrates earlier route saves',()=>{
+ for(const day of [1,2]) {const game=gameAtDay(day);assert.equal(game.resumePumpComparison(),false);assert.equal(game.advancePumpComparison('visit'),false);}
+ const base=gameAtDay(3);const old=JSON.parse(base.serializeSave());old.routes=['marlborough-broad'];old.selectedRoute='marlborough-alternative';
+ const migrated=new GameState();assert.ok(migrated.restoreSave(JSON.stringify(old)));assert.ok(migrated.resumePumpComparison());assert.match(migrated.getFieldworkView().guided.actions[0].label,/Marlborough/);assert.equal(migrated.getRouteObservations().length,1);
+ completeSurvey(migrated);assert.ok(migrated.hasEvidence('walking-access'));
+ base.resumePumpComparison();const valid=base.serializeSave();
+ for(const mutation of [v=>v.surveyProgress.phase='missing',v=>v.surveyProgress.routeId='missing',v=>v.surveyProgress.phase='arrival',v=>v.surveyProgress.phase='feedback',v=>v.surveyProgress.phase='done',v=>v.selectedRoute='marlborough-broad']) {
+  const data=JSON.parse(valid);mutation(data);const before=base.serializeSave();assert.equal(base.restoreSave(JSON.stringify(data)),false);assert.equal(base.serializeSave(),before);
+ }
+});
+
+test('VR guided panel uses the shared steps and shows the map before the Snow discussion',()=>{
+ const game=gameAtDay(3);game.resumePumpComparison();const scene=Object.create(BroadStreetScene.prototype);const buttons=[];
+ Object.assign(scene,{gameState:game,vrPanelMode:'home',vrPanelVisible:true,vrPanelDrawCommands:[],clearVrPanel:()=>{},addVrText:()=>{},addVrIconButton:()=>{},addVrPanelSurface:()=>{},addVrPanelButton:(label,x,y,w,h,action)=>buttons.push({label,action}),
+  showVrPanel:()=>{},placeVrPanelInFront:()=>{},refreshHotspots:()=>{},markVrPanelDirty:()=>{}});
+ while(game.getFieldworkView()) {
+  buttons.length=0;scene.rebuildVrPanel();const guide=game.getFieldworkView().guided;
+  assert.deepEqual(buttons.map(b=>b.label),guide.actions.map(a=>a.label));scene.handleVrButton(buttons[0].action);
+ }
+ assert.equal(scene.vrPanelMode,'map');assert.ok(game.hasWalkingBoundary());assert.equal(game.getConversationView(),undefined);
+ scene.handleVrButton({type:'resume-survey'});assert.equal(scene.vrPanelMode,'home');assert.equal(game.getConversationView().speaker,'John Snow');
 });

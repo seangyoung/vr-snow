@@ -1831,3 +1831,12 @@ button:focus-visible, [role="dialog"]:focus-visible {
 
 /* Earlier field visits remain geographic references, never travel controls. */
 .map-visited-mark { position:absolute; transform:translate(-50%,-50%); width:14px; height:14px; border:1px solid #625c49; border-radius:50%; background:#eee3c7; color:#4c6152; font:bold 10px/12px sans-serif; text-align:center; cursor:default; }
+
+.pump-comparison-results { display:flex; gap:1rem; margin:.6rem 0; flex-wrap:wrap; }
+.pump-comparison-results > div { flex:1; min-width:10rem; border:1px solid #887750; border-radius:.4rem; padding:.5rem .75rem; }
+.pump-comparison-results dt { font-size:.85rem; }
+.pump-comparison-results dd { margin:.25rem 0 0; color:#f1d79c; font-weight:700; }
+
+.pump-comparison-panel > h3, .pump-comparison-panel > p, .pump-comparison-panel > dl { margin-left:18px; margin-right:18px; }
+.pump-comparison-panel > h3 { margin-top:.6rem; margin-bottom:.5rem; }
+.pump-comparison-panel > small { display:block; margin:0 18px 12px; color:#b9c9c4; }

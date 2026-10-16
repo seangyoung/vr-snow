@@ -31,7 +31,7 @@ export const streetTravelRoutes: WorldTravelRoute[] = [
 
 export const returnTravelRoutes: WorldTravelRoute[] = [
  ...(['household-routines','household-away'] as const).map(from=>({id:from+'-return',from,to:'broad-street' as const,title:'Return to Broad Street',direction:'Leave the household',position:[1.25,2.8,3.2] as [number,number,number],labelWidth:1.45,yaw:Math.PI,zone:{x:1.25,z:2.8,radius:.32},door:true})),
- ...(['marlborough-pump','rupert-pump'] as const).map(from=>({id:from+'-return',from,to:'broad-street' as const,title:'Return to survey origins',direction:'Broad Street · Select the next paired route',position:[0,2.3,3.85] as [number,number,number],yaw:Math.PI,zone:{x:0,z:3.35,radius:.3}})),
+ ...(['marlborough-pump','rupert-pump'] as const).map(from=>({id:from+'-return',from,to:'broad-street' as const,title:'Return to Broad Street',direction:'Continue exploring the neighborhood',position:[0,2.3,3.85] as [number,number,number],yaw:Math.PI,zone:{x:0,z:3.35,radius:.3}})),
   // Fixed exits in panorama scenes; the modeled interiors also have walk-in doorway zones.
   { id:"household-return", from:"household", to:"broad-street", title:"Return to Broad Street", direction:"Leave the household", position:[1.25,2.8,2.8],labelWidth:1.45,yaw:Math.PI, zone:{x:1.25,z:2.4,radius:.32}, door:true },
   { id:"brewery-return", from:"brewery", to:"broad-street", title:"Return to Broad Street", direction:"Leave the brewery", position:[1.8,2.8,5.8],labelWidth:1.45,yaw:Math.PI, zone:{x:1.8,z:5.25,radius:.4}, door:true },

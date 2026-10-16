@@ -78,7 +78,7 @@
     {
       "id": "marlborough-broad",
       "pair": "marlborough",
-      "title": "Survey A \u2192 Broad Street",
+      "title": "Western starting point \u2192 Broad Street",
       "origin": "survey-marlborough",
       "destination": "broad-street",
       "stop": "survey-broad-pump",
@@ -100,7 +100,7 @@
     {
       "id": "marlborough-alternative",
       "pair": "marlborough",
-      "title": "Survey A \u2192 Marlborough Street",
+      "title": "Western starting point \u2192 Marlborough Street",
       "origin": "survey-marlborough",
       "destination": "marlborough-pump",
       "stop": "survey-marlborough-pump",
@@ -130,7 +130,7 @@
     {
       "id": "rupert-broad",
       "pair": "rupert",
-      "title": "Survey B \u2192 Broad Street",
+      "title": "Eastern starting point \u2192 Broad Street",
       "origin": "survey-rupert",
       "destination": "broad-street",
       "stop": "survey-broad-pump",
@@ -148,7 +148,7 @@
     {
       "id": "rupert-alternative",
       "pair": "rupert",
-      "title": "Survey B \u2192 Rupert Street",
+      "title": "Eastern starting point \u2192 Rupert Street",
       "origin": "survey-rupert",
       "destination": "rupert-pump",
       "stop": "survey-rupert-pump",

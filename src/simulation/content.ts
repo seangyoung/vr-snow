@@ -114,15 +114,15 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
 
 export const locationInteractionHints: Record<LocationId, string> = {
   "snow-desk": "Select John Snow at his desk to speak with him.",
-  "broad-street": "Use the pump handle to draw water, then select the pump to inspect it. Speak with Whitehead and both street residents. Day 3 survey origins are marked on the pavement.",
+  "broad-street": "Use the pump handle to draw water, then select the pump to inspect it. Speak with Whitehead and both street residents. On day 3, a marked starting point begins the guided pump comparison.",
   household: "Select the seated household survivor to interview her.",
   registrar: "Select the registrar or the open ledger to review the death returns.",
   workhouse: "Select the steward to ask about the water supply. You can also work the pump handle and inspect its water.",
   brewery: "Select either brewery owner to ask about the workers' drinking water.",
   "household-routines": "Select the householder to begin the interview.",
   "household-away": "Select the householder to begin the interview.",
-  "marlborough-pump": "Inspect the survey stop and record the selected route comparison.",
-  "rupert-pump": "Inspect the survey stop and record the selected route comparison.",
+  "marlborough-pump": "Your visit is recorded automatically during the guided comparison. Resume the pump comparison to continue.",
+  "rupert-pump": "Your visit is recorded automatically during the guided comparison. Resume the pump comparison to continue.",
   "board-room": "Select the table or a Board member to begin or resume the hearing.",
 };
 
@@ -287,11 +287,8 @@ export const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
 
 export const hotspots: Hotspot[] = [
   {id:'workhouse-pump',locationId:'workhouse',label:'Workhouse pump',shortLabel:'Water sample',description:'Work the handle, then select the pump to inspect its water.',position:[3,1.4,-5.8]},
-  {id:'survey-marlborough',locationId:'broad-street',label:'Survey A · western origin',shortLabel:'Survey A',description:'Compare both routes from this same marked origin.',position:[-8.5,1.25,-2]},
-  {id:'survey-rupert',locationId:'broad-street',label:'Survey B · eastern origin',shortLabel:'Survey B',description:'Compare both routes from this same marked origin.',position:[8,1.25,-2]},
-  {id:'survey-broad-pump',locationId:'broad-street',label:'Record Broad Street route',shortLabel:'Survey stop',description:'Record the selected walk at the pump.',position:[-3.0,1.2,1.9]},
-  {id:'survey-marlborough-pump',locationId:'marlborough-pump',label:'Marlborough survey stop',shortLabel:'Record route',description:'Record the selected route.',position:[.65,1.25,-2]},
-  {id:'survey-rupert-pump',locationId:'rupert-pump',label:'Rupert survey stop',shortLabel:'Record route',description:'Record the selected route.',position:[.65,1.25,-2]},
+  {id:'survey-marlborough',locationId:'broad-street',label:'Compare nearby pumps · western starting point',shortLabel:'Compare pumps',description:'Compare both routes from this same marked origin.',position:[-8.5,1.25,-2]},
+  {id:'survey-rupert',locationId:'broad-street',label:'Compare nearby pumps · eastern starting point',shortLabel:'Compare pumps',description:'Compare both routes from this same marked origin.',position:[8,1.25,-2]},
   {id:"resident-west",locationId:"broad-street",label:"Street shopkeeper",shortLabel:"Shopkeeper",description:"Ask about the chloride of lime and the neighborhood.",position:[-10,1.82,-7]},
   {id:"resident-east",locationId:"broad-street",label:"Street neighbor",shortLabel:"Neighbor",description:"Ask about the neighborhood’s disrupted routines.",position:[11,1.82,-7]},
   {id:"routines-household",locationId:"household-routines",label:"Householder",shortLabel:"Householder",description:"Speak with the householder.",position:[-.65,1.4,-.2],evidenceId:"household-water-pattern"},

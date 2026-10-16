@@ -1,6 +1,5 @@
 import { streetPlacement } from '../simulation/streetPopulation';
 import { PumpSurveyStop } from "../walkable/PumpSurveyStop";
-import { surveyRoutes, type RouteId } from "../simulation/fieldwork";
 import { AdditionalHousehold } from "../walkable/AdditionalHousehold";
 import { BoardRoom } from "../walkable/BoardRoom";
 import * as THREE from "three";
@@ -59,8 +58,8 @@ type VrButtonAction =
   | { type: "begin-hearing" }
   | { type: "finish-board" }
   | { type: "reset" }
-  | { type:"start-route"; routeId:RouteId }
-  | { type:"record-route" | "conclude-survey" }
+  | { type:"resume-survey" }
+  | { type:"guided-survey"; action:string; stepKey?:string }
   | { type: "end-day" | "review-theory" | "board-decision" | "dismiss-day" | "continue-inquiry" | "new-inquiry" };
 
 type VrButtonMesh = THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> & {
@@ -468,6 +467,8 @@ export class BroadStreetScene {
   }
 
   private get arrivalSpawn(): THREE.Vector3 | undefined {
+    const fieldworkSpawn=this.gameState.getFieldworkSpawn();
+    if(fieldworkSpawn)return new THREE.Vector3(...fieldworkSpawn);
     return this.gameState.isPumpClosed() && this.gameState.getCurrentLocation().id === "broad-street" ? new THREE.Vector3(-3.8,0,-1.6) : this.walkable?.spawn;
   }
 
@@ -1357,9 +1358,8 @@ export class BroadStreetScene {
   private handleVrButton(action: VrButtonAction): void {
     this.sound?.effect(action.type==="mode" && ["map","notebook"].includes(action.mode)?"paper":"select");
     switch (action.type) {
-      case 'start-route':this.gameState.startSurveyRoute(action.routeId);this.hideVrPanel();return;
-      case 'record-route':this.gameState.recordSurveyRoute();break;
-      case 'conclude-survey':this.gameState.concludeSurvey();break;
+      case 'resume-survey':this.gameState.resumePumpComparison();this.vrPanelMode='home';this.placeVrPanelInFront();break;
+      case 'guided-survey': { const revision=this.gameState.fieldworkTravelRevision;this.gameState.advancePumpComparison(action.action,action.stepKey);if(action.action==='finish')this.vrPanelMode='map';if(revision!==this.gameState.fieldworkTravelRevision)this.placeVrPanelInFront();break; }
       case 'continue-inquiry':this.gameState.continueInquiry();this.applyCurrentLocation();break;
       case 'new-inquiry':this.gameState.reset();this.applyCurrentLocation();break;
       case 'dismiss-day':this.gameState.dismissDayIntroduction();this.vrPanelMode='home';this.showVrPanel();return;
@@ -1591,17 +1591,17 @@ export class BroadStreetScene {
       this.addVrPanelSurface();return;
     }
     const survey=this.vrPanelMode==='home'?this.gameState.getFieldworkView():undefined;
-    if(survey){
-      this.vrSurfaceHeight=1.7;this.addVrText(survey.title,0,.62,2.3,.15,{fontSize:34,color:'#f1d79c'});
-      this.addVrIconButton('x',1.22,.62,.2,{type:'close-dialogue'});
-      this.addPaginatedVrText('survey:'+survey.title,survey.text,0,.24,2.45,.42,{fontSize:27},-.06);
-      survey.routes.forEach((r,i)=>{
-        if(survey.observations.some(o=>o.routeId===r.id))this.addVrText(r.title+' · recorded',0,-.23-i*.2,2.5,.16,{fontSize:24});
-        else this.addVrPanelButton(r.title,0,-.23-i*.2,2.5,.18,{type:'start-route',routeId:r.id});
-      });
-      if(survey.canRecord)this.addVrPanelButton('Record this route',0,-.3,2,.22,{type:'record-route'});
-      if(survey.canConclude)this.addVrPanelButton('Compare the results',0,-.52,2,.22,{type:'conclude-survey'});
-      this.addVrText(`${survey.observations.length}/4 routes recorded · Estimates assume 1.2 m/s`,0,-.7,2.5,.12,{fontSize:23});this.addVrPanelSurface();return;
+    if(survey?.guided){
+      const guide=survey.guided;
+      this.vrSurfaceHeight=2.05;
+      this.addVrText(guide.progress,-.1,.83,2.3,.13,{fontSize:23,color:'#f1d79c'});
+      this.addVrIconButton('x',1.22,.83,.2,{type:'close-dialogue'});
+      this.addVrText(guide.title,0,.59,2.5,.22,{fontSize:30});
+      this.addVrText(guide.text,0,.29,2.5,.36,{fontSize:26});
+      guide.results.forEach((result,i)=>this.addVrText(`${result.label}: ${result.time}`,0,-.04-i*.17,2.5,.15,{fontSize:25,color:'#f1d79c'}));
+      guide.actions.forEach((action,i)=>this.addVrPanelButton(action.label,0,-.46-i*.24,2.5,.22,{type:'guided-survey',action:action.id,stepKey:guide.key}));
+      this.addVrText('Estimated journeys · Intervening streets skipped · 1.2 m/s',0,-.88,2.5,.13,{fontSize:21});
+      this.addVrPanelSurface();return;
     }
     const conversation = this.vrPanelMode === "home" ? this.gameState.getConversationView() : undefined;
     if (conversation) {
@@ -1618,14 +1618,15 @@ export class BroadStreetScene {
     const compactHome=this.vrPanelMode==="home" && !this.gameState.getActiveDialogue()
       && !["synthesis","board","complete"].includes(this.gameState.getStage());
     if(compactHome) {
-      this.vrSurfaceHeight=1.15;
+      this.vrSurfaceHeight=this.gameState.canResumePumpComparison()?1.65:1.15;
       this.addVrText(currentLocation.title,0,.39,2.2,.16,{fontSize:40,color:"#f6deb0",weight:"700"});
       this.addVrIconButton("x",1.22,.39,.2,{type:"close-panel"});
       this.addVrText(this.gameState.getObjective(),0,.14,2.5,.22,{fontSize:30,color:"#d9e5e1"});
       this.addVrPanelButton("Map",-.88,-.15,.78,.23,{type:"mode",mode:"map"},{highlight:this.vrMapNeedsAttention});
       this.addVrPanelButton("Notebook",0,-.15,.85,.23,{type:"mode",mode:"notebook"});
       this.addVrPanelButton("Settings",.88,-.15,.78,.23,{type:"mode",mode:"settings"});
-      this.addVrText("Trigger selects · Grip closes · Left stick walks · Right stick turns",0,-.43,2.55,.14,{fontSize:24,color:"#b9c9c4"});
+      if(this.gameState.canResumePumpComparison())this.addVrPanelButton(this.gameState.getPumpComparisonLabel(),0,-.43,2.5,.22,{type:'resume-survey'});
+      this.addVrText("Trigger selects · Grip closes · Left stick walks · Right stick turns",0,this.gameState.canResumePumpComparison()?-.71:-.43,2.55,.14,{fontSize:24,color:"#b9c9c4"});
       this.addVrPanelSurface();return;
     }
     if(["settings","height","controls"].includes(this.vrPanelMode)) {
@@ -1874,6 +1875,9 @@ export class BroadStreetScene {
       return;
     }
 
+    if(this.gameState.hasWalkingBoundary() && this.gameState.canResumePumpComparison()) {
+      this.addVrPanelButton(this.gameState.getPumpComparisonLabel(),0,-.81,2.5,.23,{type:'resume-survey'});return;
+    }
     const page=this.getVrListPage('map:locations',locations.length,6);
     this.addVrMapTravelButtons(locations.slice(page*6,page*6+6));
     if(locations.length>6){
