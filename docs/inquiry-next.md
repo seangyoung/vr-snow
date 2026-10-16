@@ -179,3 +179,25 @@ All 194 automated checks, both deployment-base builds and manifest/icon checks p
 Desktop Chrome testing activated each handle, waited for flowing water, inspected
 both samples and verified saved progress, with no browser errors. Visual review
 confirmed the replacement fitting and its captured-sky lighting.
+
+## Required daily briefings — 16 October 2026
+
+Each morning’s “Speak with Snow” action now opens that day’s assignment conversation
+immediately. Until its shared concluding beat grants the assignment, all inter-scene
+travel and map access are locked against the current day, including earlier locations,
+world exits, desktop map shortcuts and VR controller/menu shortcuts. The mandatory
+briefing cannot be dismissed by Escape, outside selection or controller grip; head
+movement and VR settings shortcuts remain available. Normal dialogue dismissal returns once Snow
+has given the assignment. The notebook shortcut also remains available.
+
+Reloading an unfinished briefing resumes its saved beat at Snow’s office. Older preview
+saves made outside the office before the current day’s assignment are safely returned
+there without discarding evidence or previous daily work. New day progression still
+requires the prior day’s fieldwork, recap and explicit End day action.
+
+All 197 automated checks pass, including all three daily locks, shared conversation
+conclusions, legacy save recovery and VR dismissal/shortcut guards.
+
+Desktop browser checks passed on all three days: automatic briefing, blocked map
+shortcut, dismissal guard, reload/resume and travel unlocked after the assignment.
+Production-base and preview-base builds and web-app packaging checks also pass.

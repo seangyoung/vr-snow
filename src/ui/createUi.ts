@@ -176,6 +176,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 
     if(gameState.startupOpen && !['continue-inquiry','new-inquiry'].includes(action))return;
     if(gameState.dayIntroOpen && !gameState.startupOpen && !['dismiss-day','new-inquiry'].includes(action))return;
+    if((action==='map' || action==='map-primary') && !gameState.canUseMap())return;
     if(action==='start-route'){gameState.startSurveyRoute(actionTarget.dataset.routeId as RouteId);render();return;}
     if(action==='record-route'){gameState.recordSurveyRoute();render();return;}
     if(action==='conclude-survey'){gameState.concludeSurvey();render();return;}
@@ -313,7 +314,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       snowReviewOpen = false;
       overlayMode = overlayMode === "notebook" ? "none" : "notebook";
     }
-    if (action === "map" && toolsAvailable) {
+    if (action === "map" && toolsAvailable && gameState.canUseMap()) {
       gameState.closeDialogue();
       snowReviewOpen = false;
       overlayMode = overlayMode === "map" ? "none" : "map";
@@ -345,6 +346,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 
   function render(): void {
     keyboard.beforeRender();
+    if(overlayMode==='map' && !gameState.canUseMap())overlayMode='none';
     const collected = gameState.getCollectedEvidence();
     const allEvidence = gameState.getAllEvidence();
     const activeDialogue = gameState.getActiveDialogue();
@@ -384,7 +386,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
             <i data-lucide="notebook-tabs"></i>
             <span>${gameState.getProgressText()}</span>
           </button>
-          <button class="icon-button ${overlayMode === "map" ? "is-active" : ""}" data-action="map" aria-label="Map" aria-keyshortcuts="M" title="Map (M)">
+          <button class="icon-button ${overlayMode === "map" ? "is-active" : ""}" data-action="map" aria-label="Map" aria-keyshortcuts="M" title="${gameState.canUseMap()?'Map (M)':'Receive today’s assignments from Snow first'}" ${gameState.canUseMap()?'':'disabled'}>
             <i data-lucide="map"></i>
           </button>
           <button class="icon-button" data-action="reset" aria-label="Reset inquiry">
@@ -400,7 +402,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         ${gameState.startupOpen ? renderStartPanel(gameState) : gameState.dayIntroOpen ? renderDayPanel(gameState) : ""}
         ${showChapterPanel ? renderChapterPanel(gameState.getCurrentScene(), stage, gameState) : ""}
         ${showSynthesisPanel ? renderSynthesisPanel(gameState) : ""}
-        ${activeDialogue && overlayMode === "none" ? renderDialoguePanel(activeDialogue, gameState) : ""}
+        ${activeDialogue && !gameState.startupOpen && !gameState.dayIntroOpen && overlayMode === "none" ? renderDialoguePanel(activeDialogue, gameState) : ""}
         ${overlayMode === "notebook" ? renderNotebook(collected, allEvidence, gameState) : ""}
         ${overlayMode === "map" ? renderMap(collected, gameState) : ""}
         ${overlayMode === "sound" ? renderSoundPanel(soundControls) : ""}
@@ -462,7 +464,7 @@ function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): stri
   if (view) return `
     <aside class="dialogue-panel conversation-panel" aria-label="${escapeHtml(view.speaker)} conversation">
       <div class="dialogue-header"><strong>${escapeHtml(view.speaker)}</strong>
-        <button class="icon-button" data-action="close-dialogue" aria-label="Close conversation"><i data-lucide="x"></i></button></div>
+        ${gameState.needsDailyBriefing()?'':'<button class="icon-button" data-action="close-dialogue" aria-label="Close conversation"><i data-lucide="x"></i></button>'}</div>
       <p class="conversation-beat" aria-live="polite">${escapeHtml(view.text)}</p>
       <div class="conversation-choices">${view.choices.map(choice => `<button class="question-button" data-action="conversation-choice" data-beat-id="${escapeHtml(view.beatId)}" data-choice-id="${escapeHtml(choice.id)}">${escapeHtml(choice.label)}</button>`).join("")}
       ${view.terminalAction ? `<button class="question-button" data-action="${view.terminalAction}">${view.terminalAction==='end-day'?'End day':view.terminalAction==='board-decision'?'Read the Board decision':'Review the theories'}</button>` : ''}

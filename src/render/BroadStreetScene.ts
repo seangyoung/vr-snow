@@ -1350,7 +1350,7 @@ export class BroadStreetScene {
       case 'conclude-survey':this.gameState.concludeSurvey();break;
       case 'continue-inquiry':this.gameState.continueInquiry();this.applyCurrentLocation();break;
       case 'new-inquiry':this.gameState.reset();this.applyCurrentLocation();break;
-      case 'dismiss-day':this.gameState.dismissDayIntroduction();this.hideVrPanel();return;
+      case 'dismiss-day':this.gameState.dismissDayIntroduction();this.vrPanelMode='home';this.showVrPanel();return;
       case 'end-day':this.gameState.endDay();this.vrPanelMode='home';break;
       case 'board-decision':this.gameState.closeDialogue();this.vrPanelMode='synthesis';break;
       case 'review-theory':this.gameState.closeDialogue();this.vrPanelMode='synthesis';break;
@@ -1371,6 +1371,9 @@ export class BroadStreetScene {
         if(this.sound)this.sound.setLevel(action.channel,this.sound.getSettings()[action.channel]+action.delta);
         break;
       case "mode":
+        if(action.mode==='map' && !this.gameState.canUseMap()) {
+          this.vrPanelMode='home';this.vrStatus='Receive today’s assignments from Snow before using the map.';break;
+        }
         this.vrPanelMode = this.vrPanelMode === action.mode ? "home" : action.mode;
         if (action.mode === "map") {
           this.vrMapNeedsAttention = false;
@@ -1472,6 +1475,9 @@ export class BroadStreetScene {
   }
 
   private openVrShortcut(mode:"map"|"notebook"|"settings"):void {
+    if(mode==='map' && !this.gameState.canUseMap()) {
+      this.vrPanelMode='home';this.vrStatus='Receive today’s assignments from Snow before using the map.';this.showVrPanel();return;
+    }
     if(this.vrPanelVisible&&this.vrPanelMode===mode) {this.hideVrPanel(true,true);return;}
     this.vrPanelMode=mode;
     if(mode==="map")this.vrMapNeedsAttention=false;
@@ -1515,6 +1521,9 @@ export class BroadStreetScene {
   }
 
   private hideVrPanel(startIdleHintTimer = true, preserveAnswer = false): void {
+    if(this.renderer.xr.isPresenting && this.gameState.needsDailyBriefing() && !this.gameState.startupOpen) {
+      this.vrPanelMode='home';this.showVrPanel(false);return;
+    }
     if(!preserveAnswer)this.gameState.clearActiveDialogueAnswer();
     this.vrStatus = this.getDefaultVrStatus();
     this.vrPanelVisible = false;
@@ -1554,6 +1563,7 @@ export class BroadStreetScene {
       return;
     }
 
+    if(this.vrPanelMode==='map' && !this.gameState.canUseMap())this.vrPanelMode='home';
     const currentLocation = this.gameState.getCurrentLocation();
     this.vrSurfaceHeight=vrPanelHeight;
     if(this.gameState.startupOpen || this.gameState.dayIntroOpen) {
@@ -1585,7 +1595,7 @@ export class BroadStreetScene {
     if (conversation) {
       this.vrSurfaceHeight = 1.32;
       this.addVrText(conversation.speaker, -.10, .48, 2.28, .14, { fontSize: 34, color: "#f1d79c", weight: "700" });
-      this.addVrIconButton("x", 1.22, .48, .2, {type:"close-dialogue"});
+      if(!this.gameState.needsDailyBriefing())this.addVrIconButton("x", 1.22, .48, .2, {type:"close-dialogue"});
       this.addVrText(conversation.text, 0, .17, 2.46, .40, {fontSize:30, color:"#e7ece8"});
       conversation.choices.forEach((choice,index) => this.addVrPanelButton(choice.label, 0, -.15-index*.18, 2.46, .16,
         {type:"conversation-choice", beatId:conversation.beatId, choiceId:choice.id}));

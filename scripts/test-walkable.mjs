@@ -422,7 +422,7 @@ test('office ray proxies select the desk and block floor behind furniture and wa
 });
 
 test('actual office controller path selects desk, respects panels, teleports and exits once assigned',()=>{
-  const game=new GameState(), office=new SnowOffice(), courtyard=new PumpCourtyard();office.group.visible=true;
+  const game=new GameState(), office=new SnowOffice(), courtyard=new PumpCourtyard();office.group.visible=true;game.dismissDayIntroduction();
   const camera=new THREE.PerspectiveCamera();camera.position.set(0,1.62,0);
   const rig=new THREE.Group();rig.add(camera);
   const controller=new THREE.Group();controller.position.set(-.65,1.62,1);
@@ -2144,7 +2144,7 @@ for (const definition of conversations) test(`${definition.id}: all choices reco
 });
 
 test('Snow graph grants the assignment only at its shared conclusion; Whitehead never grants evidence', () => {
-  const game = new GameState(); game.inspectHotspot('john-snow');
+  const game = new GameState(); game.dismissDayIntroduction();
   assert.equal(game.getConversationView().beatId,'opening');
   game.chooseConversation('opening','doubt'); game.closeDialogue(); game.inspectHotspot('john-snow');
   assert.equal(game.getConversationView().beatId,'skepticism'); assert.equal(game.hasFieldAssignment(),false);
@@ -2467,4 +2467,61 @@ test('both pumps work through the same mouse, keyboard and controller tactile pa
     for(let i=0;i<15;i++)scene.updatePumpInteractions(.05);assert.equal(game.hasPumpedWater(location),true);
     scene.resetTactileInteractions();assert.equal(action.water.visible,false);assert.equal(action.handle.rotation.z,0);
   }
+});
+
+
+function unbriefedDay(day) {
+  const saved=JSON.parse(gameAtDay(day).serializeSave());
+  const id=day===1?'snow-introduction':`snow-day-${day}`;
+  delete saved.conversation.cursors[id];saved.conversation.concluded=saved.conversation.concluded.filter(c=>c!==id);
+  saved.location='snow-desk';saved.dayIntro=true;
+  const game=new GameState();assert.ok(game.restoreSave(JSON.stringify(saved)));return game;
+}
+
+test('each day automatically briefs at Snow and gates all travel and map access until the concluding assignment',()=>{
+ for(const day of [1,2,3]) {
+  const game=unbriefedDay(day);
+  assert.equal(game.canUseMap(),false);assert.equal(game.needsDailyBriefing(),true);
+  game.dismissDayIntroduction();assert.equal(game.getConversationView().id,day===1?'snow-introduction':`snow-day-${day}`);
+  for(let n=0;n<20;n++) {
+    const view=game.getConversationView();if(view.complete)break;
+    assert.equal(game.canUseMap(),false);
+    for(const location of game.getLocations())assert.equal(game.canTravelToLocation(location.id),false);
+    assert.equal(game.travelToLocation('broad-street').traveled,false);
+    game.beginFieldwork();assert.equal(game.currentLocationId,'snow-desk');
+    game.closeDialogue();assert.equal(game.getConversationView().beatId,view.beatId,'mandatory briefing cannot be dismissed');
+    const restored=new GameState();assert.ok(restored.restoreSave(game.serializeSave()));
+    assert.equal(restored.currentLocationId,'snow-desk');assert.equal(restored.getConversationView().beatId,view.beatId);
+    game.chooseConversation(view.beatId,view.choices[0].id);
+  }
+  assert.ok(game.hasCurrentAssignment());assert.ok(game.canUseMap());
+  assert.ok(game.canTravelToLocation('broad-street'));assert.ok(game.canTravelToLocation('registrar'));
+  game.closeDialogue();assert.equal(game.getConversationView(),undefined);assert.ok(game.travelToLocation('broad-street').traveled);
+ }
+});
+
+test('old saves outside the office before a daily assignment resume the unfinished Snow briefing safely',()=>{
+ for(const day of [2,3]) {
+  const game=unbriefedDay(day);game.dismissDayIntroduction();
+  const first=game.getConversationView();game.chooseConversation(first.beatId,'doubt');
+  const old=JSON.parse(game.serializeSave());old.location='broad-street';
+  const restored=new GameState();assert.ok(restored.restoreSave(JSON.stringify(old)));
+  assert.equal(restored.currentLocationId,'snow-desk');assert.equal(restored.getConversationView().beatId,'doubt');
+  assert.equal(restored.canUseMap(),false);finishConversation(restored);assert.ok(restored.canUseMap());
+ }
+});
+
+test('VR map shortcuts and menu actions return to the required briefing, which grip cannot hide',()=>{
+ for(const day of [1,2,3]) {
+  const game=unbriefedDay(day),scene=Object.create(BroadStreetScene.prototype);
+  Object.assign(scene,{gameState:game,renderer:{xr:{isPresenting:true}},vrPanelMode:'home',vrPanelVisible:true,
+    vrPanel:new THREE.Group(),vrIdleHint:new THREE.Group(),refreshHotspots:()=>{},markVrPanelDirty:()=>{},placeVrPanelInFront:()=>{}});
+  scene.handleVrButton({type:'dismiss-day'});
+  assert.ok(game.getConversationView());assert.ok(scene.vrPanelVisible);
+  scene.openVrShortcut('map');assert.equal(scene.vrPanelMode,'home');
+  scene.handleVrButton({type:'mode',mode:'map'});assert.equal(scene.vrPanelMode,'home');
+  scene.hideVrPanel();assert.ok(scene.vrPanelVisible);assert.ok(game.getConversationView());
+  finishConversation(game);scene.openVrShortcut('map');assert.equal(scene.vrPanelMode,'map');
+  scene.hideVrPanel();assert.equal(scene.vrPanelVisible,false);
+ }
 });

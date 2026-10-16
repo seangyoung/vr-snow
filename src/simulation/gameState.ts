@@ -74,6 +74,14 @@ export class GameState {
   getDay() { return dayDefinition(this.day); }
   getAssignments() { return this.getDay().objectives.map(item=>({...item,complete:this.objectives.has(item.id)})); }
   hasCurrentAssignment(): boolean { return this.assignedDays.has(this.day); }
+  needsDailyBriefing(): boolean { return this.stage==='field' && !this.hasCurrentAssignment(); }
+  canUseMap(): boolean { return !this.startupOpen && !this.dayIntroOpen && this.hasCurrentAssignment() && !['briefing','board'].includes(this.stage); }
+  private openDailyBriefing(): void {
+    if(!this.needsDailyBriefing())return;
+    this.currentLocationId='snow-desk';
+    const id=this.day===1?'snow-introduction':`snow-day-${this.day}`;
+    this.conversations.open(id);this.activeDialogueId=id;this.activeDialogueQuestionId=undefined;
+  }
   isDayFieldworkComplete(): boolean { return this.getDay().objectives.every(o=>this.objectives.has(o.id)); }
   canEndDay(): boolean { return this.day<3 && this.recaps.has(this.day) && this.currentLocationId==='snow-desk'; }
   getDayIntroduction(): string[] { const day=this.getDay(); return [
@@ -82,7 +90,7 @@ export class GameState {
     ...(this.day===1?[chronologyNote]:[]),
     'Speak with Snow for today’s assignments.'
   ]; }
-  dismissDayIntroduction(): void { this.dayIntroOpen=false; this.emitChange(); }
+  dismissDayIntroduction(): void { this.dayIntroOpen=false; this.openDailyBriefing(); this.emitChange(); }
   endDay(): boolean {
     if(!this.canEndDay())return false;
     this.day=(this.day+1) as InquiryDay; this.dayIntroOpen=true;this.conversations.close();
@@ -258,6 +266,7 @@ export class GameState {
   }
 
   beginFieldwork(): void {
+    if(!this.hasCurrentAssignment() || this.dayIntroOpen || this.startupOpen)return;
     this.stage = "field";
     this.currentLocationId = "broad-street";
     this.activeDialogueId = undefined;
@@ -319,6 +328,8 @@ export class GameState {
       return { traveled: false, message: "That location is not on the inquiry map." };
     }
 
+    if(this.needsDailyBriefing())return {traveled:false,message:"Receive today’s assignments from Snow before leaving his office."};
+
     if (!this.canTravelToLocation(locationId)) {
       return { traveled: false, message: `${location.title} is not available for field travel yet.` };
     }
@@ -339,6 +350,7 @@ export class GameState {
   }
 
   closeDialogue(): void {
+    if(this.needsDailyBriefing() && this.getConversationView())return;
     this.activeSurvey=undefined;
     this.conversations.close();
     this.activeDialogueId = undefined;
@@ -551,9 +563,7 @@ export class GameState {
       return false;
     }
 
-    if (!this.hasFieldAssignment()) {
-      return location.id === "snow-desk";
-    }
+    if (!this.hasCurrentAssignment() || this.dayIntroOpen || this.startupOpen)return false;
 
     return this.isLocationUnlocked(location);
   }
@@ -567,7 +577,7 @@ export class GameState {
       return location.id === "snow-desk";
     }
 
-    if (!this.hasFieldAssignment()) {
+    if (!this.hasCurrentAssignment()) {
       return location.id === "snow-desk";
     }
 
@@ -743,6 +753,12 @@ export class GameState {
       this.selectedHypothesisId=value.hypothesis;this.preparedForBoard=value.prepared;this.boardPresented=hearing;
       this.pumpedWater=new Set(water);this.recordedRoutes=new Set(value.routes);this.selectedRoute=value.selectedRoute;this.activeSurvey=undefined;
       this.dayIntroOpen=value.dayIntro;this.activeDialogueId=undefined;this.activeDialogueQuestionId=undefined;
+      // Older previews allowed an unbriefed player to leave on days two and three.
+      // Resume that day's conversation safely at Snow's office, preserving its cursor.
+      if(this.needsDailyBriefing()) {
+        this.currentLocationId='snow-desk';
+        if(!this.dayIntroOpen)this.openDailyBriefing();
+      }
       return true;
     } catch { return false; }
   }
