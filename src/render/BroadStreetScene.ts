@@ -1,3 +1,4 @@
+import { streetPlacement } from '../simulation/streetPopulation';
 import { PumpSurveyStop } from "../walkable/PumpSurveyStop";
 import { surveyRoutes, type RouteId } from "../simulation/fieldwork";
 import { AdditionalHousehold } from "../walkable/AdditionalHousehold";
@@ -101,6 +102,7 @@ type VrMapLocationCommand = {
   unlocked: boolean;
   current: boolean;
   boardReady: boolean;
+  archived?: boolean;
   offMapDirection?: "east" | "south" | "southwest" | "southeast";
 };
 
@@ -517,9 +519,12 @@ export class BroadStreetScene {
   }
 
   refreshHotspots(): void {
+    this.courtyard?.characters.setDay(this.gameState.day);
     this.worldTravel?.refresh(this.gameState);
     const activeHotspotIds = new Set(this.gameState.getHotspots().map((hotspot) => hotspot.id));
     this.hotspotVisuals.forEach(({ mesh, label, ground }) => {
+      const placement=streetPlacement(this.gameState.day,mesh.userData.hotspot.id);
+      if(placement) { mesh.position.x=label.position.x=placement.position[0]; mesh.position.z=label.position.z=placement.position[2]; }
       const active = activeHotspotIds.has(mesh.userData.hotspot.id);
       if(ground)ground.visible=active;
       const inspected = this.gameState.hasInspected(mesh.userData.hotspot.id);
@@ -2086,8 +2091,7 @@ export class BroadStreetScene {
       routes:surveyRoutes.filter(r=>this.gameState.getRouteObservations().some(o=>o.routeId===r.id)),
       accessVisible:this.gameState.hasWalkingBoundary(),
       locations: this.gameState
-        .getLocations()
-        .filter((location) => !location.boardOnly)
+        .getMapLocations()
         .map((location) => ({
           id: location.id,
           label: location.shortTitle,
@@ -2096,6 +2100,7 @@ export class BroadStreetScene {
           unlocked: this.gameState.isLocationUnlocked(location),
           current: location.id === currentLocationId,
           boardReady: false,
+          archived: this.gameState.isArchivedLocation(location),
           offMapDirection: getVrMapOffMapDirection(location.id),
         })),
     });
@@ -3233,6 +3238,10 @@ function drawVrMapLocation(
   const x = clampValue(location.x, 3, 97);
   const y = clampValue(location.y, 5, 95);
   const point = getVrMapCanvasPoint(rect, x, y);
+  if(location.archived) {
+    ctx.beginPath();ctx.arc(point.x,point.y,rect.width*.007,0,Math.PI*2);ctx.fillStyle="#667569";ctx.fill();
+    ctx.fillStyle="#fff4d8";ctx.font=`bold ${Math.max(11,rect.width*.012)}px Arial`;ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("✓",point.x,point.y);return;
+  }
   const radius = rect.width * 0.018;
   const activeColor = location.boardReady ? "#e9b653" : location.current ? "#2f6f69" : location.unlocked ? "#a6463e" : "#777065";
   const labelColor = location.current || location.boardReady ? "#fff4d8" : "#24190d";
@@ -3322,7 +3331,7 @@ function drawVrMapLegend(
   deathsVisible: boolean,
 ): void {
   const width = rect.width * 0.25;
-  const height = rect.height * (deathsVisible ? 0.16 : 0.1);
+  const height = rect.height * (deathsVisible ? 0.20 : 0.14);
   const x = rect.x + rect.width - width - rect.width * 0.018;
   const y = rect.y + rect.height * 0.025;
   drawRoundRect(ctx, x, y, width, height, height * 0.12);
@@ -3339,7 +3348,7 @@ function drawVrMapLegend(
   ctx.fillStyle = "#271d10";
   const swatchX = x + width * 0.12;
   const textX = x + width * 0.26;
-  const pumpY = y + height * (deathsVisible ? 0.32 : 0.5);
+  const pumpY = y + height * (deathsVisible ? 0.22 : 0.3);
   ctx.beginPath();
   ctx.arc(swatchX, pumpY, fontSize * 0.34, 0, Math.PI * 2);
   ctx.fillStyle = "#0b766d";
@@ -3347,11 +3356,11 @@ function drawVrMapLegend(
   ctx.fillStyle = "#271d10";
   ctx.fillText("Pumps", textX, pumpY);
 
-  if (!deathsVisible) {
-    return;
-  }
+  const visitedY=y+height*(deathsVisible?.78:.73);
+  ctx.fillText("✓",swatchX-fontSize*.35,visitedY);ctx.fillText("Visited",textX,visitedY);
+  if (!deathsVisible) return;
 
-  const deathY = y + height * 0.72;
+  const deathY = y + height * 0.5;
   drawRoundRect(ctx, swatchX - fontSize * 0.35, deathY - fontSize * 0.22, fontSize * 0.7, fontSize * 0.44, fontSize * 0.1);
   ctx.fillStyle = "rgba(125, 45, 48, 0.74)";
   ctx.fill();

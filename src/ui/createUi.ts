@@ -821,8 +821,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
     actionText = "Review needed";
   }
   const locationNodes = gameState
-    .getLocations()
-    .filter((location) => !location.boardOnly)
+    .getMapLocations()
     .map((location) => renderLocationNode(location, gameState, currentLocation.id))
     .join("");
   const evidenceDocket = renderMapEvidenceDocket(gameState);
@@ -920,6 +919,7 @@ function shouldShowDeathLayer(collectedIds: Set<string>): boolean {
 function renderMapLegend(deathsVisible: boolean, routesVisible=false, accessVisible=false): string {
   return `
     <div class="map-legend" aria-label="Map legend">
+      <span class="map-legend-item">✓ Earlier visit</span>
       <span class="map-legend-item">
         <span class="map-legend-swatch is-pump"></span>
         Pumps
@@ -1048,6 +1048,7 @@ function renderLocationNode(
   gameState: GameState,
   currentLocationId: LocationId,
 ): string {
+  if(gameState.isArchivedLocation(location))return `<span class="map-visited-mark" style="left:${location.mapPoint.x}%;top:${location.mapPoint.y}%" role="img" aria-label="${escapeHtml(location.title)} — visited" title="${escapeHtml(location.title)} — visited">✓</span>`;
   const unlocked = gameState.isLocationUnlocked(location);
   const active = location.id === currentLocationId;
   const canTravel = gameState.canTravelToLocation(location.id) && !active;

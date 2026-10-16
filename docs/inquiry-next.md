@@ -201,3 +201,38 @@ conclusions, legacy save recovery and VR dismissal/shortcut guards.
 Desktop browser checks passed on all three days: automatic briefing, blocked map
 shortcut, dismissal guard, reload/resume and travel unlocked after the assignment.
 Production-base and preview-base builds and web-app packaging checks also pass.
+
+## Daily destinations and street population — 16 October 2026
+
+The registrar and Household 1 are day-one visits; Household 2 and the workhouse
+are day-two visits; the brewery, Household 3 and survey pumps are day-three visits.
+Snow's office and Broad Street remain available after each morning's briefing.
+A completed earlier interview leaves a small check mark on both maps, with no
+travel action. Future destinations and unavailable world signs/rings are hidden,
+including their selection proxies. Same-day return visits remain possible.
+Older saves inside an interview location from an earlier day resume on Broad
+Street with their evidence intact.
+
+The shopkeeper, neighbor and Whitehead occupy different positions each day.
+`src/simulation/streetPopulation.ts` supplies shared actor placements for models,
+selection/collision and conversation anchors. Four additional background residents
+use shared anatomical geometry and textures, varied coat tints, stature, orientation
+and daily placements. They add no interview obligations or floating markers.
+Their existing subtle idle animations respect reduced-motion preferences.
+
+Whitehead now wears a dark frock coat and white neckcloth/bands, with a fuller,
+textured beard fitted to his jaw. The anatomical source remains editable in
+`assets/scene-people/whitehead.blend`; `refine_whitehead_clerical.py` replaces only
+these added details, and `build_scene_characters.py -- street` exports/bakes them.
+The familiar [photographic reference](https://commons.wikimedia.org/wiki/File:Whitehead_henry1884.jpg)
+is dated 1884. This wardrobe and beard are interpretive visual characterization,
+not a claim that his appearance in September 1854 is documented by that portrait.
+His skeptical dialogue is unchanged.
+
+Validation: 200 automated checks pass, including all-day completion permutations,
+day-specific destinations, invisible-exit ray rejection, earlier-save recovery,
+shared desktop/VR map state, moving actor anchors/collision and clear exit zones.
+Desktop browser checks passed for all three maps and archived non-button marks,
+with no JavaScript errors. Runtime street/character renders were reviewed for
+all three days. The production-base and preview-base builds and web-app packaging
+checks pass. Quest performance and seated/standing review remain pending.

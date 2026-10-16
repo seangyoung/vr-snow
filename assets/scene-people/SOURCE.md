@@ -123,3 +123,13 @@ to a documented household member. Their rooms, possessions and testimony are
 explicit teaching composites. Export with `build_scene_characters.py --
 household-routines` or `-- household-away`; room source files and lightmap reports
 are in the corresponding `assets/household-*-room` folders.
+
+### Clerical appearance refinement, 16 October 2026
+
+Whitehead's added beard, moustache, white neckcloth/bands and frock-coat skirts are
+original authored geometry (`scripts/assets/refine_whitehead_clerical.py`). The
+beard strand image is generated deterministically and packed into the source.
+The full-beard reference is the [1884 Scott and Sons photograph](https://commons.wikimedia.org/wiki/File:Whitehead_henry1884.jpg),
+not a photograph from the outbreak; this remains an interpretive younger figure.
+Four runtime background residents share the two street residents' geometry and
+textures; daily placements and garment tints are separate from the source models.

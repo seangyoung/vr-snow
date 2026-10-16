@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["walkable/WorkhousePump", "simulation/campaign", "simulation/campaignConversations", "simulation/fieldwork", "walkable/AdditionalHousehold", "walkable/PumpSurveyStop", "walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["simulation/streetPopulation", "walkable/WorkhousePump", "simulation/campaign", "simulation/campaignConversations", "simulation/fieldwork", "walkable/AdditionalHousehold", "walkable/PumpSurveyStop", "walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from (["'])(\.\.?\/[^"'.]+)\1/g, 'from "$2.js"');
@@ -318,7 +318,7 @@ test('world travel shares map prerequisites and cannot bypass Board preparation'
   assert.ok(game.travelToLocation('household').traveled);
   for(const id of ['brewery','workhouse','household-routines','household-away','marlborough-pump','rupert-pump']) assert.equal(game.travelToLocation(id).traveled,false);
   const unlocked=fieldGame(true);
-  for(const route of streetTravelRoutes) assert.ok(unlocked.canTravelToLocation(route.to));
+  for(const route of streetTravelRoutes) assert.equal(unlocked.canTravelToLocation(route.to),!['household','household-routines','registrar','workhouse'].includes(route.to));
   assert.equal(unlocked.canTravelToLocation('board-room'),false);
   assert.ok(returnTravelRoutes.every(r=>r.to==='broad-street'||r.to==='snow-desk'));
   assert.equal(unlocked.getLocation('household').title,'Household 1');
@@ -326,11 +326,12 @@ test('world travel shares map prerequisites and cannot bypass Board preparation'
 });
 
 test('target picking respects building occlusion, active scene, and marked household door',()=>{
-  const game=fieldGame(true);const street=new PumpCourtyard();street.group.visible=true;
+  const game=fieldGame();const street=new PumpCourtyard();street.group.visible=true;
   const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
   const ray=new THREE.Raycaster(new THREE.Vector3(-11,1.3,-6),new THREE.Vector3(0,0,-1));
   let hit=targets.pick(ray,'broad-street',street.pick(ray));
   assert.equal(targets.routeFor(hit.object).to,'household');
+  targets.refresh(fieldGame(true));
   ray.set(new THREE.Vector3(10,1.65,-1.5),new THREE.Vector3(1,0,0));
   hit=targets.pick(ray,'broad-street',street.pick(ray));assert.equal(targets.routeFor(hit.object).to,'brewery');
   const wall={distance:1,object:new THREE.Object3D()};
@@ -470,7 +471,7 @@ test('all walkable rooms restore scene geometry, lighting and arrival',async()=>
     refreshHotspots:()=>{},markVrPanelDirty:()=>{}});
   for(const id of ['snow-desk','broad-street','registrar','household','workhouse','brewery','board-room','brewery','workhouse','household','broad-street','snow-desk']) {
     if(id==='board-room') assert.ok(game.presentToBoard().accepted);
-    else assert.ok(game.travelToLocation(id).traveled);
+    else { game.stage='field'; game.currentLocationId=id; } // Geometry/arrival test; day travel gates are tested separately.
     scene.applyCurrentLocation();
     assert.equal(office.group.visible,id==='snow-desk');assert.equal(courtyard.group.visible,id==='broad-street');assert.equal(registrar.group.visible,id==='registrar');assert.equal(household.group.visible,id==='household');assert.equal(workhouse.group.visible,id==='workhouse');assert.equal(brewery.group.visible,id==='brewery');
     assert.equal(board.group.visible,id==='board-room');assert.equal(scene.panoramaSky.visible,false);assert.equal(scene.panoramaLighting.visible,false);
@@ -579,7 +580,7 @@ test('household aisle, interview approach and exit remain clear around domestic 
 });
 
 test('household seated and standing rays reach chair, label, clear floor and return door',()=>{
-  const room=new HouseholdRoom();room.group.visible=true;const game=fieldGame(true);game.travelToLocation('household');
+  const room=new HouseholdRoom();room.group.visible=true;const game=gameAtDay(1);game.travelToLocation('household');
   const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
   const ray=new THREE.Raycaster();
   for(const eyeHeight of [1.15,1.62]) {
@@ -595,8 +596,8 @@ test('household seated and standing rays reach chair, label, clear floor and ret
   ray.set(householdSpawn.clone().setY(1.62),new THREE.Vector3(1,0,0));assert.equal(room.canTeleport(room.pick(ray)),false);
 });
 
-test('household controller interview retains both evidence cards and returns through the marked exit',()=>{
-  const game=fieldGame(true);game.travelToLocation('household');
+test('household controller interview retains its evidence and returns through the marked exit',()=>{
+  const game=gameAtDay(1);game.travelToLocation('household');
   const room=new HouseholdRoom();room.group.visible=true;
   const camera=new THREE.PerspectiveCamera();camera.position.set(0,1.62,0);
   const rig=new THREE.Group();rig.add(camera);teleportViewer(rig,camera,householdSpawn);
@@ -611,13 +612,13 @@ test('household controller interview retains both evidence cards and returns thr
     hotspotVisuals:new Map(),worldTravelPending:false,hideVrPanel:()=>{},activateVrHotspot:h=>game.inspectHotspot(h.id)});
   scene.selectFromVrController(controller);assert.ok(game.hasInspected('broad-street-household'));
   finishConversation(game);assert.ok(game.hasEvidence('household-exposure'));
-  finishConversation(game);assert.ok(game.hasEvidence('household-water-pattern'));
+  assert.equal(game.hasEvidence('household-water-pattern'),false,'the second household is a later assignment');
   const zone=returnTravelRoutes.find(r=>r.id==='household-return').zone;
   scene.vrPanelVisible=true;teleportViewer(rig,camera,new THREE.Vector3(zone.x,0,zone.z));scene.updateWorldTravelZones();
   scene.vrPanelVisible=false;scene.updateWorldTravelZones();assert.equal(game.getCurrentLocation().id,'household','closing interview does not trigger travel');
   teleportViewer(rig,camera,householdSpawn);scene.updateWorldTravelZones();
   teleportViewer(rig,camera,new THREE.Vector3(zone.x,0,zone.z));scene.updateWorldTravelZones();
-  assert.equal(game.getCurrentLocation().id,'broad-street');assert.ok(game.hasEvidence('household-exposure'));assert.ok(game.hasEvidence('household-water-pattern'));
+  assert.equal(game.getCurrentLocation().id,'broad-street');assert.ok(game.hasEvidence('household-exposure'));assert.equal(game.hasEvidence('household-water-pattern'),false);
   assert.ok(game.travelToLocation('household').traveled,'map return remains available');
 });
 
@@ -630,7 +631,7 @@ test('household asset shares navigation layout and stays within the room geometr
 });
 
 test('workhouse controller interview retains the separate-supply evidence and returns through the marked exit',()=>{
-  const game=fieldGame(true);game.travelToLocation('workhouse');
+  const game=gameAtDay(2);game.travelToLocation('workhouse');
   const room=new WorkhouseCourtyard();room.group.visible=true;
   const camera=new THREE.PerspectiveCamera();camera.position.set(0,1.62,0);
   const rig=new THREE.Group();rig.add(camera);teleportViewer(rig,camera,workhouseSpawn);
@@ -674,7 +675,7 @@ test('workhouse yard has clear approaches to the standing steward, water supply 
 });
 
 test('workhouse seated and standing rays select steward, exit and ground but cannot cross the well',()=>{
-  const room=new WorkhouseCourtyard();room.group.visible=true;const game=fieldGame(true);game.travelToLocation('workhouse');
+  const room=new WorkhouseCourtyard();room.group.visible=true;const game=gameAtDay(2);game.travelToLocation('workhouse');
   const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));targets.refresh(game);
   const ray=new THREE.Raycaster();
   for(const eyeHeight of [1.15,1.62]) {
@@ -1463,7 +1464,7 @@ for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} 
 for(const [key,Room] of Object.entries(witnessRooms))test(`${key} witness nameplate follows aim and stays hidden during a panel`,()=>{
   const original=globalThis.document;globalThis.document={body:{dataset:{}}};
   try {
-    const scene=Object.create(BroadStreetScene.prototype),room=new Room(),game=fieldGame(true);game.travelToLocation(key);
+    const scene=Object.create(BroadStreetScene.prototype),room=new Room(),game=gameAtDay(key==='workhouse'?2:key==='brewery'?3:1);game.travelToLocation(key);
     room.group.visible=true;room.characters.group.userData.characterStatus='ready';
     const camera=new THREE.PerspectiveCamera(60,1,.1,100),target=room.characters.targets[0];
     camera.position.copy(target.position);camera.position.y+=target.geometry.parameters.height/2-.08;camera.position.z+=1.6;camera.updateMatrixWorld(true);
@@ -1585,14 +1586,18 @@ test('VR review uses the same strongest points and offers prepare and present wi
   scene.handleVrButton({type:'present-board'});assert.equal(game.getStage(),'board');
 });
 
-test('scene guidance names selectable figures and objects, including noninteractive street residents',()=>{
+test('scene guidance names selectable figures and current-day street activities',()=>{
   const game=new GameState();
-  const expected={'snow-desk':/John Snow/,registrar:/registrar.*ledger/,household:/survivor/,workhouse:/steward/,brewery:/either brewery owner/,'broad-street':/pump.*Whitehead.*residents/};
+  const expected={'snow-desk':/John Snow/,registrar:/registrar.*ledger/,household:/survivor/,workhouse:/steward/,brewery:/either brewery owner/,'broad-street':/Whitehead.*residents/};
   for(const [id,pattern] of Object.entries(expected)) {
     game.currentLocationId=id;
     assert.match(game.getInteractionHint(),pattern);
     assert.doesNotMatch(game.getInteractionHint(),/gold|marker|marked (table|chair)/i);
   }
+  game.currentLocationId='broad-street';
+  assert.doesNotMatch(game.getInteractionHint(),/inspect|survey/);
+  game.day=2;assert.match(game.getInteractionHint(),/pump handle.*inspect/);
+  game.day=3;assert.match(game.getInteractionHint(),/survey origins/);
 });
 
 test('MakeHuman scene figures embed masked textures and match their editable sources',async()=>{
@@ -2495,7 +2500,7 @@ test('each day automatically briefs at Snow and gates all travel and map access 
     game.chooseConversation(view.beatId,view.choices[0].id);
   }
   assert.ok(game.hasCurrentAssignment());assert.ok(game.canUseMap());
-  assert.ok(game.canTravelToLocation('broad-street'));assert.ok(game.canTravelToLocation('registrar'));
+  assert.ok(game.canTravelToLocation('broad-street'));assert.equal(game.canTravelToLocation('registrar'),day===1);
   game.closeDialogue();assert.equal(game.getConversationView(),undefined);assert.ok(game.travelToLocation('broad-street').traveled);
  }
 });
@@ -2523,5 +2528,61 @@ test('VR map shortcuts and menu actions return to the required briefing, which g
   scene.hideVrPanel();assert.ok(scene.vrPanelVisible);assert.ok(game.getConversationView());
   finishConversation(game);scene.openVrShortcut('map');assert.equal(scene.vrPanelMode,'map');
   scene.hideVrPanel();assert.equal(scene.vrPanelVisible,false);
+ }
+});
+
+test('daily destinations hide future locations and archive earlier field visits without travel',()=>{
+ const expected={1:['snow-desk','broad-street','registrar','household'],2:['snow-desk','broad-street','household-routines','workhouse'],3:['snow-desk','broad-street','brewery','household-away','marlborough-pump','rupert-pump']};
+ for(const day of [1,2,3]) {
+  const game=gameAtDay(day);
+  assert.deepEqual(game.getLocations().filter(l=>game.canTravelToLocation(l.id)).map(l=>l.id).sort(),expected[day].sort());
+  const visible=game.getMapLocations();
+  for(const location of visible)assert.ok(game.canTravelToLocation(location.id)||game.isArchivedLocation(location));
+  if(day>1) {
+    assert.ok(game.isArchivedLocation(game.getLocation('household')));
+    assert.equal(game.travelToLocation('household').traveled,false);
+    const save=JSON.parse(game.serializeSave());save.location='household';
+    const restored=new GameState();assert.ok(restored.restoreSave(JSON.stringify(save)));assert.equal(restored.currentLocationId,'broad-street');
+  }
+  game.travelToLocation('broad-street');
+  const targets=new WorldTravelTargets(()=>new THREE.MeshBasicMaterial());targets.refresh(game);
+  for(const route of streetTravelRoutes)assert.equal(targets.group.getObjectByName(route.id).visible,game.canTravelToLocation(route.to));
+  if(day!==1) {
+    const ray=new THREE.Raycaster(new THREE.Vector3(-11,1.3,-6),new THREE.Vector3(0,0,-1));
+    assert.equal(targets.pick(ray,'broad-street'),undefined,'invisible household doorway must not intercept selection');
+  }
+ }
+});
+
+test('daily street placements keep conversation anchors, targets and collision together',async()=>{
+ const {streetPlacement,streetExtras}=await load('simulation/streetPopulation');
+ const people=new SceneCharacters('street');people.group.userData.characterStatus='ready';
+ for(const day of [1,2,3]) {
+  const game=gameAtDay(day);game.travelToLocation('broad-street');people.setDay(day);
+  for(const id of ['resident-west','resident-east','whitehead']) {
+    const placement=streetPlacement(day,id);const [x,y,z]=placement.position;
+    assert.ok(isValidDestination(new THREE.Vector3(x,0,z)));
+    assert.ok(people.blocks(new THREE.Vector3(x,0,z)));
+    const target=people.targets.find(t=>t.name===id);assert.equal(target.position.x,x);assert.equal(target.position.z,z+.08);
+    game.inspectHotspot(id);assert.deepEqual(game.getConversationView().anchor,[x,1.45,z]);game.closeDialogue();
+    for(const route of streetTravelRoutes)if(route.zone)assert.ok(Math.hypot(x-route.zone.x,z-route.zone.z)>route.zone.radius+.5,`${id} obstructs ${route.id}`);
+  }
+  for(const extra of streetExtras) {
+    const [x,z]=extra.days[day-1];assert.ok(isValidDestination(new THREE.Vector3(x,0,z)));
+    for(const route of streetTravelRoutes)if(route.zone)assert.ok(Math.hypot(x-route.zone.x,z-route.zone.z)>route.zone.radius+.5,'extra obstructs exit');
+  }
+ }
+ for(const id of ['resident-west','resident-east','whitehead'])assert.equal(new Set([1,2,3].map(d=>JSON.stringify(streetPlacement(d,id).position))).size,3);
+});
+
+test('VR map shares daily visibility and distinguishes earlier visits from available destinations',()=>{
+ for(const day of [1,2,3]) {
+  const game=gameAtDay(day);const scene=Object.create(BroadStreetScene.prototype);
+  Object.assign(scene,{gameState:game,vrPanelDrawCommands:[],vrMapImages:new Map()});
+  scene.addVrMap(0,0,1,1);const map=scene.vrPanelDrawCommands[0];
+  assert.deepEqual(map.locations.map(l=>l.id),game.getMapLocations().map(l=>l.id));
+  for(const marker of map.locations)assert.equal(marker.archived,game.isArchivedLocation(game.getLocation(marker.id)));
+  if(day>1)assert.equal(map.locations.find(l=>l.id==='household').archived,true);
+  if(day<3)assert.equal(map.locations.some(l=>l.id==='household-away'),false);
  }
 });

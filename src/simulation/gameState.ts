@@ -1,3 +1,4 @@
+import { streetPlacement } from './streetPopulation';
 import { surveyRoutes, observation, type RouteId, type FieldworkView } from "./fieldwork";
 import { days, dayDefinition, locationDay, chronologyNote, type InquiryDay, type ObjectiveId } from "./campaign";
 import { conversations } from "./conversations";
@@ -31,7 +32,9 @@ type ChangeHandler = () => void;
 export class GameState {
   private readonly conversations = new ConversationProgress();
   getConversationView(): ConversationView | undefined {
-    const view=this.conversations.view();
+    let view=this.conversations.view();
+    const placement=view && streetPlacement(this.day,view.actorId);
+    if(view && placement)view={...view,anchor:[placement.position[0],1.45,placement.position[2]]};
     if(view?.complete && ((view.id==='workhouse-sample' && this.hasEvidence('pump-water-inspection')) || (view.id==='pump-sample' && this.hasWorkhouseSample())))
       return {...view,text:'Both samples look clear, with no notable difference between them. Neither inspection explains the difference in illness; you record the comparison in your notebook.'};
     return view;
@@ -538,6 +541,10 @@ export class GameState {
   getInteractionHint(): string {
     if(this.stage==='complete')return 'The inquiry is complete. Open the chapter panel for the epilogue or the notebook to review your evidence.';
     if (this.currentLocationId === "board-room" && !this.boardPresented) return "Walk around the table. Open the chapter panel when ready to begin.";
+    if(this.currentLocationId==='broad-street')return this.day===1
+      ? 'Speak with Whitehead and the street residents. Follow the marked exits or map to today’s interviews.'
+      : this.day===2 ? 'Use the pump handle to draw water, then select the pump to inspect it. Speak with Whitehead and the street residents.'
+      : 'Speak with Whitehead and the street residents. Begin the paired pump walks at the marked survey origins.';
     return locationInteractionHints[this.currentLocationId];
   }
 
@@ -551,6 +558,14 @@ export class GameState {
 
   getLocation(id: LocationId): InvestigationLocation | undefined {
     return locations.find((location) => location.id === id);
+  }
+
+  isArchivedLocation(location: InvestigationLocation): boolean {
+    return !this.isLocationUnlocked(location) && (locationEvidenceIds[location.id] ?? []).some(id=>this.hasEvidence(id));
+  }
+
+  getMapLocations(): InvestigationLocation[] {
+    return locations.filter(location=>!location.boardOnly && (this.isLocationUnlocked(location) || this.isArchivedLocation(location)));
   }
 
   getUnlockedLocations(): InvestigationLocation[] {
@@ -582,6 +597,8 @@ export class GameState {
     }
 
     if ((locationDay[location.id]??1)>this.day)return false;
+    const assignedDay=days.find(day=>day.objectives.some(o=>o.location===location.id));
+    if(assignedDay && !["broad-street","snow-desk"].includes(location.id) && assignedDay.day!==this.day)return false;
     if (location.unlocksWith) {
       return this.hasEvidence(location.unlocksWith);
     }
@@ -759,6 +776,7 @@ export class GameState {
         this.currentLocationId='snow-desk';
         if(!this.dayIntroOpen)this.openDailyBriefing();
       }
+      if(!this.needsDailyBriefing() && !['board','complete'].includes(this.stage) && !this.isLocationUnlocked(this.getCurrentLocation()))this.currentLocationId='broad-street';
       return true;
     } catch { return false; }
   }

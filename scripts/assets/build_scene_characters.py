@@ -55,7 +55,7 @@ for index,spec in enumerate(config['actors']):
                     bpy.ops.object.modifier_apply(modifier=dec.name)
             bpy.data.objects.remove(ob,do_unlink=True)
         else:
-            group=head if role in ['Snow eyes','Snow swept hair','Snow eyebrows','Snow sideburns','Snow hair bun'] else (root if role in ['Snow leather shoes','Snow gathered skirt'] else upper)
+            group=head if role in ['Snow eyes','Snow swept hair','Snow eyebrows','Snow sideburns','Snow hair bun','Whitehead beard','Whitehead moustache -1','Whitehead moustache 1'] else (root if role in ['Snow leather shoes','Snow gathered skirt'] else upper)
             attach(ob,group)
             ratio=.44 if role=='Snow tailored coat and trousers' else (.35 if role=='Snow leather shoes' else (.5 if role in ['Snow high waistcoat','Snow gathered skirt'] else 1))
             if ratio<1:

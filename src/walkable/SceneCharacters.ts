@@ -1,3 +1,5 @@
+import { streetPlacement, streetExtras } from '../simulation/streetPopulation';
+import type { InquiryDay } from '../simulation/campaign';
 import * as THREE from "three";
 import { CharacterIdle } from "./CharacterIdle";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -14,6 +16,9 @@ export class SceneCharacters {
   readonly targets: THREE.Mesh[] = [];
   readonly labelPosition = new THREE.Vector3();
   private loading?: Promise<void>;
+  private day: InquiryDay = 1;
+  private model?: THREE.Group;
+  private extras: THREE.Object3D[] = [];
   private idles: CharacterIdle[] = [];
   private readonly footprints: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }> = [];
   constructor(readonly key: CharacterScene) {
@@ -37,6 +42,18 @@ export class SceneCharacters {
       const {asset,actors} = definitions[this.key];
       model=(await new GLTFLoader().loadAsync(`${basePath}models/${asset}.glb`)).scene;
       await loadBakedRoomLighting(model,basePath,{lightMap:`${asset}-lightmap.png`,environment:`${asset}-environment.png`,preserveVertexColors:true});
+      this.model=model;
+      if(this.key=== "street")for(const [index,spec] of streetExtras.entries()) {
+        const source=model.getObjectByName(`${spec.source}_root`);if(!source)continue;
+        const extra=source.clone(true);extra.name=`street-extra-${index}`;extra.scale.multiplyScalar(spec.scale);
+        extra.traverse(object=>{if(object instanceof THREE.Mesh) {
+          const tint=(m:THREE.Material)=>{const copy=m.clone();if(copy instanceof THREE.MeshStandardMaterial && /Coat|Waistcoat/.test(object.name))copy.color.multiply(new THREE.Color(spec.tint));return copy;};
+          object.material=Array.isArray(object.material)?object.material.map(tint):tint(object.material);
+        }});
+        model.add(extra);this.extras.push(extra);
+        this.idles.push(new CharacterIdle(extra,9.1+index*2.7,false));
+      }
+      this.setDay(this.day);
       for (const [index, actor] of actors.entries()) {
         const root=model.getObjectByName(`${actor.id}_root`);
         if(root)this.idles.push(new CharacterIdle(root,index*2.17+actor.id.length*.7,actor.pose!=="standing"));
@@ -49,6 +66,23 @@ export class SceneCharacters {
       this.group.userData.characterStatus="unavailable";
       console.warn(`${this.key} figures could not load; existing scene interactions remain available.`,error);
     }
+  }
+  setDay(day: InquiryDay): void {
+    this.day=day;
+    if(this.key!=="street")return;
+    this.footprints.length=0;
+    const footprint=(x:number,z:number)=>this.footprints.push({minX:x-.46,maxX:x+.46,minZ:z-.40,maxZ:z+.57});
+    for(const actor of definitions.street.actors) {
+      const placement=streetPlacement(day,actor.id)!;const [x,y,z]=placement.position;
+      const target=this.targets.find(t=>t.name===actor.id)!;
+      target.position.set(x,y+actor.height/2,z+.08);footprint(x,z);
+      const root=this.model?.getObjectByName(`${actor.id}_root`);
+      if(root) { root.position.set(x,y,z);root.rotation.set(0,placement.yaw,0); }
+    }
+    this.extras.forEach((extra,index)=>{
+      const [x,z,yaw]=streetExtras[index].days[day-1];extra.position.set(x,-.135,z);extra.rotation.set(0,yaw,0);footprint(x,z);
+    });
+    this.group.updateMatrixWorld(true);
   }
   pick(raycaster: THREE.Raycaster): THREE.Intersection | undefined {
     return this.ready ? raycaster.intersectObjects(this.targets,false)[0] : undefined;

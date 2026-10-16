@@ -1828,3 +1828,6 @@ button:focus-visible, [role="dialog"]:focus-visible {
 
 .assignment-summary { display: block; }
 .assignment-summary p + p { margin-top: .55rem; }
+
+/* Earlier field visits remain geographic references, never travel controls. */
+.map-visited-mark { position:absolute; transform:translate(-50%,-50%); width:14px; height:14px; border:1px solid #625c49; border-radius:50%; background:#eee3c7; color:#4c6152; font:bold 10px/12px sans-serif; text-align:center; cursor:default; }

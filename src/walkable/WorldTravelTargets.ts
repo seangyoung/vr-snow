@@ -53,7 +53,7 @@ export class WorldTravelTargets {
   refresh(game: GameState): void {
     const current=game.getCurrentLocation().id;
     for(const target of this.targets) {
-      const visible=target.route.from===current;
+      const visible=target.route.from===current && game.canTravelToLocation(target.route.to);
       target.group.visible=visible;
       if(target.ring) target.ring.visible=visible;
       const enabled=game.canTravelToLocation(target.route.to);
@@ -70,7 +70,7 @@ export class WorldTravelTargets {
   routeFor(object: THREE.Object3D): WorldTravelRoute | undefined { return this.routesByObject.get(object); }
   pick(raycaster: THREE.Raycaster, location: LocationId, obstruction?: THREE.Intersection): THREE.Intersection | undefined {
     this.group.updateMatrixWorld(true);
-    const active=this.hitboxes.filter(object=>this.routesByObject.get(object)?.from===location);
+    const active=this.hitboxes.filter(object=>this.routesByObject.get(object)?.from===location && this.targets.some(t=>t.route===this.routesByObject.get(object) && t.group.visible && t.enabled));
     const hit=raycaster.intersectObjects(active,false)[0];
     return hit && (!obstruction || hit.distance<=obstruction.distance+.035) ? hit : obstruction;
   }
