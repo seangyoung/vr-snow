@@ -855,7 +855,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
             <svg class="snow-map snow-map--custom" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="Broad Street evidence map">
               ${renderCustomMapBase(collectedIds,gameState)}
             </svg>
-            ${renderMapLegend(deathsVisible,gameState.getRouteObservations().length>0,gameState.hasWalkingBoundary())}
+            ${renderMapLegend(deathsVisible,gameState.hasWalkingBoundary())}
             ${locationNodes}
           </div>
         </div>
@@ -873,7 +873,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
             <div><dt>Snow review</dt><dd>${gameState.preparedForBoard ? "Prepared" : evidenceReady ? "Needed" : "Locked"}</dd></div>
             <div><dt>Action</dt><dd>${escapeHtml(actionText)}</dd></div>
           </dl>
-          ${gameState.day===3?`<div class="layer-summary"><strong>Pump-access exercise</strong><p>Blue: Survey A. Brown: Survey B. Select the marked origin on Broad Street before each route.</p>${gameState.getRouteObservations().map(o=>`<p>${escapeHtml(surveyRoutes.find(r=>r.id===o.routeId)!.title)}: ≈${o.metres} m · ${o.seconds} s</p>`).join('')}<p>Times assume 1.2 m/s. ${gameState.hasWalkingBoundary()?'Green boundary: historical walking access, not calculated from these four routes.':'Historical boundary appears after both paired comparisons.'}</p></div>`:''}
+          ${gameState.day===3?`<div class="layer-summary"><strong>Pump-access exercise</strong><p>Select the marked origin on Broad Street before each route.</p>${gameState.getRouteObservations().map(o=>`<p>${escapeHtml(surveyRoutes.find(r=>r.id===o.routeId)!.title)}: ≈${o.metres} m · ${o.seconds} s</p>`).join('')}<p>Times assume 1.2 m/s. ${gameState.hasWalkingBoundary()?'Green boundary: Broad Street pump service area.':'The pump service area appears after both paired comparisons.'}</p></div>`:''}
           ${evidenceDocket}
         </div>
       </div>
@@ -905,7 +905,6 @@ function renderCustomMapBase(collectedIds: Set<string>, gameState:GameState): st
       <use href="${href("Pumps")}" />
     </g>
     ${gameState.hasWalkingBoundary()?`<image href="${import.meta.env?.BASE_URL??'/'}maps/pump-service-area.svg" x="0" y="0" width="20020" height="20020" />`:''}
-    ${gameState.getRouteObservations().map(o=>{const r=surveyRoutes.find(r=>r.id===o.routeId)!;return `<polyline points="${r.polyline.map(p=>p.map(v=>v*broadStreetMapViewBoxSize/100).join(',')).join(' ')}" fill="none" stroke="${r.pair==='marlborough'?'#245eaa':'#985627'}" stroke-width="65" stroke-dasharray="100 65"/>`;}).join('')}
     <g class="map-pump-highlights" aria-hidden="true">
       ${renderPumpHighlights()}
     </g>
@@ -916,7 +915,7 @@ function shouldShowDeathLayer(collectedIds: Set<string>): boolean {
   return collectedIds.has("attack-timeline") && collectedIds.has("pump-cluster");
 }
 
-function renderMapLegend(deathsVisible: boolean, routesVisible=false, accessVisible=false): string {
+function renderMapLegend(deathsVisible: boolean, accessVisible=false): string {
   return `
     <div class="map-legend" aria-label="Map legend">
       <span class="map-legend-item">✓ Earlier visit</span>
@@ -924,8 +923,7 @@ function renderMapLegend(deathsVisible: boolean, routesVisible=false, accessVisi
         <span class="map-legend-swatch is-pump"></span>
         Pumps
       </span>
-      ${routesVisible?'<span class="map-legend-item" style="color:#245eaa">Blue: Survey A</span><span class="map-legend-item" style="color:#985627">Brown: Survey B</span>':''}
-      ${accessVisible?'<span class="map-legend-item" style="color:#47633b">Historical access</span>':''}
+      ${accessVisible?'<span class="map-legend-item" style="color:#47633b">Pump service area</span>':''}
       ${
         deathsVisible
           ? `<span class="map-legend-item">

@@ -115,7 +115,6 @@ type VrPanelMapCommand = {
   locations: VrMapLocationCommand[];
   deathsVisible: boolean;
   mapImage?: HTMLImageElement;
-  routes?: typeof surveyRoutes;
   accessVisible?:boolean;
 };
 
@@ -2088,7 +2087,6 @@ export class BroadStreetScene {
       height,
       deathsVisible,
       mapImage: this.vrMapImages.get(this.gameState.hasWalkingBoundary()?"access":deathsVisible ? "deaths" : "base"),
-      routes:surveyRoutes.filter(r=>this.gameState.getRouteObservations().some(o=>o.routeId===r.id)),
       accessVisible:this.gameState.hasWalkingBoundary(),
       locations: this.gameState
         .getMapLocations()
@@ -2929,16 +2927,12 @@ function drawVrPanelMap(ctx: CanvasRenderingContext2D, command: VrPanelMapComman
     }
     drawVrMapPumps(ctx, mapRect);
   }
-  for(const route of command.routes??[]) {
-    ctx.beginPath();route.polyline.forEach(([x,y],i)=>{const p=getVrMapCanvasPoint(mapRect,x,y);if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);});
-    ctx.strokeStyle=route.pair==='marlborough'?'#245eaa':'#985627';ctx.lineWidth=4;ctx.setLineDash([8,5]);ctx.stroke();ctx.setLineDash([]);
-  }
   command.locations.forEach((location) => drawVrMapLocation(ctx, mapRect, location));
   drawVrMapLegend(ctx, mapRect, command.deathsVisible);
-  if(command.routes?.length) {
-    ctx.fillStyle="rgba(255,245,219,.96)";ctx.fillRect(mapRect.x+8,mapRect.y+8,mapRect.width*.54,46);
-    ctx.font="bold 18px Arial";ctx.textAlign="left";ctx.fillStyle="#245eaa";ctx.fillText("Blue: Survey A · Brown: Survey B",mapRect.x+16,mapRect.y+26);
-    ctx.fillStyle="#47633b";if(command.accessVisible)ctx.fillText("Green: historical access boundary",mapRect.x+16,mapRect.y+46);
+  if(command.accessVisible) {
+    ctx.fillStyle="rgba(255,245,219,.96)";ctx.fillRect(mapRect.x+8,mapRect.y+8,mapRect.width*.56,30);
+    ctx.font="bold 18px Arial";ctx.textAlign="left";ctx.textBaseline="middle";ctx.fillStyle="#47633b";
+    ctx.fillText("Broad Street pump service area",mapRect.x+16,mapRect.y+23,mapRect.width*.56-16);
   }
   ctx.restore();
 }
