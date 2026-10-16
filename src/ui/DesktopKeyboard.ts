@@ -20,7 +20,7 @@ export class DesktopKeyboard {
 
   private key(element: HTMLElement): string {
     return JSON.stringify([element.dataset.action, element.dataset.questionId, element.dataset.locationId,
-      element.dataset.hypothesisId, element.dataset.beatId, element.dataset.choiceId]);
+      element.dataset.hypothesisId, element.dataset.beatId, element.dataset.choiceId, element.dataset.step, element.dataset.surveyKey]);
   }
 
   beforeRender(): void {
@@ -49,7 +49,7 @@ export class DesktopKeyboard {
       const buttons = this.buttons(panel);
       const preserved = panelKey === this.previousPanel && this.focusedKey
         ? buttons.find(button => this.key(button) === this.focusedKey) : undefined;
-      const primary = buttons.find(button => ["conversation-choice", "ask", "travel", "begin", "begin-hearing", "finish-board", "select-hypothesis"].includes(button.dataset.action ?? ""));
+      const primary = buttons.find(button => ["guided-survey", "resume-survey", "conversation-choice", "ask", "travel", "begin", "begin-hearing", "finish-board", "select-hypothesis"].includes(button.dataset.action ?? ""));
       // A redraw resets scrolling; keep the selected control visible as well as focused.
       (preserved ?? primary ?? buttons[0] ?? panel).focus();
     } else if (this.previousPanel) {

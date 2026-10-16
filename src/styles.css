@@ -1851,3 +1851,11 @@ button:focus-visible, [role="dialog"]:focus-visible {
 .pump-comparison-panel > h3, .pump-comparison-panel > p, .pump-comparison-panel > dl { margin-left:18px; margin-right:18px; }
 .pump-comparison-panel > h3 { margin-top:.6rem; margin-bottom:.5rem; }
 .pump-comparison-panel > small { display:block; margin:0 18px 12px; color:#b9c9c4; }
+
+/* The morning comparison is a readable map-table spread, with no travel markers. */
+.map-exercise-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; padding: 20px; align-items: start; }
+.map-exercise-map { display: block; width: 100%; background: #ead9b0; border: 1px solid #8b7650; border-radius: 8px; }
+.map-exercise-layout h3 { margin: 10px 0; }
+.map-exercise-layout p { line-height: 1.55; }
+.map-exercise-caption { font-size: .85rem; }
+@media (max-width: 650px) { .map-exercise-layout { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 14px; } }

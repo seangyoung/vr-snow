@@ -3,7 +3,7 @@
   "documentation": "https://geodacenter.github.io/data-and-lab/data/snow_documentation.pdf",
   "historicalSource": "https://www.academia.dk/MedHist/Biblioteket/Print/snow_1855.html",
   "crs": "OSGB 1936 / British National Grid (EPSG:27700), metres",
-  "method": "Six digitized pump anchors fit an affine transform from existing SVG percentages to projected metres. Routes are manually traced teaching approximations on the historical street plan, not surveyed paths or a shortest-path calculation. Results are rounded to 5 metres. Compact stops omit the intervening streets.",
+  "method": "Six digitized pump anchors fit an affine transform from existing SVG percentages to projected metres. Routes are manually traced teaching approximations, not surveyed historical paths. Distances rounded to 5 metres and a 1.2 m/s teaching assumption supply the dramatized measurements attributed to Snow in dialogue; these are not surviving recorded timings. The historical service-area boundary is a separate source layer, not calculated from these four routes.",
   "anchors": [
     {
       "name": "Broad St Pump",

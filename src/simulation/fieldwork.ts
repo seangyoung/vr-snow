@@ -16,6 +16,8 @@ export function observation(id:RouteId): RouteObservation {const route=surveyRou
 export type SurveyPhase = 'origin' | 'arrival' | 'compare' | 'feedback' | 'done';
 export interface SurveyProgress { routeId: RouteId; phase: SurveyPhase; answer?: RouteId }
 export interface GuidedSurveyView {
+  mapPoint: {x:number;y:number;label:string};
+  mapPumps: {x:number;y:number;label:string}[];
   key: string; title: string; text: string; progress: string;
   results: {label: string; time: string}[];
   actions: {id: string; label: string}[];

@@ -205,7 +205,7 @@ export const evidenceCards: EvidenceCard[] = [
     complicates: ["Street-level miasma"],
   },
   { id: "nonlocal-exposure", title: "Residence is not necessarily exposure", summary: "A man who fell ill at home farther away drank Broad Street water while working nearby and sometimes carried a jug home.", confidence: "reported", sourceType: "interview", sourceLabel: "Household 3 interview", supports: ["Exposure history"], complicates: ["Distance alone"] },
-  { id: "walking-access", title: "Walking access describes convenience, not consumption", summary: "Routes from two starting points compare Broad Street with the Marlborough and Rupert Street pumps. Street turns affect the journey; taste, errands and work also influence which water people use.", confidence: "inferred", sourceType: "inference", sourceLabel: "Paired pump-route comparisons", supports: ["Access as an exposure clue"], complicates: ["Nearest pump equals actual consumption"] },
+  { id: "walking-access", title: "Walking access describes convenience, not consumption", summary: "Snow’s walking measurements compare Broad Street with the Marlborough and Rupert Street pumps from two starting points. Street turns affect the journey; taste, errands and work also influence which water people use.", confidence: "inferred", sourceType: "inference", sourceLabel: "Snow’s map-table comparison", supports: ["Access as an exposure clue"], complicates: ["Nearest pump equals actual consumption"] },
 ];
 
 export const fieldStudyGoal: StudyGoal = {
@@ -270,13 +270,11 @@ export const locations: InvestigationLocation[] = [
   },
   {id:"household-routines",title:"Household 2",shortTitle:"Household 2",description:"A household west of the Broad Street pump.",mapPoint:{x:42,y:49}},
   {id:"household-away",title:"Household 3",shortTitle:"Household 3",description:"A household farther southwest of the Broad Street pump.",mapPoint:{x:26,y:61}},
-  {id:"marlborough-pump",title:"Marlborough Street Pump",shortTitle:"Marlborough pump",description:"An alternative water source for the pump-route comparison.",mapPoint:{x:16.4,y:33.9}},
-  {id:"rupert-pump",title:"Rupert Street Pump",shortTitle:"Rupert pump",description:"The southern pump in the walking-route comparison.",mapPoint:{x:97.4,y:73.2}},
 ];
 
 export const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
-  "snow-desk": ["pump-cluster"],
-  "broad-street": ["pump-water-inspection", "walking-access"],
+  "snow-desk": ["pump-cluster", "walking-access"],
+  "broad-street": ["pump-water-inspection"],
   household: ["household-exposure"],
   "household-routines": ["household-water-pattern"],
   "household-away": ["nonlocal-exposure"],
@@ -287,8 +285,6 @@ export const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
 
 export const hotspots: Hotspot[] = [
   {id:'workhouse-pump',locationId:'workhouse',label:'Workhouse pump',shortLabel:'Water sample',description:'Work the handle, then select the pump to inspect its water.',position:[3,1.4,-5.8]},
-  {id:'survey-marlborough',locationId:'broad-street',label:'Compare nearby pumps · western starting point',shortLabel:'Compare pumps',description:'Compare both routes from this same marked origin.',position:[-8.5,1.25,-2]},
-  {id:'survey-rupert',locationId:'broad-street',label:'Compare nearby pumps · eastern starting point',shortLabel:'Compare pumps',description:'Compare both routes from this same marked origin.',position:[8,1.25,-2]},
   {id:"resident-west",locationId:"broad-street",label:"Street shopkeeper",shortLabel:"Shopkeeper",description:"Ask about the chloride of lime and the neighborhood.",position:[-10,1.82,-7]},
   {id:"resident-east",locationId:"broad-street",label:"Street neighbor",shortLabel:"Neighbor",description:"Ask about the neighborhood’s disrupted routines.",position:[11,1.82,-7]},
   {id:"routines-household",locationId:"household-routines",label:"Householder",shortLabel:"Householder",description:"Speak with the householder.",position:[-.65,1.4,-.2],evidenceId:"household-water-pattern"},

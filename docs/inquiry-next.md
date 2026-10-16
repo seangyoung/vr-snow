@@ -12,8 +12,8 @@ acceptance; automated or desktop results do not establish headset readiness.
 - **September 5:** Snow assigns registrar records and the bereaved household.
   Returning for the recap plots the addresses and awards the cluster finding.
 - **September 6:** pump sample, water-routines household, workhouse comparison.
-- **September 7:** brewery, daily-journey household, paired pump-access exercise;
-  Snow reviews the argument before the Board hearing.
+- **September 7:** Snow’s morning map comparison, then the brewery and Household 3
+  outside the pump service area. Snow reviews the argument before the Board hearing.
 - Explicit assignments and concluded conversations govern progression. Earlier
   places remain revisitable; future evidence cannot be collected early. Recaps
   require the day's work, and End day is an explicit action. No forced return.
@@ -47,39 +47,42 @@ acceptance; automated or desktop results do not establish headset readiness.
 
 ## Pump-access exercise and reproducibility
 
-The guided comparison presents one marked starting point at a time, western
-then eastern. A single Visit action moves to a pump and records its estimate;
-Return restores the same starting point before the paired journey. The two
-estimates appear together, followed by a question about which pump is nearer.
-Either answer receives feedback and continues. After both pairs, View the pump
-service area opens the map, then Discuss the comparison with Snow returns to his
-office for the concluding exchange and evidence award.
+Day three begins at Snow’s map table. He explains that he measured walking times
+from two shared starting points. The player predicts the nearer pump in each pair;
+Snow reveals the measurements and explains the street arrangement. Both choices
+continue. The table shows the map, named pumps, and the same marked origin for each
+pair, without colored route lines or travel controls.
 
-Desktop and VR consume the same step model. Closing, exploring another location
-or reloading preserves the exact step; Resume pump comparison returns to it.
-Version-one saves accept the additional validated cursor. Older route observations
-remain intact and continue from the first missing route. The old recording-marker
-interface is retired. The compact pump stops skip intervening streets, disclosed
-on the result cards; times remain estimates rather than elapsed play time.
+The final map reveals the source `PumpServiceArea` boundary and marks Household 3
+at map percentages (26, 61), outside it. Snow asks whether the ill person there had
+a connection to Broad Street water, then assigns that interview and the brewery.
+He does not reveal the household’s answer. The concluding conversation records
+walking access once and unlocks travel. Marlborough and Rupert remain historical
+pump symbols on the map, with no visitable scenes or street portals.
+
+Desktop and VR consume the same comparison, points, results and choices. Reloads
+resume the exact table beat or concluding Snow exchange; travel remains gated.
+The version-one save envelope adds `mapExercise: 2`. Valid legacy unfinished visits
+restart the comparison at Snow’s office; already completed findings and other
+fieldwork survive. Saves located at either retired pump restore at the office.
 
 `src/simulation/route-data.json` stores polylines separately from scene geometry.
-Six pump anchors register existing SVG percentages to EPSG:27700 British National
-Grid metres. The affine fit has 1.096 m anchor RMS: this describes registration,
-**not** the accuracy of the manually traced routes. Distances are approximate,
-rounded to 5 m, and times use the disclosed 1.2 m/s teaching assumption. No reading
-time, joystick speed or teleport duration enters the calculation.
+Six pump anchors register SVG percentages to EPSG:27700 British National Grid metres.
+The affine fit has 1.096 m anchor RMS, describing registration rather than route
+accuracy. Manually traced distances, rounded to 5 m, and a 1.2 m/s teaching assumption
+supply the specific dialogue timings. **These are reconstructed measurements for
+the dramatization, not surviving recorded timings by Snow.** The opening disclosure
+covers reconstructed walking times once. Characters and evidence stay in-world.
+Snow’s account supports walking convenience, circuitous routes to Rupert Street,
+water preferences and cases away from the pump; it does not supply these timings.
+Run `python3 scripts/calibrate-inquiry-routes.py` to reproduce the coefficients and
+timings without a download. Input coordinates and source URLs remain in the data.
 
-Run `python3 scripts/calibrate-inquiry-routes.py` to verify the stored coefficients
-and report the estimates using only Python's standard library. Coordinates are
-preserved alongside source URLs; no external download is needed to reproduce them.
-
-After four observations both interfaces reveal the existing historical
-`PumpServiceArea` line. The desktop display derivative
-`public/maps/pump-service-area.svg` omits only the scanned page-frame subpaths and
-thickens the original line; VR applies the same treatment to the original SVG.
-This boundary is **not calculated from the four routes**. The concluding exchange
-separates convenience from consumption and discusses preference, errands and
-carried water. The pump-stop facades and cast-iron pump details are interpretive.
+The boundary is the separate historical source layer, **not calculated from the
+four routes**. Desktop uses `public/maps/pump-service-area.svg`, omitting scanned
+page-frame subpaths and thickening the line; VR applies the same treatment to the
+original SVG. The concluding exchange distinguishes convenience from consumption
+and sends the player to investigate the exception rather than explaining it away.
 
 ## History and provenance
 
@@ -155,8 +158,8 @@ template no longer interrupts with a remote Snow field note: each witness has sp
 follow-up questions. Snow interprets findings at the office and hearing; Whitehead stays
 opposed to his water explanation. Pump and route observations are labeled as observations,
 not spoken by an absent Snow. Evidence notes are concise and use in-world source labels.
-The map retains a brief explanation that its historical access boundary is not calculated
-from the four route comparisons; estimates disclose the 1.2 m/s assumption.
+The current map-table revision above supersedes the earlier route exercise; technical
+provenance remains here rather than in character dialogue or evidence cards.
 
 Conversation, beat, choice and evidence identifiers are unchanged, preserving existing
 save cursors and rewards. Regression checks cover every interview path’s essential facts,
@@ -253,3 +256,17 @@ Desktop browser checks passed for all three maps and archived non-button marks,
 with no JavaScript errors. Runtime street/character renders were reviewed for
 all three days. The production-base and preview-base builds and web-app packaging
 checks pass. Quest performance and seated/standing review remain pending.
+
+## Morning map-table acceptance — 16 October 2026
+
+- 208 automated checks pass, including both comparison answers, every day’s field
+  visit order, no premature travel, once-only evidence, retired destinations,
+  legacy save migration, and Continue during each table beat and Snow assignment.
+- Production-base and preview-base builds and installation manifest checks pass.
+- Desktop Chrome exercised the complete comparison, an incorrect prediction,
+  reload/Continue, keyboard choices, the service-area reveal, and final assignment.
+  The mobile-width panel scrolls to its action. No browser exceptions occurred.
+- The rendered source boundary and a sampled-contour check confirm Household 3 at
+  (26%, 61%) is outside; it is explicitly highlighted at the reveal. VR panel
+  textures were inspected for map, text and button overlap. These checks do not
+  establish Quest readability, comfort or performance; device review is pending.

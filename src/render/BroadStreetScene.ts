@@ -1,5 +1,4 @@
 import { streetPlacement } from '../simulation/streetPopulation';
-import { PumpSurveyStop } from "../walkable/PumpSurveyStop";
 import { AdditionalHousehold } from "../walkable/AdditionalHousehold";
 import { BoardRoom } from "../walkable/BoardRoom";
 import * as THREE from "three";
@@ -115,6 +114,8 @@ type VrPanelMapCommand = {
   deathsVisible: boolean;
   mapImage?: HTMLImageElement;
   accessVisible?:boolean;
+  exercisePoint?: {x:number;y:number;label:string};
+  exercisePumps?: {x:number;y:number;label:string}[];
 };
 
 type VrPanelNotebookCardCommand = {
@@ -234,8 +235,6 @@ export class BroadStreetScene {
   private readonly workhouse = new WorkhouseCourtyard();
   private readonly brewery = new BreweryRoom();
   private readonly board = new BoardRoom();
-  private readonly marlborough=new PumpSurveyStop("marlborough-pump");
-  private readonly rupert=new PumpSurveyStop("rupert-pump");
   private get walkable(): WalkableEnvironment | undefined {
     if (this.courtyard?.group.visible) return this.courtyard;
     if (this.office?.group.visible) return this.office;
@@ -246,8 +245,6 @@ export class BroadStreetScene {
     if (this.workhouse?.group.visible) return this.workhouse;
     if (this.brewery?.group.visible) return this.brewery;
     if (this.board?.group.visible) return this.board;
-    if(this.marlborough?.group.visible)return this.marlborough;
-    if(this.rupert?.group.visible)return this.rupert;
     return undefined;
   }
   private readonly panoramaLighting = new THREE.Group();
@@ -382,7 +379,7 @@ export class BroadStreetScene {
     this.camera.position.set(0, cameraHeight, 0);
     this.playerRig.add(this.camera);
     this.scene.add(this.playerRig);
-    this.scene.add(this.courtyard.group, this.office.group, this.registrar.group, this.household.group, this.routines.group, this.away.group, this.workhouse.group, this.brewery.group, this.board.group, this.marlborough.group,this.rupert.group, this.worldTravel.group);
+    this.scene.add(this.courtyard.group, this.office.group, this.registrar.group, this.household.group, this.routines.group, this.away.group, this.workhouse.group, this.brewery.group, this.board.group, this.worldTravel.group);
     void this.brewery.loadVisuals(import.meta.env.BASE_URL || "/");
     void this.workhouse.loadVisuals(import.meta.env.BASE_URL || "/");
     void this.household.loadVisuals(import.meta.env.BASE_URL || "/");
@@ -485,22 +482,18 @@ export class BroadStreetScene {
     this.office.group.visible = location.id === "snow-desk";
     this.registrar.group.visible = location.id === "registrar";
     this.household.group.visible = location.id === "household";
-    if(location.id==='marlborough-pump')void this.marlborough.loadVisuals(import.meta.env.BASE_URL||'/');
-    if(location.id==='rupert-pump')void this.rupert.loadVisuals(import.meta.env.BASE_URL||'/');
     if(this.routines)this.routines.group.visible=location.id==='household-routines';
     if(this.away)this.away.group.visible=location.id==='household-away';
     for(const room of [this.routines,this.away])if(room?.group.visible)void room.loadVisuals(import.meta.env?.BASE_URL || '/');
     this.workhouse.group.visible = location.id === "workhouse";
     this.brewery.group.visible = location.id === "brewery";
-    if(this.marlborough)this.marlborough.group.visible=location.id==='marlborough-pump';
-    if(this.rupert)this.rupert.group.visible=location.id==='rupert-pump';
     if (this.board) {
       this.board.group.visible = location.id === "board-room";
       if (this.board.group.visible) void this.board.loadVisuals(import.meta.env?.BASE_URL || "/");
     }
     this.panoramaLighting.visible = !this.walkable;
-    this.scene.background = new THREE.Color(this.courtyard.group.visible || this.workhouse.group.visible || this.marlborough?.group.visible || this.rupert?.group.visible ? "#abb0ac" : "#111619");
-    this.scene.fog = (this.office.group.visible || this.registrar.group.visible || this.household.group.visible || this.routines?.group.visible || this.away?.group.visible || this.workhouse.group.visible || this.brewery.group.visible || this.board?.group.visible || this.marlborough?.group.visible || this.rupert?.group.visible) ? null : new THREE.FogExp2(this.courtyard.group.visible ? "#abb0ac" : "#111619", this.courtyard.group.visible ? 0.014 : 0.043);
+    this.scene.background = new THREE.Color(this.courtyard.group.visible || this.workhouse.group.visible ? "#abb0ac" : "#111619");
+    this.scene.fog = (this.office.group.visible || this.registrar.group.visible || this.household.group.visible || this.routines?.group.visible || this.away?.group.visible || this.workhouse.group.visible || this.brewery.group.visible || this.board?.group.visible) ? null : new THREE.FogExp2(this.courtyard.group.visible ? "#abb0ac" : "#111619", this.courtyard.group.visible ? 0.014 : 0.043);
     for(const room of [this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.courtyard,this.board]) {
       if(room?.group.visible)void room.characters?.loadVisuals(import.meta.env?.BASE_URL || "/");
     }
@@ -1359,7 +1352,7 @@ export class BroadStreetScene {
     this.sound?.effect(action.type==="mode" && ["map","notebook"].includes(action.mode)?"paper":"select");
     switch (action.type) {
       case 'resume-survey':this.gameState.resumePumpComparison();this.vrPanelMode='home';this.placeVrPanelInFront();break;
-      case 'guided-survey': { const revision=this.gameState.fieldworkTravelRevision;this.gameState.advancePumpComparison(action.action,action.stepKey);if(action.action==='finish')this.vrPanelMode='map';if(revision!==this.gameState.fieldworkTravelRevision)this.placeVrPanelInFront();break; }
+      case 'guided-survey': { const revision=this.gameState.fieldworkTravelRevision;this.gameState.advancePumpComparison(action.action,action.stepKey);if(revision!==this.gameState.fieldworkTravelRevision)this.placeVrPanelInFront();break; }
       case 'continue-inquiry':this.gameState.continueInquiry();this.applyCurrentLocation();break;
       case 'new-inquiry':this.gameState.reset();this.applyCurrentLocation();break;
       case 'dismiss-day':this.gameState.dismissDayIntroduction();this.vrPanelMode='home';this.showVrPanel();return;
@@ -1593,14 +1586,13 @@ export class BroadStreetScene {
     const survey=this.vrPanelMode==='home'?this.gameState.getFieldworkView():undefined;
     if(survey?.guided){
       const guide=survey.guided;
-      this.vrSurfaceHeight=2.05;
-      this.addVrText(guide.progress,-.1,.83,2.3,.13,{fontSize:23,color:'#f1d79c'});
-      this.addVrIconButton('x',1.22,.83,.2,{type:'close-dialogue'});
-      this.addVrText(guide.title,0,.59,2.5,.22,{fontSize:30});
-      this.addVrText(guide.text,0,.29,2.5,.36,{fontSize:26});
-      guide.results.forEach((result,i)=>this.addVrText(`${result.label}: ${result.time}`,0,-.04-i*.17,2.5,.15,{fontSize:25,color:'#f1d79c'}));
-      guide.actions.forEach((action,i)=>this.addVrPanelButton(action.label,0,-.46-i*.24,2.5,.22,{type:'guided-survey',action:action.id,stepKey:guide.key}));
-      this.addVrText('Estimated journeys · Intervening streets skipped · 1.2 m/s',0,-.88,2.5,.13,{fontSize:21});
+      this.vrSurfaceHeight=2.5;
+      this.addVrText(guide.progress,0,1.05,2.5,.13,{fontSize:24,color:'#f1d79c'});
+      this.addVrText(guide.title,0,.81,2.5,.20,{fontSize:30});
+      this.addVrMap(.66,.02,1.25,1.25);
+      this.addVrText('John Snow: '+guide.text,-.67,.25,1.15,.80,{fontSize:25});
+      guide.results.forEach((result,i)=>this.addVrText(`${result.label}: ${result.time}`,-.67,-.31-i*.19,1.15,.17,{fontSize:22,color:'#f1d79c'}));
+      guide.actions.forEach((action,i)=>this.addVrPanelButton(action.label,0,-.81-i*.25,2.5,.23,{type:'guided-survey',action:action.id,stepKey:guide.key}));
       this.addVrPanelSurface();return;
     }
     const conversation = this.vrPanelMode === "home" ? this.gameState.getConversationView() : undefined;
@@ -1611,8 +1603,8 @@ export class BroadStreetScene {
       this.addVrText(conversation.text, 0, .17, 2.46, .40, {fontSize:30, color:"#e7ece8"});
       conversation.choices.forEach((choice,index) => this.addVrPanelButton(choice.label, 0, -.15-index*.18, 2.46, .16,
         {type:"conversation-choice", beatId:conversation.beatId, choiceId:choice.id}));
-      if(conversation.terminalAction)this.addVrPanelButton(conversation.terminalAction==='end-day'?'End day':conversation.terminalAction==='board-decision'?'Read the Board decision':'Review the theories',0,-.43,1.8,.18,{type:conversation.terminalAction});
-      if (conversation.complete) this.addVrPanelButton("Return to the scene", 0, -.25, 1.6, .20, {type:"close-dialogue"});
+      if(conversation.terminalAction)this.addVrPanelButton(conversation.terminalAction==='resume-survey'?'Join Snow at the map table':conversation.terminalAction==='end-day'?'End day':conversation.terminalAction==='board-decision'?'Read the Board decision':'Review the theories',0,-.43,1.8,.18,{type:conversation.terminalAction});
+      if (conversation.complete && !this.gameState.needsDailyBriefing()) this.addVrPanelButton("Return to the scene", 0, -.25, 1.6, .20, {type:"close-dialogue"});
       this.addVrPanelSurface(); return;
     }
     const compactHome=this.vrPanelMode==="home" && !this.gameState.getActiveDialogue()
@@ -2100,8 +2092,9 @@ export class BroadStreetScene {
       deathsVisible,
       mapImage: this.vrMapImages.get(this.gameState.hasWalkingBoundary()?"access":deathsVisible ? "deaths" : "base"),
       accessVisible:this.gameState.hasWalkingBoundary(),
-      locations: this.gameState
-        .getMapLocations()
+      exercisePoint:this.gameState.getFieldworkView()?.guided.mapPoint,
+      exercisePumps:this.gameState.getFieldworkView()?.guided.mapPumps,
+      locations: (this.gameState.getFieldworkView()?[]:this.gameState.getMapLocations())
         .map((location) => ({
           id: location.id,
           label: location.shortTitle,
@@ -2940,7 +2933,18 @@ function drawVrPanelMap(ctx: CanvasRenderingContext2D, command: VrPanelMapComman
     drawVrMapPumps(ctx, mapRect);
   }
   command.locations.forEach((location) => drawVrMapLocation(ctx, mapRect, location));
-  drawVrMapLegend(ctx, mapRect, command.deathsVisible);
+  if(command.exercisePoint) {
+    const marker=command.exercisePoint, point=getVrMapCanvasPoint(mapRect,marker.x,marker.y);
+    ctx.beginPath();ctx.arc(point.x,point.y,mapRect.width*.014,0,Math.PI*2);
+    ctx.fillStyle='#a32c20';ctx.fill();ctx.strokeStyle='#fff4d4';ctx.lineWidth=3;ctx.stroke();
+    ctx.font=`bold ${Math.max(14,mapRect.width*.033)}px Arial`;ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.lineWidth=5;ctx.strokeText(marker.label,point.x,point.y+12);ctx.fillStyle='#812018';ctx.fillText(marker.label,point.x,point.y+12);
+    for(const pump of command.exercisePumps??[]) {
+      const p=getVrMapCanvasPoint(mapRect,pump.x,pump.y);ctx.textAlign=pump.x>85?'right':pump.x<20?'left':'center';ctx.textBaseline='bottom';
+      ctx.strokeText(pump.label,p.x,p.y-12);ctx.fillStyle='#075d55';ctx.fillText(pump.label,p.x,p.y-12);
+    }
+  }
+  if(!command.exercisePoint)drawVrMapLegend(ctx, mapRect, command.deathsVisible);
   if(command.accessVisible) {
     ctx.fillStyle="rgba(255,245,219,.96)";ctx.fillRect(mapRect.x+8,mapRect.y+8,mapRect.width*.56,30);
     ctx.font="bold 18px Arial";ctx.textAlign="left";ctx.textBaseline="middle";ctx.fillStyle="#47633b";

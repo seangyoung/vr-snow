@@ -6,7 +6,7 @@ export interface DayDefinition {
   objectives: readonly { id: ObjectiveId; title: string; location: LocationId; evidence: string }[];
 }
 export const historicalSource = 'https://www.academia.dk/MedHist/Biblioteket/Print/snow_1855.html';
-export const chronologyNote = 'About this dramatization: the investigation is condensed into three days. Dialogue, households, rooms and unnamed officials are reconstructed. Daily death totals are historical context compiled after the outbreak, not reports available to the characters.';
+export const chronologyNote = 'About this dramatization: the investigation is condensed into three days. Dialogue, households, rooms, unnamed officials and the specific walking times are reconstructed. Daily death totals are historical context compiled after the outbreak, not reports available to the characters.';
 export const days: readonly DayDefinition[] = [
  {day:1,date:'September 5, 1854',title:'Establish the pattern',previousDate:'September 4',previousDeaths:71,objectives:[
   {id:'records',title:'Copy the registrar’s records',location:'registrar',evidence:'attack-timeline'},
@@ -16,9 +16,9 @@ export const days: readonly DayDefinition[] = [
   {id:'water-routines',title:'Interview Household 2',location:'household-routines',evidence:'household-water-pattern'},
   {id:'workhouse',title:'Investigate the workhouse exception',location:'workhouse',evidence:'workhouse-exception'}]},
  {day:3,date:'September 7, 1854',title:'Explain the exceptions',previousDate:'September 6',previousDeaths:37,objectives:[
+  {id:'walking-access',title:'Compare Snow’s walking measurements at the map table',location:'snow-desk',evidence:'walking-access'},
   {id:'brewery',title:'Interview the brewery owners',location:'brewery',evidence:'brewery-exception'},
-  {id:'nonlocal',title:'Interview Household 3',location:'household-away',evidence:'nonlocal-exposure'},
-  {id:'walking-access',title:'Compare walking access to the pumps',location:'broad-street',evidence:'walking-access'}]},
+  {id:'nonlocal',title:'Interview Household 3',location:'household-away',evidence:'nonlocal-exposure'}]},
 ];
-export const locationDay: Partial<Record<LocationId, InquiryDay>> = {'household-routines':2,workhouse:2,brewery:3,'household-away':3,'marlborough-pump':3,'rupert-pump':3};
+export const locationDay: Partial<Record<LocationId, InquiryDay>> = {'household-routines':2,workhouse:2,brewery:3,'household-away':3};
 export function dayDefinition(day: InquiryDay): DayDefinition { return days[day-1]; }

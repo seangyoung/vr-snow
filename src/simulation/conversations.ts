@@ -11,7 +11,7 @@ export interface ConversationBeat {
   text: string;
   choices: readonly ConversationChoice[];
   conclusion?: { assignment?: boolean; assignmentDay?: InquiryDay; evidenceId?: string; objective?: ObjectiveId; recapDay?: InquiryDay; hearing?: boolean };
-  terminalAction?: "end-day" | "review-theory" | "board-decision";
+  terminalAction?: "end-day" | "review-theory" | "board-decision" | "resume-survey";
   anchor?: readonly [number, number, number];
   actorId?: ActorId;
 }
