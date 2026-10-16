@@ -17,6 +17,10 @@ function interview(id: string, actorId: ActorId, locationId: LocationId, speaker
  ]};
 }
 export const campaignConversations: ConversationDefinition[] = [
+ {id:'snow-progress',actorId:'john-snow',locationId:'snow-desk',title:'Today’s inquiries',anchor:[-.65,1.35,-2.15],start:'opening',sourceNote:source,beats:[
+  {id:'opening',speaker:'John Snow',text:'There is still work to do. Please finish today’s assignments, and we’ll discuss the findings this evening.',choices:[choice('remind','What still needs doing?','reminder')]},
+  {id:'reminder',speaker:'John Snow',text:'Please finish the remaining assignments, then bring your notes back this evening.',choices:[],conclusion:{}},
+ ]},
  interview('registrar-records','registrar','registrar','Registrar',[0,1.3,-.12],'records','attack-timeline',
  'You’re here for Dr. Snow? I have the cholera returns ready. There are a great many entries from the streets around Broad Street.',[
  ['May I see the dates?','Here are the dates of death, with the duration of illness where it was supplied. Several of these people were taken ill very suddenly.'],

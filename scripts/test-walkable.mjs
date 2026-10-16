@@ -2586,3 +2586,23 @@ test('VR map shares daily visibility and distinguishes earlier visits from avail
   if(day<3)assert.equal(map.locations.some(l=>l.id==='household-away'),false);
  }
 });
+
+test('Snow welcomes unfinished visits each day without advancing evidence, recap or assignments',()=>{
+ for(const day of [1,2,3]) {
+  const game=gameAtDay(day);const evidence=game.getCollectedEvidence().map(c=>c.id);
+  const assignments=game.getAssignments();
+  assert.ok(game.inspectHotspot('john-snow').dialogue);assert.equal(game.getConversationView().id,'snow-progress');
+  game.closeDialogue();game.inspectHotspot('john-snow');finishConversation(game);
+  for(const task of assignments)assert.ok(game.getConversationView().text.includes(task.title.toLowerCase()));
+  assert.deepEqual(game.getCollectedEvidence().map(c=>c.id),evidence);assert.deepEqual(game.getAssignments(),assignments);
+  assert.equal(game.canEndDay(),false);assert.equal(game.prepareBoardArgument().prepared,false);
+  const restored=new GameState();assert.ok(restored.restoreSave(game.serializeSave()));
+  assert.ok(restored.inspectHotspot('john-snow').dialogue);assert.equal(restored.getConversationView().id,'snow-progress');
+ }
+ const game=gameAtDay(1);game.inspectHotspot('john-snow');finishConversation(game);game.closeDialogue();
+ talk(game,'registrar','registrar-ledger');game.travelToLocation('snow-desk');game.inspectHotspot('john-snow');
+ assert.match(game.getConversationView().text,/household 1/);assert.doesNotMatch(game.getConversationView().text,/registrar/);
+ game.closeDialogue();talk(game,'household','broad-street-household');game.travelToLocation('snow-desk');game.inspectHotspot('john-snow');
+ assert.equal(game.getConversationView().id,'snow-recap-1');assert.equal(game.canEndDay(),false);
+ finishConversation(game);assert.equal(game.canEndDay(),true);
+});

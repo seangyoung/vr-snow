@@ -33,6 +33,11 @@ export class GameState {
   private readonly conversations = new ConversationProgress();
   getConversationView(): ConversationView | undefined {
     let view=this.conversations.view();
+    if(view?.id==='snow-progress' && view.beatId==='reminder') {
+      const remaining=this.getAssignments().filter(item=>!item.complete).map(item=>item.title.toLowerCase());
+      const tasks=remaining.length>1?`${remaining.slice(0,-1).join(', ')}, and ${remaining.at(-1)}`:remaining[0];
+      view={...view,text:`Please ${tasks}. Bring your notes back this evening, and we’ll discuss what you found.`};
+    }
     const placement=view && streetPlacement(this.day,view.actorId);
     if(view && placement)view={...view,anchor:[placement.position[0],1.45,placement.position[2]]};
     if(view?.complete && ((view.id==='workhouse-sample' && this.hasEvidence('pump-water-inspection')) || (view.id==='pump-sample' && this.hasWorkhouseSample())))
@@ -154,7 +159,7 @@ export class GameState {
     if(hotspotId==='john-snow') {
       if(!this.hasCurrentAssignment())id=this.day===1?'snow-introduction':`snow-day-${this.day}`;
       else if(this.isDayFieldworkComplete())id=`snow-recap-${this.day}`;
-      else return {message:this.getObjective()};
+      else id='snow-progress';
     } else if(hotspotId==='whitehead')id=this.day===1?'whitehead-local-knowledge':`whitehead-day-${this.day}`;
     else if(hotspotId==='resident-west'||hotspotId==='resident-east')id=`${hotspotId}-day-${this.day}`;
     else if(hotspotId==='board-hearing') { this.beginHearing();return {dialogue:this.getActiveDialogue(),message:'The Board awaits your response.'}; }
