@@ -321,7 +321,7 @@ test('world travel shares map prerequisites and cannot bypass Board preparation'
   for(const route of streetTravelRoutes) assert.ok(unlocked.canTravelToLocation(route.to));
   assert.equal(unlocked.canTravelToLocation('board-room'),false);
   assert.ok(returnTravelRoutes.every(r=>r.to==='broad-street'||r.to==='snow-desk'));
-  assert.equal(unlocked.getLocation('household').title,'Broad Street Household');
+  assert.equal(unlocked.getLocation('household').title,'Household 1');
   assert.ok(unlocked.getLocation('household').mapPoint.y<unlocked.getLocation('broad-street').mapPoint.y);
 });
 

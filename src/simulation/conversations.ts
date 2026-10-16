@@ -43,7 +43,7 @@ export const conversations: readonly ConversationDefinition[] = [
       { id: "skepticism", speaker: "John Snow", text: "Then we must be willing to change our explanation. Look for people who escaped illness as carefully as those who suffered it.", choices: [next("compare", "How can we make a fair comparison?", "method")] },
       { id: "method", speaker: "John Snow", text: "Ask about water, daily routines, and the timing of illness; compare those accounts with the records. Bring your notes back and we will go through them together.", choices: [next("accept", "I will collect the accounts and bring them back.", "assignment"), next("proof", "Will that prove what caused the outbreak?", "limits")] },
       { id: "limits", speaker: "John Snow", text: "We shall see whether the accounts fit together. I am especially interested in people close to the pump who have escaped illness.", choices: [next("undertake", "Let us begin the inquiry.", "assignment")] },
-      { id: "assignment", speaker: "John Snow", text: "Take the map and notebook: copy the registrar’s records and interview the bereaved household. Then return here to plot the addresses; Whitehead knows the neighborhood but opposes my explanation.", choices: [], conclusion: { assignment: true } },
+      { id: "assignment", speaker: "John Snow", text: "Take the map and notebook: copy the registrar’s records and visit Household 1 and hear their account. Then return here to plot the addresses; Whitehead knows the neighborhood but opposes my explanation.", choices: [], conclusion: { assignment: true } },
     ],
   },
   {

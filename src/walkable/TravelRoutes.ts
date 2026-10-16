@@ -17,8 +17,8 @@ export interface WorldTravelRoute {
 
 /** These are route entrances, not straight-line bearings or measured destination positions. */
 export const streetTravelRoutes: WorldTravelRoute[] = [
- {id:'street-routines',from:'broad-street',to:'household-routines',title:'Household: Water Routines',direction:'WEST · Composite household',position:[-13.4,1.65,-1.5],yaw:Math.PI/2,zone:{x:-12.3,z:-1.5,radius:.65}},
- {id:'street-away',from:'broad-street',to:'household-away',title:'Household: A Daily Journey',direction:'WEST, THEN SOUTH · Composite household',position:[-13.4,1.65,2.0],yaw:Math.PI/2,zone:{x:-12.3,z:2,radius:.65}},
+ {id:'street-routines',from:'broad-street',to:'household-routines',title:'Household 2',direction:'WEST · Household 2',position:[-13.4,1.65,-1.5],yaw:Math.PI/2,zone:{x:-12.3,z:-1.5,radius:.65}},
+ {id:'street-away',from:'broad-street',to:'household-away',title:'Household 3',direction:'WEST, THEN SOUTH · Household 3',position:[-13.4,1.65,2.0],yaw:Math.PI/2,zone:{x:-12.3,z:2,radius:.65}},
  {id:'street-marlborough',from:'broad-street',to:'marlborough-pump',title:'Marlborough Street Pump',direction:'WEST, THEN NORTH · Survey stop',position:[-13.4,1.65,-5.5],yaw:Math.PI/2,zone:{x:-12.3,z:-5.5,radius:.65}},
  {id:'street-rupert',from:'broad-street',to:'rupert-pump',title:'Rupert Street Pump',direction:'SOUTH, THEN EAST · Survey stop',position:[6.1,1.65,8.6],yaw:Math.PI,zone:{x:6.1,z:7.5,radius:.65}},
   { id: "street-brewery", from: "broad-street", to: "brewery", title: "Lion Brewery", direction: "EAST · Along Broad Street", position: [13.4, 1.65, -1.5], yaw: -Math.PI/2, zone: {x:12.3,z:-1.5,radius:.75} },
@@ -26,7 +26,7 @@ export const streetTravelRoutes: WorldTravelRoute[] = [
   { id: "street-snow", from: "broad-street", to: "snow-desk", title: "Snow's Desk", direction: "SOUTH · Continue via Cambridge St", position: [2.3, 1.65, 11.7], yaw: Math.PI, zone: {x:2.3,z:10.6,radius:.75} },
   { id: "street-registrar", from: "broad-street", to: "registrar", title: "Registrar's Ledger", direction: "SOUTH · Onward to the records office", position: [6.1, 1.65, 11.7], yaw: Math.PI, zone: {x:6.1,z:10.6,radius:.75} },
   // The right-hand door in the northern shop frontage is an illustrative household entrance.
-  { id: "street-household", from: "broad-street", to: "household", title: "Broad Street Household", direction: "Household interview · This door", position: [-11, 2.85, -8.72], labelOffset: [0, 0, .22], yaw: 0, zone: {x:-11,z:-7.15,radius:.65}, door: true },
+  { id: "street-household", from: "broad-street", to: "household", title: "Household 1", direction: "Household interview · This door", position: [-11, 2.85, -8.72], labelOffset: [0, 0, .22], yaw: 0, zone: {x:-11,z:-7.15,radius:.65}, door: true },
 ];
 
 export const returnTravelRoutes: WorldTravelRoute[] = [

@@ -601,7 +601,7 @@ export class GameState {
   private getLocationEvidencePrompt(card: EvidenceCard, location: InvestigationLocation): string {
     if(card.id==='pump-water-inspection')return 'Use the Broad Street pump handle to draw water, then select the pump to inspect the sample.';
     if (card.id === "household-water-pattern") {
-      return `Interview the householder at ${location.title} about water preferences and routines.`;
+      return `Interview the householder at ${location.title}.`;
     }
 
     if (card.sourceType === "interview") {

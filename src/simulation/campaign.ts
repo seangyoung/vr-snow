@@ -10,14 +10,14 @@ export const chronologyNote = 'About this dramatization: the investigation is co
 export const days: readonly DayDefinition[] = [
  {day:1,date:'September 5, 1854',title:'Establish the pattern',previousDate:'September 4',previousDeaths:71,objectives:[
   {id:'records',title:'Copy the registrar’s records',location:'registrar',evidence:'attack-timeline'},
-  {id:'first-household',title:'Listen to the bereaved household',location:'household',evidence:'household-exposure'}]},
+  {id:'first-household',title:'Interview Household 1',location:'household',evidence:'household-exposure'}]},
  {day:2,date:'September 6, 1854',title:'Test the explanation',previousDate:'September 5',previousDeaths:45,objectives:[
   {id:'sample',title:'Inspect the pump water',location:'broad-street',evidence:'pump-water-inspection'},
-  {id:'water-routines',title:'Ask a second household about water routines',location:'household-routines',evidence:'household-water-pattern'},
+  {id:'water-routines',title:'Interview Household 2',location:'household-routines',evidence:'household-water-pattern'},
   {id:'workhouse',title:'Investigate the workhouse exception',location:'workhouse',evidence:'workhouse-exception'}]},
  {day:3,date:'September 7, 1854',title:'Explain the exceptions',previousDate:'September 6',previousDeaths:37,objectives:[
   {id:'brewery',title:'Interview the brewery owners',location:'brewery',evidence:'brewery-exception'},
-  {id:'nonlocal',title:'Trace a household’s connection to Broad Street',location:'household-away',evidence:'nonlocal-exposure'},
+  {id:'nonlocal',title:'Interview Household 3',location:'household-away',evidence:'nonlocal-exposure'},
   {id:'walking-access',title:'Compare walking access to the pumps',location:'broad-street',evidence:'walking-access'}]},
 ];
 export const locationDay: Partial<Record<LocationId, InquiryDay>> = {'household-routines':2,workhouse:2,brewery:3,'household-away':3,'marlborough-pump':3,'rupert-pump':3};
