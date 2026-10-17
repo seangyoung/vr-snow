@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["render/DayTransition", "walkable/StreetBoundary", "walkable/ControllerVisuals", "walkable/ObjectInspection", "walkable/InteractionIdleHint", "simulation/streetPopulation", "walkable/WorkhousePump", "simulation/campaign", "simulation/campaignConversations", "simulation/fieldwork", "walkable/AdditionalHousehold", "walkable/PumpSurveyStop", "walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["render/PanelDepthLayers", "render/DayTransition", "walkable/StreetBoundary", "walkable/ControllerVisuals", "walkable/ObjectInspection", "walkable/InteractionIdleHint", "simulation/streetPopulation", "walkable/WorkhousePump", "simulation/campaign", "simulation/campaignConversations", "simulation/fieldwork", "walkable/AdditionalHousehold", "walkable/PumpSurveyStop", "walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from (["'])(\.\.?\/[^"'.]+)\1/g, 'from "$2.js"');
@@ -806,8 +806,9 @@ test("VR modal panels overlay scenery and keep controller actions modal", () => 
     const surface = scene.vrPanelSurface;
     assert.equal(surface.material.transparent, true, 'Panel must render after transparent scenery, too');
     assert.equal(surface.material.opacity, 1, 'Scenery must not show through the panel');
-    assert.equal(surface.material.depthTest, false, 'Nearer desks and walls must not hide UI');
-    assert.equal(surface.material.depthWrite, false);
+    assert.equal(surface.material.depthTest, true);
+    assert.equal(surface.material.depthFunc, THREE.AlwaysDepth, 'Nearer desks and walls must not hide UI');
+    assert.equal(surface.material.depthWrite, true, 'People and controllers must compare against the panel depth');
     assert.ok(surface.renderOrder > 95, 'Panel must cover world labels and idle sprites');
     scene.addVrPanelHitbox(0, 0, .4, .4, { type: 'close-panel' });
     scene.vrPanel.position.z = -2;
@@ -2260,7 +2261,7 @@ test('VR left-stick movement, grip pickup and actor selection remain live during
     new THREE.Group().add(prop.group);
     scene.beginGripGrab(hand);assert.equal(scene.propHold.prop,prop);assert.equal(game.getConversationView().beatId,'skepticism');
     scene.reducedCharacterMotion={matches:false};scene.updatePumpInteractions=()=>{};
-    scene.objectInspection={update:()=>{}};scene.scene=new THREE.Scene();scene.tactileLabelText='Release grip: return · Right stick: rotate';scene.tactileLabel=new THREE.Sprite();
+    scene.objectInspection={update:()=>{}};scene.scene=new THREE.Scene();scene.tactileLabelText='Cup';scene.tactileLabel=new THREE.Sprite();
     scene.updateTactileInteractions(.02);assert.equal(scene.propHold.prop,prop,'frame update must not release held props just because dialogue is open');
     scene.propHold.release(true);
     hit={object:new THREE.Object3D(),distance:1,point:new THREE.Vector3()};hit.object.userData.hotspot=game.getHotspot('resident-west');
@@ -3252,4 +3253,32 @@ test('epilogue VR panel leaves a clear pump sightline at seated and standing hei
   }
   assert.equal(scene.vrPanel.scale.x,.68);
  }
+});
+
+test('panel depth composition isolates shared materials and restores normal rendering when closed',async()=>{
+ const {PanelDepthLayers}=await load('render/PanelDepthLayers');
+ const layers=new PanelDepthLayers(),shared=new THREE.MeshBasicMaterial(),root=new THREE.Group();
+ const held=new THREE.Mesh(new THREE.BoxGeometry(),shared),furniture=new THREE.Mesh(new THREE.BoxGeometry(),shared);
+ const label=new THREE.Sprite(new THREE.SpriteMaterial({depthTest:false,depthWrite:false,opacity:.7}));
+ root.add(held,label);held.renderOrder=7;
+ layers.update([root],true);
+ assert.notEqual(held.material,shared);assert.equal(furniture.material,shared);assert.equal(shared.transparent,false);
+ assert.equal(held.material.transparent,true);assert.equal(held.material.depthTest,true);assert.equal(held.material.depthWrite,true);
+ assert.equal(held.material.depthFunc,THREE.LessEqualDepth);assert.equal(held.renderOrder,101);
+ assert.equal(label.material.depthTest,true);assert.equal(label.material.depthWrite,false);
+ const copy=held.material;layers.update([root],true);assert.equal(held.material,copy,'reuse materials while the panel is open');
+ let disposed=false;copy.addEventListener('dispose',()=>{disposed=true;});
+ layers.update([],false);assert.equal(held.material,shared);assert.equal(held.renderOrder,7);assert.equal(label.material.depthTest,false);assert.ok(disposed);
+ const parent=new THREE.Group();parent.add(root);parent.visible=false;layers.update([root],true);assert.equal(held.material,shared,'hidden scenes stay excluded');
+});
+
+test('foreground geometry blocks panel rays only when visible and nearer than the panel',async()=>{
+ const {foregroundBefore}=await load('render/PanelDepthLayers');
+ const root=new THREE.Group(),person=new THREE.Mesh(new THREE.BoxGeometry(.6,1.8,.4),new THREE.MeshBasicMaterial());
+ const proxy=new THREE.Mesh(new THREE.BoxGeometry(3,3,3),new THREE.MeshBasicMaterial({visible:false}));root.add(person,proxy);
+ person.position.z=-1.5;const ray=new THREE.Raycaster(new THREE.Vector3(),new THREE.Vector3(0,0,-1));
+ assert.equal(foregroundBefore(ray,2,[root]),true);
+ person.position.z=-2.5;assert.equal(foregroundBefore(ray,2,[root]),false,'do not block buttons through people behind them');
+ person.position.z=-1.5;root.visible=false;assert.equal(foregroundBefore(ray,2,[root]),false);
+ root.visible=true;person.visible=false;assert.equal(foregroundBefore(ray,2,[root]),false,'invisible selection proxies cannot block buttons');
 });

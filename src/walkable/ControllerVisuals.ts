@@ -90,6 +90,7 @@ export class ControllerVisuals {
     grip.addEventListener("connected",event=>this.connect(event.data));
     grip.addEventListener("disconnected",()=>this.disconnect());
   }
+  get depthRoots():THREE.Object3D[]{return [this.grip,this.labels];}
   connect(source:XRInputSource):void {
     this.disconnect();
     if(source.hand||source.targetRayMode!=="tracked-pointer"||!source.gamepad)return;
@@ -141,15 +142,24 @@ export class ControllerVisuals {
     camera.getWorldQuaternion(this.orientation);
     this.right.set(1,0,0).applyQuaternion(this.orientation);this.up.set(0,1,0).applyQuaternion(this.orientation);
     const side=source.handedness==="left"?-1:1;
-    this.callouts.forEach((callout,index)=>{
-      const {sprite,line,anchor}=callout;
-      sprite.position.copy(this.position).addScaledVector(this.right,side*.19).addScaledVector(this.up,.12-index*.055).addScaledVector(this.forward,-.02);
+    // Follow each real button anchor, with only enough vertical separation to
+    // keep neighbouring labels readable when the controller turns in the hand.
+    const placements=this.callouts.map(callout=>{
+      const start=model.localToWorld(callout.anchor.clone());
+      return {callout,start,height:start.dot(this.up),packed:0};
+    }).sort((a,b)=>b.height-a.height);
+    let previous=Infinity;
+    for(const item of placements){item.packed=Math.min(item.height,previous-.02525);previous=item.packed;}
+    const shift=placements.length?placements.reduce((sum,item)=>sum+item.height-item.packed,0)/placements.length:0;
+    placements.forEach(({callout,start,height,packed})=>{
+      const {sprite,line}=callout;
+      sprite.position.copy(start).addScaledVector(this.right,side*(.008+sprite.scale.x/2))
+        .addScaledVector(this.up,packed+shift-height).addScaledVector(this.forward,-.008);
       sprite.material.opacity=this.opacity;
       const pressed=source.gamepad?.buttons[callout.button]?.pressed;
       sprite.material.color.set(pressed?0xffdb8b:0xffffff);
       const attribute=line.geometry.getAttribute("position") as THREE.BufferAttribute;
-      const start=model.localToWorld(anchor.clone());
-      const end=sprite.position.clone().addScaledVector(this.right,-side*.085);
+      const end=sprite.position.clone().addScaledVector(this.right,-side*sprite.scale.x/2);
       attribute.setXYZ(0,start.x,start.y,start.z);attribute.setXYZ(1,end.x,end.y,end.z);attribute.needsUpdate=true;
       line.geometry.computeBoundingSphere();(line.material as THREE.LineBasicMaterial).opacity=this.opacity*.8;
     });
@@ -164,5 +174,5 @@ function labelSprite(text:string,enabled:boolean):THREE.Sprite {
   lines.forEach((line,i)=>ctx.fillText(line,384,lines.length===1?96:54+i*84,720));
   const map=new THREE.CanvasTexture(canvas);map.colorSpace=THREE.SRGBColorSpace;
   const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map,transparent:true,depthTest:false,depthWrite:false,toneMapped:false}));
-  sprite.scale.set(.17,.0425,1);sprite.renderOrder=1002;return sprite;
+  sprite.scale.set(.085,.02125,1);sprite.renderOrder=1002;return sprite;
 }

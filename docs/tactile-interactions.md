@@ -7,7 +7,7 @@
 - Desktop objects: click, or aim with the center target and press Space/Enter, to lift. Q/E spins and R/F tilts it; another click, Space/Enter, or Escape returns it. Dragging still turns the view without selecting anything.
 - Opening panels, scene travel, reset, controller disconnect, leaving VR, or losing page focus restores held objects. Releasing never activates a person or teleport destination behind the object.
 
-The inventory contains 258 portable items across eight furnished scenes, including shelf books, desk papers, instruments, bottles, household belongings, workhouse buckets and Board papers. Heavy furniture, fixed fittings, filled grain sacks and brewing equipment remain scenery. Selected objects display a small non-modal information card; the stethoscope and inhaler include museum collection references. These optional interactions neither award evidence nor change the investigation's progression.
+The inventory contains 258 portable items across eight furnished scenes, including shelf books, desk papers, instruments, bottles, household belongings, workhouse buckets and Board papers. Heavy furniture, fixed fittings, filled grain sacks and brewing equipment remain scenery. Selected objects display a small non-modal information card; the stethoscope and inhaler include museum collection references. While held, ordinary objects retain a name label that follows them, without release or rotation instructions. Objects with an information card omit this duplicate name label. These optional interactions neither award evidence nor change the investigation's progression.
 
 ## Rendering and animation
 

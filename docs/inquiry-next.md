@@ -415,3 +415,9 @@ texture loading, pickup and return; the walkable checks and build passed.
 Added the Wellcome Library scan of Snow's south London water-supply Map 2 as a portable sheet on the office writing surface. The ledger sits to the right on the correspondence; the notes and pen move clear of the map. All retain their pickup/return behaviour. The held map displays a short explanation and the collection/license credit, without adding a campaign evidence card.
 
 The texture is local, 2048 × 1670, approximately 1.3 MB, with mipmaps and anisotropic filtering. Image-load failure retains the previous desk arrangement. The 1855 publication is used as an interpretive office prop; the source, CC BY 4.0 license, resizing details, and regeneration command are recorded in `public/maps/south-london-water-supply.source.md`.
+
+### Dialogue depth and nearby objects — 17 October 2026
+
+VR panels still remain readable over room scenery, but now write their actual depth using an always-pass depth function. Characters, their labels, controller models/callouts, and held objects draw afterwards with normal depth testing. A nearer person or controller covers the panel; one behind it does not. This stays in the existing single render per frame, with no extra scene pass. Temporary material copies avoid modifying materials shared with room geometry, and normal rendering is restored when panels close.
+
+Controller button/panel rays also reject visible character or held-object geometry nearer than the panel. Invisible interaction proxies and hidden scenes do not block them. Checked WebGL pixels at left/right eye offsets and a shifted viewpoint, actual household/controller rendering, material restoration, selection depth, and 259 automated tests. Physical Quest checks remain required.

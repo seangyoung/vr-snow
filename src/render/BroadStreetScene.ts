@@ -1,5 +1,6 @@
+import { PanelDepthLayers, foregroundBefore } from './PanelDepthLayers';
 import { ControllerVisuals, createControllerModelFactory } from "../walkable/ControllerVisuals";
-import { ObjectInspection } from "../walkable/ObjectInspection";
+import { ObjectInspection, objectNotes } from "../walkable/ObjectInspection";
 import { InteractionIdleHint } from '../walkable/InteractionIdleHint';
 import { StreetBoundary } from '../walkable/StreetBoundary';
 import { DayTransition } from './DayTransition';
@@ -321,6 +322,7 @@ export class BroadStreetScene {
   private readonly vrQuestionPageCounts = new Map<string, number>();
   private readonly vrIdleHint = createVrIdleHintSprite();
   private vrPanelSurface?: THREE.Mesh;
+  private readonly panelDepthLayers=new PanelDepthLayers();
   private readonly fallbackPanoramaTexture = createPanoramaTexture();
   private readonly skyMaterial = new THREE.MeshBasicMaterial({
     map: this.fallbackPanoramaTexture,
@@ -490,12 +492,33 @@ export class BroadStreetScene {
       this.updateSound();
       const xrSession=this.renderer.xr.getSession();
       if(!document.hidden && (!xrSession || xrSession.visibilityState==='visible'))this.dayTransition.update(elapsed,this.renderer.xr.isPresenting);
+      this.updatePanelDepthLayers();
       this.renderer.render(this.scene, this.camera);
       if (this.allowCanvasCapture && this.captureFrameCounter % 12 === 0) {
         this.canvas.dataset.captureFrame = createCaptureDataUrl(this.renderer.domElement);
       }
       this.captureFrameCounter += 1;
     });
+  }
+
+  private panelPeople(): THREE.Object3D[] {
+    return [this.office?.character.group,...[this.courtyard,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.board].map(room=>room?.characters?.group)]
+      .filter((root):root is THREE.Group=>!!root);
+  }
+
+  private updatePanelDepthLayers(): void {
+    const held=this.propHold.prop;
+    this.panelDepthLayers.update([
+      ...this.panelPeople(),
+      ...this.controllerVisuals.flatMap(visual=>visual.depthRoots),
+      ...[...this.hotspotVisuals.values()].map(visual=>visual.label),
+      ...(held?[held.group]:[]),
+      ...(this.tactileLabel?[this.tactileLabel]:[]),
+    ],this.vrPanelVisible && !!this.vrPanelSurface);
+  }
+
+  private panelHitBlocked(hit:THREE.Intersection):boolean {
+    return foregroundBefore(this.controllerRaycaster,hit.distance,[...this.panelPeople(),...(this.propHold?.prop?[this.propHold.prop.group]:[])]);
   }
 
   private updateSound(): void {
@@ -1014,8 +1037,12 @@ export class BroadStreetScene {
     if(blocked)return;
     let text="",point:THREE.Vector3|undefined;
     if(this.propHold.prop) {
-      text=this.renderer.xr.isPresenting?"Release grip: return · Right stick: rotate":"Click / Space: return · Q/E: spin · R/F: tilt";
-      point=this.propHold.prop.group.getWorldPosition(new THREE.Vector3());
+      const held=this.propHold.prop;
+      // The information card already names notable objects. Ordinary items keep
+      // only their name, following the held object rather than its home position.
+      if(objectNotes[held.name])return;
+      text=held.name;
+      point=held.group.getWorldPosition(new THREE.Vector3());
     } else {
       let hit:THREE.Intersection|undefined;
       if(this.renderer.xr.isPresenting) {
@@ -2660,7 +2687,7 @@ export class BroadStreetScene {
 
     this.setRaycasterFromController(controller);
     const hit = this.controllerRaycaster.intersectObjects(this.vrPanelButtons, false)[0];
-    return hit ? (hit.object as VrButtonMesh) : undefined;
+    return hit && !this.panelHitBlocked(hit) ? (hit.object as VrButtonMesh) : undefined;
   }
 
   private pickVrPointerHit(controller: THREE.Group): THREE.Intersection<THREE.Object3D> | undefined {
@@ -2668,7 +2695,7 @@ export class BroadStreetScene {
     const buttonHit = this.vrPanelVisible
       ? this.controllerRaycaster.intersectObjects(this.vrPanelButtons, false)[0]
       : undefined;
-    if (buttonHit) {
+    if (buttonHit && !this.panelHitBlocked(buttonHit)) {
       return buttonHit;
     }
 
@@ -2692,7 +2719,8 @@ export class BroadStreetScene {
     }
 
     this.setRaycasterFromController(controller);
-    return this.controllerRaycaster.intersectObject(this.vrPanelSurface, false)[0];
+    const hit=this.controllerRaycaster.intersectObject(this.vrPanelSurface, false)[0];
+    return hit && !this.panelHitBlocked(hit) ? hit : undefined;
   }
 
   private pickVrHotspot(controller: THREE.Group): Hotspot | undefined {
@@ -2925,16 +2953,18 @@ function createVrPanelSurface(commands: VrPanelDrawCommand[],height=vrPanelHeigh
   texture.anisotropy = 8;
   texture.needsUpdate = true;
 
-  // Modal UI must draw after opaque AND transparent scene geometry/labels.
-  // Keep the canvas fully opaque, but use the transparent render queue so a
-  // desk, wall, window or sprite cannot cover it. Pointers render above it.
+  // Always pass scenery, but write panel depth so physically nearer people,
+  // controllers and held props can cover it in the following transparent queue.
+  // AlwaysDepth (not disabled depth testing) is required for WebGL depth writes.
   const material = new THREE.MeshBasicMaterial({
     map: texture,
     fog: false,
     transparent: true,
     opacity: 1,
-    depthTest: false,
-    depthWrite: false,
+    depthTest: true,
+    depthFunc: THREE.AlwaysDepth,
+    depthWrite: true,
+    forceSinglePass: true,
     side: THREE.DoubleSide,
     toneMapped: false,
   });

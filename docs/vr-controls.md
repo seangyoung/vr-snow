@@ -62,7 +62,7 @@ shared studio environment for visibility in rooms with baked lighting; this does
 not add lighting to the room itself.
 
 Looking toward a nearby controller for 0.3 seconds fades in compact labels with
-leader lines to its controls. Looking away fades them out. This uses head direction,
+short leader lines to its controls. Labels are 8.5 cm wide (half their previous size), positioned from the actual button anchors with an 8 mm edge gap and minimal vertical spacing to avoid overlap. Looking away fades them out. This uses head direction,
 not eye tracking. Labels remain available while the user looks at the controller;
 there is no timer requiring them to read quickly. The reminders follow the current
 bindings: map/notebook, height/settings, stick movement or held-item rotation,
