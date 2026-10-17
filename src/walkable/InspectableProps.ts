@@ -150,6 +150,15 @@ export class PropHold {
     prop.activate();prop.held=true;
     return true;
   }
+  transfer(anchor: THREE.Object3D): boolean {
+    if(!this.prop || this.prop.returning || this.anchor===anchor)return false;
+    // Keep the current world pose at the instant of transfer. The usual follow
+    // smoothing then carries it into the receiving hand without a return-home phase.
+    anchor.getWorldQuaternion(this.orientation);
+    this.rotation.copy(this.orientation).invert().multiply(this.prop.group.getWorldQuaternion(new THREE.Quaternion()));
+    this.anchor=anchor;
+    return true;
+  }
   update(delta: number): void {
     if (!this.prop || !this.anchor) return;
     this.anchor.getWorldPosition(this.position); this.anchor.getWorldQuaternion(this.orientation);

@@ -27,7 +27,7 @@ export function controllerLabelSpecs(source: XRInputSource, context: ControllerH
     labels.push({button:3,text:`Stick · ${move}\n${click}`,enabled:true});
   }
   if(source.gamepad.buttons.length)labels.push({button:0,text:"Trigger · Select",enabled:true});
-  if(source.gamepad.buttons.length>1)labels.push({button:1,text:context.holdingThis?"Release grip · Return":context.held?"Grip · Occupied":"Grip · Grab",enabled:!context.panel&&(!context.held||context.holdingThis)});
+  if(source.gamepad.buttons.length>1)labels.push({button:1,text:context.holdingThis?"Release grip · Return":context.held?"Grip · Take item":"Grip · Grab",enabled:!context.panel});
   return labels;
 }
 

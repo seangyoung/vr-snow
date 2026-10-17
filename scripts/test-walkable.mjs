@@ -2158,7 +2158,7 @@ test('grip holds until its own release; trigger never drops it or clicks through
   try {
     for(const order of [['select','selectend'],['selectend','select']]) {
       const scene=Object.create(BroadStreetScene.prototype),hand=new THREE.Group(),other=new THREE.Group();
-      const object=new THREE.Group(),mesh=new THREE.Mesh(),prop=new InspectableProp(object,'Cup');object.add(mesh);mesh.userData.inspectableProp=prop;
+      const object=new THREE.Group(),mesh=new THREE.Mesh(new THREE.BoxGeometry(.2,.2,.2)),prop=new InspectableProp(object,'Cup');object.add(mesh);mesh.userData.inspectableProp=prop;
       const street=new PumpCourtyard();street.group.visible=true;street.pick=()=>({object:mesh,distance:1});
       let clicked=0;
       Object.assign(scene,{canvas:new EventTarget(),renderer:{xr:{isPresenting:true,getController:i=>i===0?hand:other,addEventListener:()=>{}}},
@@ -2170,7 +2170,10 @@ test('grip holds until its own release; trigger never drops it or clicks through
       for(const type of order)hand.dispatchEvent({type});
       assert.equal(scene.propHold.prop,prop,'trigger events preserve grip ownership');
       other.dispatchEvent({type:'squeezeend'});assert.equal(scene.propHold.prop,prop);
-      hand.dispatchEvent({type:'squeezeend'});
+      other.dispatchEvent({type:'squeezestart'});assert.equal(scene.propHold.anchor,other,'free hand takes the nearby item');
+      assert.equal(prop.held,true);assert.equal(prop.returning,false);
+      hand.dispatchEvent({type:'squeezeend'});assert.equal(scene.propHold.prop,prop,'former owner release cannot drop the item');
+      other.dispatchEvent({type:'squeezeend'});
       assert.equal(scene.propHold.prop,undefined);assert.equal(prop.returning,true);assert.equal(clicked,0);
     }
   } finally {globalThis.document=oldDocument;globalThis.window=oldWindow;}
@@ -3281,4 +3284,40 @@ test('foreground geometry blocks panel rays only when visible and nearer than th
  person.position.z=-2.5;assert.equal(foregroundBefore(ray,2,[root]),false,'do not block buttons through people behind them');
  person.position.z=-1.5;root.visible=false;assert.equal(foregroundBefore(ray,2,[root]),false);
  root.visible=true;person.visible=false;assert.equal(foregroundBefore(ray,2,[root]),false,'invisible selection proxies cannot block buttons');
+});
+
+
+test('handoff preserves world pose and home pose through repeated transfers under rotated parents',()=>{
+ const parent=new THREE.Group(),item=new THREE.Group(),left=new THREE.Group(),right=new THREE.Group();parent.rotation.y=.45;parent.position.set(2,0,1);parent.add(item);
+ item.add(new THREE.Mesh(new THREE.BoxGeometry(.2,.2,.2)));item.position.set(.2,1,-1);item.rotation.set(.2,.4,.1);
+ left.position.set(-.3,1.1,0);right.position.set(.3,1.3,0);right.rotation.set(.3,-.6,.2);
+ const prop=new InspectableProp(item,'Cup'),hold=new PropHold(),home=prop.home.clone(),homeRotation=prop.homeRotation.clone();
+ assert.equal(hold.transfer(right),false);hold.begin(prop,left,false);hold.rotate(.4,.2);for(let i=0;i<20;i++)hold.update(.05);
+ for(const receiver of [right,left,right]){
+  const position=item.getWorldPosition(new THREE.Vector3()),rotation=item.getWorldQuaternion(new THREE.Quaternion());
+  assert.equal(hold.transfer(receiver),true);assert.equal(hold.anchor,receiver);assert.equal(prop.held,true);assert.equal(prop.returning,false);
+  assert.ok(item.getWorldPosition(new THREE.Vector3()).distanceTo(position)<1e-10);assert.ok(item.getWorldQuaternion(new THREE.Quaternion()).angleTo(rotation)<1e-7);
+  assert.equal(hold.transfer(receiver),false);hold.update(.05);assert.ok(item.getWorldQuaternion(new THREE.Quaternion()).angleTo(rotation)<1e-7,'handoff does not reset rotation');
+ }
+ hold.release(true);assert.ok(item.position.distanceTo(home)<1e-10);assert.ok(item.quaternion.angleTo(homeRotation)<1e-7);
+});
+
+test('handoff requires proximity or an unobstructed ray to the held object and respects modal panels',()=>{
+ const previous=globalThis.document;globalThis.document={hidden:false};
+ try{
+  const scene=Object.create(BroadStreetScene.prototype),left=new THREE.Group(),right=new THREE.Group(),root=new THREE.Group(),item=new THREE.Group();root.add(item);
+  item.position.set(0,1,-2);item.add(new THREE.Mesh(new THREE.BoxGeometry(.2,.2,.2)));
+  const prop=new InspectableProp(item,'Cup'),hold=new PropHold();hold.begin(prop,left,false);right.position.set(0,1,0);
+  let obstruction={distance:1},modal=false;
+  Object.defineProperty(scene,'walkable',{value:{pick:()=>obstruction}});
+  Object.assign(scene,{propHold:hold,controllerRaycaster:new THREE.Raycaster(),vrPanelBlocksWorld:()=>modal,pickVrPanel:()=>undefined,
+   setRaycasterFromController:controller=>scene.controllerRaycaster.set(controller.position,new THREE.Vector3(0,0,-1))});
+  scene.beginGripGrab(right);assert.equal(hold.anchor,left,'wall blocks aimed handoff');
+  obstruction=undefined;right.position.x=1;scene.beginGripGrab(right);assert.equal(hold.anchor,left,'unrelated grip presses do not steal an item');
+  right.position.x=0;modal=true;scene.beginGripGrab(right);assert.equal(hold.anchor,left);
+  modal=false;scene.beginGripGrab(right);assert.equal(hold.anchor,right,'aiming at held geometry transfers it');
+  left.position.set(.2,1,-2);scene.beginGripGrab(left);assert.equal(hold.anchor,left,'close handoff works without aiming down the ray');
+  const takeover=controllerLabelSpecs(helpSource(),{...helpContext,held:true,holdingThis:false}).find(l=>l.button===1);
+  assert.equal(takeover.text,'Grip · Take item');assert.equal(takeover.enabled,true);
+ }finally{globalThis.document=previous;}
 });

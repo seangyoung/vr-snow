@@ -1012,9 +1012,23 @@ export class BroadStreetScene {
 
   private beginGripGrab(controller: THREE.Group): void {
     if(this.dayTransition?.active)return;
-    if(this.vrPanelBlocksWorld() || this.propHold.prop || this.worldTravelPending || document.hidden)return;
+    if(this.vrPanelBlocksWorld() || this.worldTravelPending || document.hidden)return;
     if(this.pickVrPanel(controller))return;
     this.setRaycasterFromController(controller);
+    const held=this.propHold.prop;
+    if(held){
+      if(this.propHold.anchor===controller)return;
+      held.group.updateWorldMatrix(true,true);
+      const hand=controller.getWorldPosition(new THREE.Vector3());
+      const nearby=new THREE.Box3().setFromObject(held.group).distanceToPoint(hand)<=.18;
+      const hit=this.controllerRaycaster.intersectObject(held.group,true)[0];
+      const obstruction=hit?this.walkable?.pick(this.controllerRaycaster):undefined;
+      const aimed=hit && hit.distance<=grabReach && (!obstruction || hit.distance<=obstruction.distance+.035);
+      if((nearby || aimed) && this.propHold.transfer(controller)){
+        this.interactionIdleHint?.reset(performance.now()*.001);this.sound?.effect('select');
+      }
+      return;
+    }
     const hit=this.walkable?.pick(this.controllerRaycaster),prop=propFor(hit?.object);
     if(!hit || !prop || hit.distance>grabReach)return;
     this.interactionIdleHint?.reset(performance.now()*.001);

@@ -3,7 +3,7 @@
 ## Controls
 
 - Broad Street and workhouse: approach the pump and select its handle (mouse, Space/Enter on the center target, or controller trigger). Each selection runs one lift-and-press cycle, with a short water burst and a synchronized pouring/splashing sound. The sound follows the Effects volume and mute settings, and stops when flow ends, on travel, or when the app loses visibility. Select the pump body for its investigation panel. The Broad Street handle is unavailable after its removal by the Board.
-- VR objects: aim at a portable object within 5 metres and hold the grip. Move/turn the controller or use the right stick to spin and tilt it. Release that grip to return it. Stick click opens the menu (or pages through an open multipage panel).
+- VR objects: aim at a portable object within 5 metres and hold the grip. Move/turn the controller or use the right stick to spin and tilt it. To pass it to the other hand, bring the free hand near the item (within 18 cm of its bounds), or aim at the item, and squeeze that grip. Ownership transfers without returning home or resetting orientation. Releasing the former hand has no effect; releasing the receiving hand returns it. Stick click opens the menu (or pages through an open multipage panel).
 - Desktop objects: click, or aim with the center target and press Space/Enter, to lift. Q/E spins and R/F tilts it; another click, Space/Enter, or Escape returns it. Dragging still turns the view without selecting anything.
 - Opening panels, scene travel, reset, controller disconnect, leaving VR, or losing page focus restores held objects. Releasing never activates a person or teleport destination behind the object.
 

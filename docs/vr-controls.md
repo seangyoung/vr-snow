@@ -66,8 +66,8 @@ short leader lines to its controls. Labels are 8.5 cm wide (half their previous 
 not eye tracking. Labels remain available while the user looks at the controller;
 there is no timer requiring them to read quickly. The reminders follow the current
 bindings: map/notebook, height/settings, stick movement or held-item rotation,
-menu/page clicks, trigger selection, and grip grab/return. Locked map access and
-occupied grips are indicated. System buttons are never presented as app shortcuts.
+menu/page clicks, trigger selection, and grip grab/return. Locked map access is indicated.
+The free grip offers “Take item” while the other hand holds an object. Bring it close to the object or aim at it and squeeze to transfer; only the current holding hand can release it. System buttons are never presented as app shortcuts.
 
 The profile, handedness, actual button count, and available model component nodes
 are checked. Unknown face-button mappings are not guessed; hand-tracking input
