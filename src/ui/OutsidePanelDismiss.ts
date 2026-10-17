@@ -10,7 +10,8 @@ export class OutsidePanelDismiss {
     travel: number; released: boolean;
   };
 
-  constructor(private root: HTMLElement, private enabled: () => boolean, private dismiss: () => void) {
+  constructor(private root: HTMLElement, private enabled: () => boolean, private dismiss: () => void,
+    private passThrough: (event: MouseEvent) => boolean = () => false) {
     document.addEventListener("pointerdown", event => {
       this.gesture = undefined;
       const panel = activeDesktopPanel(this.root);
@@ -32,6 +33,8 @@ export class OutsidePanelDismiss {
       if (!gesture || !gesture.released || !this.enabled() || event.button !== 0 || event.detail === 0
         || ("pointerId" in event && event.pointerId !== gesture.id)
         || activeDesktopPanel(this.root) !== gesture.panel || this.inside(gesture.panel, event)) return;
+      // Nonmodal conversations let the scene distinguish props, people and ground.
+      if (gesture.outside && gesture.travel <= 6 && this.passThrough(event)) return;
       // Consume the click even after a drag out of a panel. It must never reach
       // a background travel target, reset button, or a newly exposed dialog.
       event.preventDefault();

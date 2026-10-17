@@ -30,7 +30,7 @@ export class WorkhousePump {
     const removed=new THREE.Group();
     const parts=extractProps(model,removed,'workhouse-courtyard.glb',[
       {name:'Static workhouse pump',min:[2.49,.40,-6.01],max:[4.01,1.82,-5.59]},
-    ]);
+    ],false);
     for(const part of parts)part.group.traverse(object=>{
       if(object instanceof THREE.Mesh) {
         const material=object.material as THREE.MeshStandardMaterial;

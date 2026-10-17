@@ -6,7 +6,8 @@ export interface DayDefinition {
   objectives: readonly { id: ObjectiveId; title: string; location: LocationId; evidence: string }[];
 }
 export const historicalSource = 'https://www.academia.dk/MedHist/Biblioteket/Print/snow_1855.html';
-export const chronologyNote = 'About this dramatization: the investigation is condensed into three days. Dialogue, households, rooms, unnamed officials and the specific walking times are reconstructed. Daily death totals are historical context compiled after the outbreak, not reports available to the characters.';
+export const inquiryOpening = 'Cholera is spreading through Soho. Help Dr. John Snow discover its source.';
+export const chronologyNote = 'This dramatization condenses the investigation into three days, with reconstructed dialogue, households and settings.';
 export const days: readonly DayDefinition[] = [
  {day:1,date:'September 5, 1854',title:'Establish the pattern',previousDate:'September 4',previousDeaths:71,objectives:[
   {id:'records',title:'Copy the registrar’s records',location:'registrar',evidence:'attack-timeline'},
@@ -22,3 +23,7 @@ export const days: readonly DayDefinition[] = [
 ];
 export const locationDay: Partial<Record<LocationId, InquiryDay>> = {'household-routines':2,workhouse:2,brewery:3,'household-away':3};
 export function dayDefinition(day: InquiryDay): DayDefinition { return days[day-1]; }
+/** Authored morning report; the historical figures remain centralized in the day definitions. */
+export function snowMorningReport(day: InquiryDay): string {
+ return `I have checked with the registrar${day>1?' again':''}: ${dayDefinition(day).previousDeaths} cholera deaths yesterday among people from the streets around Broad Street.`;
+}

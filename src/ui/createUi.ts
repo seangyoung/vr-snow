@@ -1,3 +1,4 @@
+import { inquiryOpening } from '../simulation/campaign';
 import { surveyRoutes } from "../simulation/fieldwork";
 import type { SoundControls } from "../audio/Soundscape";
 import { DesktopKeyboard } from "./DesktopKeyboard";
@@ -108,6 +109,7 @@ const mapAnnotations: Array<{
 
 export interface PrototypeUi {
   onReset?: () => void;
+  onEndDay?: () => void;
   openSnowReview: () => void;
   beginTravel: (locationId: LocationId) => void;
   render: () => void;
@@ -126,8 +128,9 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   let previousStage = gameState.getStage();
   let soundControls: SoundControls | undefined;
   let motionLookControls: MotionLookControls | undefined;
-  const keyboard = new DesktopKeyboard(root, document.getElementById("scene"), () => isTransitioning);
-  new OutsidePanelDismiss(root, () => !isTransitioning && document.body.dataset.xrPresenting !== "true", dismissPanels);
+  const keyboard = new DesktopKeyboard(root, document.getElementById("scene"), () => isTransitioning || document.body.dataset.dayTransition==='true');
+  new OutsidePanelDismiss(root, () => !isTransitioning && document.body.dataset.dayTransition!=='true' && document.body.dataset.xrPresenting !== "true", dismissPanels,
+    event => document.body.dataset.conversationOpen==='true' && event.target===document.getElementById('scene'));
 
   function dismissPanels(): void {
     if(gameState.startupOpen)return;
@@ -167,6 +170,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   };
 
   root.addEventListener("click", (event) => {
+    if(document.body.dataset.dayTransition==='true')return;
     const target = event.target as HTMLElement;
     const actionTarget = target.closest<HTMLElement>("[data-action]");
     const action = actionTarget?.dataset.action;
@@ -182,7 +186,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     if(action==='continue-inquiry'){gameState.continueInquiry();render();return;}
     if(action==='new-inquiry'){ui.onReset?.();render();return;}
     if(action==='dismiss-day'){gameState.dismissDayIntroduction();render();return;}
-    if(action==='end-day'){gameState.endDay();render();return;}
+    if(action==='end-day'){if(ui.onEndDay)ui.onEndDay();else gameState.endDay();render();return;}
     if(action==='board-decision'){gameState.closeDialogue();dismissedChapter=undefined;overlayMode='none';render();return;}
     if(action==='review-theory'){gameState.closeDialogue();ui.openSnowReview();return;}
     const stage = gameState.getStage();
@@ -247,7 +251,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           gameState.clearActiveDialogueAnswer();
           snowReviewOpen = true;
           overlayMode = "none";
-          message = "Compare the strongest evidence, choose a theory, then prepare the Board argument.";
+          message = "Compare the strongest evidence, choose a theory, then attend the meeting.";
           render();
           return;
         }
@@ -284,11 +288,6 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         return;
       }
       const result = gameState.selectHypothesis(hypothesisId);
-      message = result.message;
-    }
-
-    if (action === "prepare-board") {
-      const result = gameState.prepareBoardArgument();
       message = result.message;
     }
 
@@ -330,7 +329,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       ui.onReset?.();
     }
     if (action === "present") {
-      const result = gameState.presentToBoard();
+      const result = gameState.attendBoardMeeting();
       overlayMode = "none";
       message = result.message;
     }
@@ -366,6 +365,8 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         ? "false"
         : "true";
     document.body.dataset.audioReading = document.body.dataset.overlayOpen === "true" && overlayMode !== "sound" ? "true" : "false";
+    document.body.dataset.conversationOpen = !gameState.startupOpen && !gameState.dayIntroOpen && !isTransitioning
+      && overlayMode==='none' && !!gameState.getConversationView() ? 'true' : 'false';
     document.body.dataset.stage = stage;
 
     root.innerHTML = `
@@ -376,7 +377,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
           <span class="location-line">${escapeHtml(gameState.getInteractionHint())}</span>
           <span class="location-line">WASD to move · Arrow keys to look<br>Select clear ground to teleport · Marked exits or map to travel</span>
-          <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Objects: click / Space to inspect or return · Q / E: rotate<br>Panels: Tab / arrows, Enter to choose<br>Click outside / Esc: close · Page Up / Down: read more</span>
+          <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Objects: click / Space to inspect or return · Q / E: spin · R / F: tilt<br>Panels: Tab / arrows, Enter to choose<br>Click outside / Esc: close · Page Up / Down: read more</span>
         </section>
 
         <nav class="tool-rail" aria-label="Investigation tools">
@@ -463,17 +464,19 @@ function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): stri
     const guide=survey.guided;
     const point=guide.mapPoint, scale=broadStreetMapViewBoxSize/100;
     const marker=`<circle cx="${point.x*scale}" cy="${point.y*scale}" r="250" fill="#a32c20" stroke="#fff4d4" stroke-width="85"/><text x="${point.x*scale}" y="${point.y*scale+900}" text-anchor="middle" font-size="590" font-weight="bold" fill="#812018" stroke="#fff4d4" stroke-width="130" paint-order="stroke">${escapeHtml(point.label)}</text>`;
-    return `<aside class="overlay-panel map-panel pump-comparison-panel" aria-label="Snow’s map comparison"><div class="panel-header"><strong>${escapeHtml(guide.progress)}</strong></div><div class="map-exercise-layout"><div><svg class="map-exercise-map" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="${escapeHtml(point.label)} marked on Snow’s map${gameState.hasWalkingBoundary()?' outside the Broad Street pump service area':''}">${renderCustomMapBase(new Set(gameState.getCollectedEvidence().map(c=>c.id)),gameState)}${guide.mapPumps.map(p=>`<text x="${p.x*scale}" y="${p.y*scale-440}" text-anchor="${p.x>85?'end':p.x<20?'start':'middle'}" font-size="590" font-weight="bold" fill="#075d55" stroke="#fff4d4" stroke-width="130" paint-order="stroke">${escapeHtml(p.label)}</text>`).join('')}${marker}</svg><p class="map-exercise-caption">Red marker: ${escapeHtml(point.label)}${gameState.hasWalkingBoundary()?' · Green line: pump service area':''}</p></div><div><span>John Snow</span><h3>${escapeHtml(guide.title)}</h3><p aria-live="polite">${escapeHtml(guide.text)}</p>${guide.results.length?`<dl class="pump-comparison-results">${guide.results.map(result=>`<div><dt>${escapeHtml(result.label)}</dt><dd>${escapeHtml(result.time)}</dd></div>`).join('')}</dl>`:''}<div class="conversation-choices">${guide.actions.map(action=>`<button class="question-button" data-action="guided-survey" data-step="${action.id}" data-survey-key="${guide.key}">${escapeHtml(action.label)}</button>`).join('')}</div></div></div></aside>`;
+    return `<aside class="overlay-panel map-panel pump-comparison-panel" aria-label="Snow’s map comparison"><div class="panel-header"><strong>${escapeHtml(guide.progress)}</strong><button class="icon-button" data-action="close-dialogue" aria-label="Close map comparison"><i data-lucide="x"></i></button></div><div class="map-exercise-layout"><div><svg class="map-exercise-map" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="${escapeHtml(point.label)} marked on Snow’s map${gameState.hasWalkingBoundary()?' outside the Broad Street pump service area':''}">${renderCustomMapBase(new Set(gameState.getCollectedEvidence().map(c=>c.id)),gameState)}${guide.mapPumps.map(p=>`<text x="${p.x*scale}" y="${p.y*scale-440}" text-anchor="${p.x>85?'end':p.x<20?'start':'middle'}" font-size="590" font-weight="bold" fill="#075d55" stroke="#fff4d4" stroke-width="130" paint-order="stroke">${escapeHtml(p.label)}</text>`).join('')}${marker}</svg><p class="map-exercise-caption">Red marker: ${escapeHtml(point.label)}${gameState.hasWalkingBoundary()?' · Green line: pump service area':''}</p></div><div><span>John Snow</span><h3>${escapeHtml(guide.title)}</h3><p aria-live="polite">${escapeHtml(guide.text)}</p>${guide.results.length?`<dl class="pump-comparison-results">${guide.results.map(result=>`<div><dt>${escapeHtml(result.label)}</dt><dd>${escapeHtml(result.time)}</dd></div>`).join('')}</dl>`:''}<div class="conversation-choices">${guide.actions.map(action=>`<button class="question-button" data-action="guided-survey" data-step="${action.id}" data-survey-key="${guide.key}">${escapeHtml(action.label)}</button>`).join('')}</div></div></div></aside>`;
   }
   const view = gameState.getConversationView();
   if (view) return `
-    <aside class="dialogue-panel conversation-panel" aria-label="${escapeHtml(view.speaker)} conversation">
+    <aside class="dialogue-panel conversation-panel${view.map ? ' conversation-map-panel' : ''}" aria-label="${escapeHtml(view.speaker)} conversation">
       <div class="dialogue-header"><strong>${escapeHtml(view.speaker)}</strong>
-        ${gameState.needsDailyBriefing()?'':'<button class="icon-button" data-action="close-dialogue" aria-label="Close conversation"><i data-lucide="x"></i></button>'}</div>
-      <p class="conversation-beat" aria-live="polite">${escapeHtml(view.text)}</p>
+        <button class="icon-button" data-action="close-dialogue" aria-label="Close conversation"><i data-lucide="x"></i></button></div>
+      <div class="conversation-content">
+      ${view.map ? `<figure class="recap-map"><svg class="map-exercise-map" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="Deaths plotted around the Broad Street pump">${renderCustomMapBase(new Set(gameState.getCollectedEvidence().map(c=>c.id)),gameState)}</svg><figcaption>Bars: deaths · Teal circles: pumps</figcaption></figure>` : ''}
+      <div><p class="conversation-beat" aria-live="polite">${escapeHtml(view.text)}</p>
       <div class="conversation-choices">${view.choices.map(choice => `<button class="question-button" data-action="conversation-choice" data-beat-id="${escapeHtml(view.beatId)}" data-choice-id="${escapeHtml(choice.id)}">${escapeHtml(choice.label)}</button>`).join("")}
       ${view.terminalAction ? `<button class="question-button" data-action="${view.terminalAction}">${view.terminalAction==='resume-survey'?'Join Snow at the map table':view.terminalAction==='end-day'?'End day':view.terminalAction==='board-decision'?'Read the Board decision':'Review the theories'}</button>` : ''}
-      ${view.complete && !gameState.needsDailyBriefing() ? '<button class="question-button" data-action="close-dialogue">Return to the scene</button>' : ""}</div>
+      ${view.complete ? '<button class="question-button" data-action="close-dialogue">Return to the scene</button>' : ""}</div></div></div>
     </aside>`;
 
   const activeAnswer = gameState.getActiveDialogueAnswer();
@@ -595,7 +598,7 @@ export function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gam
           </button>`;
 
   return `
-    <aside class="chapter-panel" aria-label="${escapeHtml(scene.title)}">
+    <aside class="chapter-panel ${stage==='complete'?'epilogue-panel':''}" aria-label="${escapeHtml(scene.title)}">
       <div class="chapter-heading">
         <span>${escapeHtml(scene.subtitle)}</span>
         <h2>${escapeHtml(scene.title)}</h2>
@@ -606,8 +609,8 @@ export function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gam
       </div>
       <div class="chapter-actions">
         <button class="secondary-action" data-action="close-chapter">Close</button>
-        <button class="secondary-action" data-action="sound">Sound settings</button>
-        ${action}
+        ${stage==='complete'?'<button class="primary-action" data-action="travel" data-location-id="snow-desk">Return to Snow’s desk</button>':'<button class="secondary-action" data-action="sound">Sound settings</button>'}
+        ${stage==='complete'?'':action}
       </div>
     </aside>
   `;
@@ -731,11 +734,11 @@ export function renderSynthesisPanel(gameState: GameState): string {
         <div class="synthesis-actions">
           <button
             class="primary-action wide-action"
-            data-action="${boardPrepared ? "present" : "prepare-board"}"
+            data-action="present"
             ${canPrepare || boardPrepared ? "" : "disabled"}
           >
-            <i data-lucide="${boardPrepared ? "send" : "clipboard-check"}"></i>
-            ${boardPrepared ? "Attend the meeting" : "Prepare Board argument"}
+            <i data-lucide="send"></i>
+            Attend the meeting
           </button>
         </div>
       </div>
@@ -781,7 +784,7 @@ function renderEvidenceFit(label: string, text: string | undefined, kind: "suppo
 
 function renderMap(collected: EvidenceCard[], gameState: GameState): string {
   const collectedIds = new Set(collected.map((card) => card.id));
-  const deathsVisible = shouldShowDeathLayer(collectedIds);
+  const deathsVisible = gameState.hasMappedDeaths();
 
   const stage = gameState.getStage();
   const evidenceReady = gameState.hasEnoughEvidenceForSynthesis();
@@ -889,7 +892,7 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
 function renderCustomMapBase(collectedIds: Set<string>, gameState:GameState): string {
   const mapSource = publicAssetPath(broadStreetMapSvgPath);
   const href = (id: string) => escapeHtml(`${mapSource}#${id}`);
-  const showDeaths = shouldShowDeathLayer(collectedIds);
+  const showDeaths = gameState.hasMappedDeaths();
 
   return `
     <rect class="map-paper" x="0" y="0" width="${broadStreetMapViewBoxSize}" height="${broadStreetMapViewBoxSize}" />
@@ -914,10 +917,6 @@ function renderCustomMapBase(collectedIds: Set<string>, gameState:GameState): st
       ${renderPumpHighlights()}
     </g>
   `;
-}
-
-function shouldShowDeathLayer(collectedIds: Set<string>): boolean {
-  return collectedIds.has("attack-timeline") && collectedIds.has("pump-cluster");
 }
 
 function renderMapLegend(deathsVisible: boolean, accessVisible=false): string {
@@ -1161,8 +1160,8 @@ function renderAssignments(game: GameState): string {
  return `<article class="study-goal assignment-summary"><div><h3>${escapeHtml(game.getDay().title)}</h3>${game.getAssignments().map(o=>`<p>${o.complete?'✓':'○'} ${escapeHtml(o.title)}</p>`).join('')}</div></article>`;
 }
 function renderStartPanel(game:GameState): string {
- return `<aside class="chapter-panel" aria-label="Start inquiry"><div class="chapter-heading"><span>Three-day inquiry · September 5–7, 1854</span><h2>The Broad Street Inquiry</h2></div><div class="chapter-copy"><p>Investigate records, interview witnesses, compare water supplies and present your argument to the Board.</p><p>${escapeHtml(game.saveNotice || 'Progress saves in this browser. The inquiry preview has a separate save from production.')}</p></div><div class="chapter-actions">${game.hasSavedInquiry?'<button class="primary-action" data-action="continue-inquiry">Continue</button>':''}<button class="secondary-action" data-action="new-inquiry">New Inquiry</button></div></aside>`;
+ return `<aside class="chapter-panel" aria-label="Start inquiry"><div class="chapter-heading"><span>Soho, London · 1854</span><h2>The Broad Street Inquiry</h2></div><div class="chapter-copy"><p>${escapeHtml(inquiryOpening)}</p>${game.saveNotice?`<p>${escapeHtml(game.saveNotice)}</p>`:''}</div><div class="chapter-actions">${game.hasSavedInquiry?'<button class="primary-action" data-action="continue-inquiry">Continue</button>':''}<button class="secondary-action" data-action="new-inquiry">New Inquiry</button></div></aside>`;
 }
 function renderDayPanel(game:GameState): string {
- return `<aside class="chapter-panel" aria-label="Day ${game.day} introduction"><div class="chapter-heading"><span>Day ${game.day}</span><h2>${escapeHtml(game.getDay().date)}</h2></div><div class="chapter-copy">${game.getDayIntroduction().slice(1).map(text=>`<p>${escapeHtml(text)}</p>`).join('')}</div><div class="chapter-actions"><button class="primary-action" data-action="dismiss-day">Speak with Snow</button></div></aside>`;
+ return `<aside class="chapter-panel" aria-label="Day ${game.day} introduction"><div class="chapter-heading"><span>Day ${game.day}</span><h2>${escapeHtml(game.getDay().date)}</h2></div><div class="chapter-copy">${game.getDayIntroduction().slice(1).map(text=>`<p>${escapeHtml(text)}</p>`).join('')}</div><div class="chapter-actions"><button class="primary-action" data-action="dismiss-day">Enter the office</button></div></aside>`;
 }

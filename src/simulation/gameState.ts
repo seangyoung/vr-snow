@@ -136,13 +136,15 @@ export class GameState {
   }
   isDayFieldworkComplete(): boolean { return this.getDay().objectives.every(o=>this.objectives.has(o.id)); }
   canEndDay(): boolean { return this.day<3 && this.recaps.has(this.day) && this.currentLocationId==='snow-desk'; }
+  /** Plotting begins with the recap; the cluster finding still requires finishing it. */
+  hasMappedDeaths(): boolean {
+    return this.hasEvidence('attack-timeline') && (this.hasEvidence('pump-cluster') || this.conversations.hasStarted('snow-recap-1'));
+  }
   getDayIntroduction(): string[] { const day=this.getDay(); return [
     `${day.date} · ${day.title}`,
-    `Historical context · ${day.previousDeaths} deaths on ${day.previousDate}.`,
-    ...(this.day===1?[chronologyNote]:[]),
-    'Speak with Snow for today’s assignments.'
+    this.day===1 ? 'You are in Dr. Snow’s office. Speak with him to begin your inquiry.' : 'Speak with Snow for today’s assignments.'
   ]; }
-  dismissDayIntroduction(): void { this.dayIntroOpen=false; this.openDailyBriefing(); this.emitChange(); }
+  dismissDayIntroduction(): void { this.dayIntroOpen=false; this.emitChange(); }
   endDay(): boolean {
     if(!this.canEndDay())return false;
     this.day=(this.day+1) as InquiryDay; this.dayIntroOpen=true;this.conversations.close();
@@ -241,7 +243,7 @@ export class GameState {
     if(this.surveyProgress && this.canResumePumpComparison())return 'Compare two pumps from the same starting point. Resume the pump comparison whenever you are ready.';
     if(this.selectedRoute)return 'Resume the pump comparison to continue your earlier route notes.';
     if(this.preparedForBoard)return 'Attend the meeting from Snow’s review panel.';
-    if(this.hasEnoughEvidenceForSynthesis())return 'Review the theories with Snow and prepare the Board argument.';
+    if(this.hasEnoughEvidenceForSynthesis())return 'Choose a theory with Snow, then attend the meeting.';
     if(!this.hasCurrentAssignment())return `Day ${this.day}: speak with Snow for today’s assignments.`;
     if(this.isDayFieldworkComplete())return this.recaps.has(this.day)?'Today’s review is complete. Return to Snow and choose End day when ready.':'Today’s fieldwork is complete. Return to Snow for the recap; exploration remains available.';
     return `Day ${this.day}: ${this.getAssignments().filter(o=>!o.complete).map(o=>o.title).join(' · ')}.`;
@@ -306,12 +308,14 @@ export class GameState {
         return [
           "Historical outcome — September 8: the handle is gone. A notice on the pump records the Guardians’ order. The outbreak was already declining, so its decline cannot by itself establish the effect of removing the handle.",
           "Whitehead later changed his mind. His inquiries at 40 Broad Street, together with parish investigations of defective drainage beside the well, helped explain how the water became contaminated.",
+          chronologyNote,
         ];
       }
 
       return [
         "Alternate course — a fictional teaching outcome: your argument persuades the Board to leave the pump open despite Snow’s continuing objection. Historically, the handle was removed on September 8, when the outbreak was already declining.",
         "Whitehead later changed his mind. His inquiries at 40 Broad Street and the parish investigation of drainage beside the well strengthened the water explanation.",
+        chronologyNote,
       ];
     }
 
@@ -329,6 +333,16 @@ export class GameState {
     this.activeDialogueId = undefined;
     this.activeDialogueQuestionId = undefined;
     this.emitChange();
+  }
+
+  attendBoardMeeting(): { accepted: boolean; message: string } {
+    if(this.stage==='board' || this.stage==='complete')
+      return {accepted:false,message:'You have already arrived at the meeting.'};
+    if(!this.preparedForBoard) {
+      const preparation=this.prepareBoardArgument(false);
+      if(!preparation.prepared)return {accepted:false,message:preparation.message};
+    }
+    return this.presentToBoard();
   }
 
   presentToBoard(): { accepted: boolean; message: string } {
@@ -392,7 +406,8 @@ export class GameState {
     }
 
     this.activeSurvey=undefined;
-    this.conversations.close();
+    this.conversations.restartUnfinishedAt(this.currentLocationId);
+    this.conversations.interrupt();
     this.currentLocationId = locationId;
     this.activeDialogueId = undefined;
     this.activeDialogueQuestionId = undefined;
@@ -407,12 +422,16 @@ export class GameState {
   }
 
   closeDialogue(): void {
-    if(this.needsDailyBriefing() && (this.getConversationView() || this.getFieldworkView()))return;
     this.activeSurvey=undefined;
     this.conversations.close();
     this.activeDialogueId = undefined;
     this.activeDialogueQuestionId = undefined;
     this.emitChange();
+  }
+
+  interruptConversation(): void {
+    this.conversations.interrupt();
+    this.closeDialogue();
   }
 
   clearActiveDialogueAnswer(): void {
@@ -436,7 +455,7 @@ export class GameState {
     return { selected: true, message: `${hypothesis.title} selected for Snow's review.` };
   }
 
-  prepareBoardArgument(): { prepared: boolean; message: string } {
+  prepareBoardArgument(notify = true): { prepared: boolean; message: string } {
     if (!this.hasEnoughEvidenceForSynthesis()) {
       return { prepared: false, message: "Complete the three days of assignments and recaps before synthesis." };
     }
@@ -451,7 +470,7 @@ export class GameState {
 
     this.preparedForBoard = true;
     this.stage = "synthesis";
-    this.emitChange();
+    if(notify)this.emitChange();
     return {
       prepared: true,
       message:
@@ -634,6 +653,7 @@ export class GameState {
 
     if (!this.hasCurrentAssignment() || this.dayIntroOpen || this.startupOpen)return false;
 
+    if(this.stage==='complete')return id==='snow-desk' || (this.isPumpClosed() && id==='broad-street');
     return this.isLocationUnlocked(location);
   }
 
@@ -771,7 +791,7 @@ export class GameState {
   }
   continueInquiry(): boolean {
     if(!this.pendingSave || !this.restoreSave(this.pendingSave))return false;
-    this.pendingSave=undefined;this.startupOpen=false;this.openDailyBriefing();this.emitChange();return true;
+    this.pendingSave=undefined;this.startupOpen=false;this.emitChange();return true;
   }
   serializeSave(): string {
     return JSON.stringify({version:1,mapExercise:2,day:this.day,location:this.currentLocationId,stage:this.stage,
@@ -848,10 +868,9 @@ export class GameState {
       }
       this.dayIntroOpen=value.dayIntro;this.activeDialogueId=undefined;this.activeDialogueQuestionId=undefined;
       // Older previews allowed an unbriefed player to leave on days two and three.
-      // Resume that day's conversation safely at Snow's office, preserving its cursor.
+      // Return to Snow's office; selecting him resumes the preserved cursor.
       if(this.needsDailyBriefing()) {
         this.currentLocationId='snow-desk';
-        if(!this.dayIntroOpen)this.openDailyBriefing();
       }
       if(!this.needsDailyBriefing() && !['board','complete'].includes(this.stage) && !this.isLocationUnlocked(this.getCurrentLocation()))this.currentLocationId='broad-street';
       return true;

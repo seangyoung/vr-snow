@@ -1,8 +1,14 @@
+import { ControllerVisuals, createControllerModelFactory } from "../walkable/ControllerVisuals";
+import { ObjectInspection } from "../walkable/ObjectInspection";
+import { InteractionIdleHint } from '../walkable/InteractionIdleHint';
+import { StreetBoundary } from '../walkable/StreetBoundary';
+import { DayTransition } from './DayTransition';
+import { inquiryOpening } from '../simulation/campaign';
 import { streetPlacement, streetActorIds } from '../simulation/streetPopulation';
 import { AdditionalHousehold } from "../walkable/AdditionalHousehold";
 import { BoardRoom } from "../walkable/BoardRoom";
 import * as THREE from "three";
-import { PropHold, propFor } from "../walkable/InspectableProps";
+import { PropHold, propFor, grabReach } from "../walkable/InspectableProps";
 import type { Soundscape, SoundChannel } from "../audio/Soundscape";
 import { PumpCourtyard, pumpPosition } from "../walkable/PumpCourtyard";
 import { SnowOffice, officeDeskTarget } from "../walkable/SnowOffice";
@@ -52,7 +58,6 @@ type VrButtonAction =
   | { type: "page-text"; pageKey: string; direction: -1 | 1 }
   | { type: "page-questions"; pageKey: string; direction: -1 | 1 }
   | { type: "select-hypothesis"; hypothesisId: HypothesisId }
-  | { type: "prepare-board" }
   | { type: "present-board" }
   | { type: "begin-hearing" }
   | { type: "finish-board" }
@@ -86,6 +91,7 @@ type VrPanelButtonCommand = {
   icon?: VrPanelIcon;
   highlight?: boolean;
   active?: boolean;
+  selectedTheory?: boolean;
   x: number;
   y: number;
   width: number;
@@ -204,7 +210,6 @@ const vrPanelDesignWidth = 1180;
 const snapTurnAngle = Math.PI / 4;
 const snapTurnActivationThreshold = 0.72;
 const snapTurnReleaseThreshold = 0.22;
-const vrIdleHintDelaySeconds = 10;
 const vrIdleHintDistance = 2;
 const vrIdleHintLowerOffset = 0.44;
 const motionLookPitchLimit = desktopPitchLimit;
@@ -221,10 +226,12 @@ export class BroadStreetScene {
   onHotspotActivate?: (hotspot: Hotspot) => void;
   onWorldTravel?: (locationId: LocationId) => void;
   onMotionLookChange?: () => void;
+  onDayTransitionComplete?: () => void;
 
   private readonly reducedCharacterMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(65, 1, 0.05, 100);
+  private readonly dayTransition = new DayTransition(this.camera);
   private readonly playerRig = new THREE.Group();
   private readonly courtyard = new PumpCourtyard();
   private readonly office = new SnowOffice();
@@ -252,9 +259,18 @@ export class BroadStreetScene {
   private readonly travelZones = new TravelZoneTracker();
   private focusedTravel?: WorldTravelRoute;
   private worldTravelPending = false;
+  private vrEpilogueLayout = false;
   private readonly desktopMovement = new DesktopMovement();
+  private readonly streetBoundary = new StreetBoundary();
+  private canWalkWithBoundaryCue(from:THREE.Vector3,to:THREE.Vector3):boolean {
+    const allowed=this.walkable?.canWalkBetween(from,to)??false;
+    if(!allowed && this.courtyard?.group.visible)this.streetBoundary?.blocked(from,to);
+    return allowed;
+  }
   private lastFrameTime?: number;
+  private readonly controllerVisuals: ControllerVisuals[] = [];
   private readonly propHold = new PropHold();
+  private objectInspection?: ObjectInspection;
   private readonly tactileVrSelections = new Set<THREE.Group>();
   private tactileLabel?: THREE.Sprite;
   private tactileLabelText = "";
@@ -327,12 +343,43 @@ export class BroadStreetScene {
   private vrPanelMode: VrPanelMode = "home";
   private vrPanelDirty = true;
   private vrPanelVisible = false;
+  private vrConversationSpeaker?: string;
+  private conversationRange?: { id: string; anchor: THREE.Vector3; limit: number };
+
+  private conversationPanelOpen(): boolean {
+    return this.vrPanelVisible && this.vrPanelMode==='home' && !!this.gameState.getConversationView?.();
+  }
+  private vrPanelBlocksWorld(): boolean { return this.vrPanelVisible && !this.conversationPanelOpen(); }
+  private desktopWorldBlocked(): boolean {
+    return document.body.dataset.overlayOpen==='true' && document.body.dataset.conversationOpen!=='true';
+  }
+
+  private updateConversationRange(): void {
+    const view=this.gameState.getConversationView();
+    if(!view){this.conversationRange=undefined;return;}
+    // The entire Board room is the hearing area; crossing to another speaker is not leaving it.
+    if(view.id==='board-hearing' && this.gameState.getCurrentLocation().id==='board-room') {
+      this.conversationRange=undefined;return;
+    }
+    const position=this.camera.getWorldPosition(new THREE.Vector3());
+    position.y=0;
+    if(this.conversationRange?.id!==view.id) {
+      const anchor=new THREE.Vector3(...view.anchor);anchor.y=0;
+      this.conversationRange={id:view.id,anchor,limit:Math.max(4,position.distanceTo(anchor)+1.5)};
+    }
+    if(position.distanceTo(this.conversationRange.anchor)<=this.conversationRange.limit)return;
+    this.gameState.interruptConversation();this.conversationRange=undefined;
+    if(this.conversationPanelOpen() || (this.vrPanelVisible && this.vrPanelMode==='home'))this.hideVrPanel();
+  }
   private readonly vrSelectionStarts = new Map<THREE.Group, { panel: boolean; inside: boolean; origin: THREE.Vector3; direction: THREE.Vector3 }>();
-  private vrStatus = "Aim at a person, the pump or a panel. Trigger selects. Squeeze toggles the panel.";
+  private vrStatus = "Click to interact with people or objects. Trigger selects. Grip grabs objects. Stick click opens the menu.";
   private vrFocusedButton?: VrButtonMesh;
   private vrMapNeedsAttention = false;
   private vrActivePageKey?: string;
-  private vrPanelHiddenSince?: number;
+  private readonly interactionIdleHint = new InteractionIdleHint();
+  private readonly idlePoseSamples = new Map<THREE.Object3D, {position: THREE.Vector3; rotation: THREE.Quaternion}>();
+  private readonly idlePosePosition = new THREE.Vector3();
+  private readonly idlePoseRotation = new THREE.Quaternion();
   private snapTurnLocked = false;
   private readonly vrWalking = new VrWalking();
   private readonly vrShortcuts = new VrShortcutTracker();
@@ -395,6 +442,7 @@ export class BroadStreetScene {
     });
     this.scene.add(this.vrPanel);
     this.scene.add(this.vrIdleHint);
+    this.scene.add(this.streetBoundary.group);
     this.vrPanel.scale.setScalar(vrPanelScale);
     this.vrPanel.visible = false;
     this.vrIdleHint.visible = false;
@@ -431,10 +479,17 @@ export class BroadStreetScene {
         if(room?.group.visible)room.characters?.update(timeSeconds,this.reducedCharacterMotion.matches);
       }
       this.updateVrControls(timeSeconds,elapsed);
+      this.updateConversationRange();
+      const boundaryEnabled=this.courtyard.group.visible && !document.hidden && !this.vrPanelBlocksWorld()
+        && !this.desktopWorldBlocked() && !this.worldTravelPending
+        && (!this.renderer.xr.isPresenting || this.renderer.xr.getSession()?.visibilityState==="visible");
+      this.streetBoundary.update(this.camera.getWorldPosition(new THREE.Vector3()),this.camera.getWorldDirection(new THREE.Vector3()),elapsed,boundaryEnabled,this.reducedCharacterMotion.matches);
       this.updateFocusFromCenter();
       this.updateCharacterHoverLabels();
       this.updateTactileInteractions(elapsed);
       this.updateSound();
+      const xrSession=this.renderer.xr.getSession();
+      if(!document.hidden && (!xrSession || xrSession.visibilityState==='visible'))this.dayTransition.update(elapsed,this.renderer.xr.isPresenting);
       this.renderer.render(this.scene, this.camera);
       if (this.allowCanvasCapture && this.captureFrameCounter % 12 === 0) {
         this.canvas.dataset.captureFrame = createCaptureDataUrl(this.renderer.domElement);
@@ -452,8 +507,18 @@ export class BroadStreetScene {
       this.camera.getWorldPosition(this.soundPosition);this.camera.getWorldDirection(this.soundForward);
       this.soundUp.set(0,1,0).applyQuaternion(this.camera.getWorldQuaternion(this.controllerWorldQuaternion));
       this.sound.update(this.soundPosition,this.soundForward,this.soundUp,!!this.walkable &&
-        (this.renderer.xr.isPresenting?!this.vrPanelVisible:this.canUseDesktopMovement()));
+        (this.renderer.xr.isPresenting?!this.vrPanelBlocksWorld():this.canUseDesktopMovement()));
     }
+  }
+
+  endDay(): void {
+    if(this.dayTransition.active || !this.gameState.canEndDay())return;
+    this.resetTactileInteractions();this.desktopMovement.clear();this.vrWalking.reset();
+    this.vrSelectionStarts.clear();this.vrShortcuts.clear();this.vrControllerButtonStates.clear();
+    this.dayTransition.start(()=>{
+      this.vrPanelMode='home';this.gameState.endDay();
+      if(this.renderer.xr.isPresenting){this.showVrPanel(false);this.rebuildVrPanel();}
+    },()=>this.onDayTransitionComplete?.(),this.reducedCharacterMotion.matches);
   }
 
   resetView(): void {
@@ -519,6 +584,7 @@ export class BroadStreetScene {
   refreshHotspots(): void {
     this.courtyard?.setPumpClosed?.(this.gameState.isPumpClosed());
     this.courtyard?.characters.setDay(this.gameState.day);
+    if(this.courtyard)this.courtyard.characters.group.visible=this.gameState.getStage()!=='complete';
     this.worldTravel?.refresh(this.gameState);
     const activeHotspotIds = new Set(this.gameState.getHotspots().map((hotspot) => hotspot.id));
     this.hotspotVisuals.forEach(({ mesh, label, ground }) => {
@@ -766,6 +832,9 @@ export class BroadStreetScene {
       const extra=hotspot.id==='routines-household'?this.routines:hotspot.id==='away-household'?this.away:undefined;
       if(extra?.characters){label.position.copy(extra.characters.labelPosition);label.scale.set(.95,.32,1);label.visible=false;}
       if(streetActorIds.includes(hotspot.id) && hotspot.id!=='whitehead'){label.scale.set(.95,.32,1);label.visible=false;}
+      // Keep the chosen text height while allowing longer names a wider plaque.
+      const labelCanvas=label.material.map!.image as HTMLCanvasElement;
+      label.scale.x=label.scale.y*labelCanvas.width/labelCanvas.height;
       this.scene.add(label);
       let ground: THREE.Mesh | undefined;
       if(hotspot.id==='survey-marlborough'||hotspot.id==='survey-rupert') {
@@ -876,19 +945,27 @@ export class BroadStreetScene {
   }
   private updatePumpInteractions(delta: number): void {
     const pump=this.activePump;
-    if(pump?.action.update(delta,this.reducedCharacterMotion.matches))this.gameState.recordPumpedWater(pump.location);
+    if(pump?.action.update(delta,this.reducedCharacterMotion.matches)) {
+      this.sound?.effect("water");
+      this.gameState.recordPumpedWater(pump.location);
+    }
+    if(!pump?.action.water.visible)this.sound?.stopWater();
   }
   private resetTactileInteractions(): void {
+    this.streetBoundary?.reset();
+    this.sound?.stopWater();
     this.propHold?.release(true);
-    for(const room of [this.office,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery])
+    for(const room of [this.office,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.board])
       for(const prop of room?.props??[])prop.release(true);
     this.courtyard?.setPumpClosed?.(this.gameState.isPumpClosed());
     this.courtyard?.pumpAction?.reset(!this.gameState.isPumpClosed());
     this.workhouse?.pumpAction?.reset();
     if(this.tactileLabel)this.tactileLabel.visible=false;
+    this.objectInspection?.update(undefined,this.renderer?.xr.isPresenting??false,this.camera);
   }
 
   private activateTactile(ray: THREE.Raycaster, controller?: THREE.Group): boolean {
+    this.interactionIdleHint?.reset(performance.now()*.001);if(this.vrIdleHint)this.vrIdleHint.visible=false;
     if(this.propHold?.prop) {
       if(!controller)this.propHold.release();
       return true;
@@ -900,28 +977,44 @@ export class BroadStreetScene {
     const handle=pump?.action.owns(hit.object);
     if(!prop && !handle)return false;
     // A distant object stays an object, never a click-through travel destination.
-    if(hit.distance>2.4)return true;
+    if(hit.distance>(handle?2.4:grabReach))return true;
     if(handle) {
-      if(pump!.action.stroke())this.sound?.effect("water");
-    } else if(prop) {
+      pump!.action.stroke();
+    } else if(prop && !controller) {
       this.propHold.begin(prop,controller??this.camera,!controller);
       this.sound?.effect("select");
     }
     return true;
   }
 
+  private beginGripGrab(controller: THREE.Group): void {
+    if(this.dayTransition?.active)return;
+    if(this.vrPanelBlocksWorld() || this.propHold.prop || this.worldTravelPending || document.hidden)return;
+    if(this.pickVrPanel(controller))return;
+    this.setRaycasterFromController(controller);
+    const hit=this.walkable?.pick(this.controllerRaycaster),prop=propFor(hit?.object);
+    if(!hit || !prop || hit.distance>grabReach)return;
+    this.interactionIdleHint?.reset(performance.now()*.001);
+    if(this.propHold.begin(prop,controller,false))this.sound?.effect("select");
+  }
+
   private updateTactileInteractions(delta: number): void {
-    const blocked=document.hidden || (this.renderer.xr.isPresenting ? this.vrPanelVisible : document.body.dataset.overlayOpen==="true");
+    const session=this.renderer.xr.getSession?.();
+    const blocked=document.hidden || (this.renderer.xr.isPresenting
+      ? this.vrPanelBlocksWorld() || !!(session && session.visibilityState!=="visible")
+      : this.desktopWorldBlocked());
     if(blocked)this.propHold.release(true);
-    for(const room of [this.office,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery])
-      for(const prop of room.props)prop.update(Math.min(.05,delta),this.reducedCharacterMotion.matches);
+    for(const room of [this.office,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.board])
+      for(const prop of room?.props??[])prop.update(Math.min(.05,delta),this.reducedCharacterMotion.matches);
     this.propHold.update(delta);
+    if(this.propHold.prop&&!this.objectInspection)this.objectInspection=new ObjectInspection(this.scene);
+    this.objectInspection?.update(this.propHold.prop,this.renderer.xr.isPresenting,this.camera);
     this.updatePumpInteractions(delta);
     if(this.tactileLabel)this.tactileLabel.visible=false;
     if(blocked)return;
     let text="",point:THREE.Vector3|undefined;
     if(this.propHold.prop) {
-      text=this.renderer.xr.isPresenting?"Release trigger to return":"Click / Space: return · Q / E: rotate";
+      text=this.renderer.xr.isPresenting?"Release grip: return · Right stick: rotate":"Click / Space: return · Q/E: spin · R/F: tilt";
       point=this.propHold.prop.group.getWorldPosition(new THREE.Vector3());
     } else {
       let hit:THREE.Intersection|undefined;
@@ -940,7 +1033,7 @@ export class BroadStreetScene {
       }
       if(hit) {
         const prop=propFor(hit.object);
-        if(prop)text=hit.distance>2.4?"Move closer to inspect":`${prop.name} · ${this.renderer.xr.isPresenting?"hold trigger":"click / Space"}`;
+        if(prop)text=hit.distance>grabReach?"Move closer to inspect":`${prop.name} · ${this.renderer.xr.isPresenting?"hold grip":"click / Space"}`;
         else if(this.activePump?.action.owns(hit.object))text=hit.distance>2.4?"Move closer to the handle":"Work pump · select handle";
         else if(this.activePump && ['broad-street-pump','workhouse-pump'].includes(this.walkable?.hotspotFor(hit.object)??''))
           text=this.gameState.hasPumpedWater(this.activePump.location)?"Inspect water · select pump":"Draw water first · select the handle";
@@ -967,7 +1060,7 @@ export class BroadStreetScene {
         return;
       }
       if (event.button !== 0 || !event.isPrimary) return;
-      if (document.body.dataset.overlayOpen !== "true") this.canvas.focus({ preventScroll: true });
+      if (!this.desktopWorldBlocked()) this.canvas.focus({ preventScroll: true });
       this.dragging = true;
       this.pointerTravel = 0;
       this.previousPointer = { x: event.clientX, y: event.clientY };
@@ -1006,7 +1099,7 @@ export class BroadStreetScene {
       if (this.renderer.xr.isPresenting) {
         return;
       }
-      if (this.pointerTravel > 6 || document.body.dataset.overlayOpen === "true") return;
+      if (this.pointerTravel > 6 || this.desktopWorldBlocked()) return;
       const hotspot = this.pickHotspot(event.clientX, event.clientY);
       if (this.activateTactile(this.raycaster)) return;
       const travel = this.worldTravel?.routeFor(this.pickWorldTravelHit(this.raycaster)?.object as THREE.Object3D);
@@ -1019,17 +1112,19 @@ export class BroadStreetScene {
       } else if (this.walkable) {
         const hit = this.pickWorldTravelHit(this.raycaster);
         if (hit && this.walkable.canTeleport(hit)) teleportViewer(this.playerRig, this.camera, hit.point);
+        else if(this.gameState.getConversationView())this.gameState.closeDialogue();
       }
     });
     this.canvas.addEventListener("pointerleave", () => { this.characterHoverPointer = null; });
     this.canvas.addEventListener("pointercancel", () => { this.dragging = false; this.pointerTravel = Infinity; this.characterHoverPointer = null; });
     window.addEventListener("keydown", (event) => {
-      if (!this.renderer.xr.isPresenting && document.body.dataset.overlayOpen !== "true" && this.propHold.prop && event.key === "Escape") {
+      if(this.dayTransition?.active){if(!event.ctrlKey&&!event.metaKey)event.preventDefault();return;}
+      if (!this.renderer.xr.isPresenting && !this.desktopWorldBlocked() && this.propHold.prop && event.key === "Escape") {
         this.propHold.release();event.preventDefault();return;
       }
       if (event.defaultPrevented) return;
-      if (this.canUseDesktopMovement() && this.propHold.prop && ["q","e"].includes(event.key.toLowerCase())) {
-        this.propHold.rotate(event.key.toLowerCase()==="q" ? -.12 : .12);event.preventDefault();return;
+      if (this.canUseDesktopMovement() && this.propHold.prop && ["q","e","r","f"].includes(event.key.toLowerCase())) {
+        const key=event.key.toLowerCase();this.propHold.rotate(key==="q"?-.12:key==="e"?.12:0,key==="r"?-.12:key==="f"?.12:0);event.preventDefault();return;
       }
       if (event.altKey || event.ctrlKey || event.metaKey) {
         this.desktopMovement.clear();
@@ -1040,7 +1135,7 @@ export class BroadStreetScene {
         event.preventDefault();
         return;
       }
-      if (this.renderer.xr.isPresenting || document.body.dataset.overlayOpen === "true"
+      if (this.renderer.xr.isPresenting || this.desktopWorldBlocked()
         || (event.target instanceof HTMLElement && event.target.closest("button, input, textarea, select, [contenteditable]"))) return;
       if (event.key === "Enter" || event.key === " ") {
         this.characterHoverPointer = undefined;
@@ -1061,11 +1156,12 @@ export class BroadStreetScene {
     });
     window.addEventListener("keyup", (event) => this.desktopMovement.release(event.key));
     window.addEventListener("blur", () => {this.desktopMovement.clear();this.resetTactileInteractions();});
-    document.addEventListener("visibilitychange", () => {this.desktopMovement.clear();if(document.hidden)this.resetTactileInteractions();});
+    document.addEventListener("visibilitychange", () => {this.desktopMovement.clear();this.interactionIdleHint.reset();this.vrIdleHint.visible=false;if(document.hidden)this.resetTactileInteractions();});
     document.addEventListener("focusin", () => {
       if (!this.canUseDesktopMovement()) this.desktopMovement.clear();
     });
 
+    const modelFactory=typeof this.renderer.xr.getControllerGrip==="function"?createControllerModelFactory(import.meta.env.BASE_URL || "/",this.renderer):undefined;
     for (let index = 0; index < 2; index += 1) {
       const controller = this.renderer.xr.getController(index);
       const pointer = createControllerPointer();
@@ -1087,9 +1183,10 @@ export class BroadStreetScene {
         this.snapTurnLocked = false;
       });
       controller.addEventListener("selectstart", () => {
+        if(this.dayTransition?.active)return;
         void this.sound?.unlock();
         this.tactileVrSelections.delete(controller);
-        if(!this.vrPanelVisible) {
+        if(!this.vrPanelBlocksWorld() && !this.pickVrPanel(controller)) {
           this.setRaycasterFromController(controller);
           if(this.activateTactile(this.controllerRaycaster,controller)) {
             this.tactileVrSelections.add(controller);return;
@@ -1097,11 +1194,16 @@ export class BroadStreetScene {
         }
         this.beginVrSelection(controller);
       });
-      controller.addEventListener("selectend", () => {
+
+      controller.addEventListener("select", () => this.selectFromVrController(controller));
+      controller.addEventListener("squeezestart", () => this.beginGripGrab(controller));
+      controller.addEventListener("squeezeend", () => {
         if(this.propHold.anchor===controller)this.propHold.release();
       });
-      controller.addEventListener("select", () => this.selectFromVrController(controller));
-      controller.addEventListener("squeeze", () => this.toggleVrPanel());
+      if(modelFactory) {
+        const grip=this.renderer.xr.getControllerGrip(index);this.playerRig.add(grip);
+        this.controllerVisuals.push(new ControllerVisuals(grip,this.scene,modelFactory));
+      }
       this.playerRig.add(controller);
       this.vrControllers.push(controller);
       this.vrControllerPointers.push(pointer);
@@ -1119,6 +1221,7 @@ export class BroadStreetScene {
       const syncSound=()=>this.sound?.setHidden(session.visibilityState!=="visible","xr");
       session.addEventListener("visibilitychange",()=>{
         this.vrSelectionStarts?.clear();
+        this.interactionIdleHint.reset();this.vrIdleHint.visible=false;
         this.resetTactileInteractions();
         syncSound();this.vrWalking.reset();this.snapTurnLocked=true;
         this.vrShortcuts.clear();this.vrControllerButtonStates.clear();
@@ -1154,6 +1257,7 @@ export class BroadStreetScene {
   }
 
   private toggleVrPanel(): void {
+    if(this.dayTransition?.active)return;
     if (!this.renderer.xr.isPresenting) {
       return;
     }
@@ -1166,10 +1270,11 @@ export class BroadStreetScene {
   }
 
   private canUseDesktopMovement(): boolean {
-    return !this.renderer.xr.isPresenting
-      && !document.hidden && document.body.dataset.overlayOpen !== "true"
+    return !this.dayTransition?.active && !this.renderer.xr.isPresenting
+      && !document.hidden && !this.desktopWorldBlocked()
       && !(document.activeElement instanceof HTMLElement
-        && document.activeElement.closest("button, input, textarea, select, a, [contenteditable]"));
+        && document.activeElement.closest(document.body.dataset.conversationOpen==='true'
+          ? "input, textarea, select, [contenteditable]" : "button, input, textarea, select, a, [contenteditable]"));
   }
 
   private updateDesktopMovement(elapsed: number): void {
@@ -1178,7 +1283,7 @@ export class BroadStreetScene {
       return;
     }
     const position = this.camera.getWorldPosition(this.cameraWorldPosition);
-    const next = this.desktopMovement.update(position, this.yaw, elapsed, this.walkable?.canWalkBetween ?? (() => false), this.pitch);
+    const next = this.desktopMovement.update(position, this.yaw, elapsed, (from,to)=>this.canWalkWithBoundaryCue(from,to), this.pitch);
     const turn = next.yaw - this.yaw;
     const tilt = next.pitch - this.pitch;
     this.yaw = next.yaw;
@@ -1192,8 +1297,17 @@ export class BroadStreetScene {
   }
 
   private updateVrControls(timeSeconds: number, elapsed = 0): void {
+    if(this.dayTransition?.active){this.vrWalking.reset();this.snapTurnLocked=true;return;}
+    const visible=this.renderer.xr.isPresenting&&!document.hidden && this.renderer.xr.getSession?.()?.visibilityState!=="visible-blurred"
+      && this.renderer.xr.getSession?.()?.visibilityState!=="hidden";
+    this.controllerVisuals?.forEach((visual,index)=>visual.update(this.camera,elapsed,visible,{
+      held:!!this.propHold.prop,holdingThis:this.propHold.anchor===this.vrControllers[index],panel:this.vrPanelBlocksWorld(),
+      paged:!!this.vrActivePageKey,walking:this.vrWalkingEnabled,map:this.gameState.canUseMap(),
+      turning:true,
+    }));
     if (!this.renderer.xr.isPresenting) {
       this.vrIdleHint.visible = false;
+      this.interactionIdleHint.reset();this.idlePoseSamples.clear();
       return;
     }
 
@@ -1210,19 +1324,20 @@ export class BroadStreetScene {
     const position=this.camera.getWorldPosition(this.cameraWorldPosition);
     const forward=this.camera.getWorldDirection(this.controllerWorldDirection);
     const next=this.vrWalking.update(position,forward,leftStick(source),elapsed,
-      focused && this.vrWalkingEnabled && !this.vrPanelVisible && !this.worldTravelPending && !!this.walkable,
-      this.walkable?.canWalkBetween??(()=>false));
+      focused && this.vrWalkingEnabled && !this.vrPanelBlocksWorld() && !this.worldTravelPending && !!this.walkable,
+      (from,to)=>this.canWalkWithBoundaryCue(from,to));
     if(this.walkable)teleportViewer(this.playerRig,this.camera,next);
     if (this.vrPanelDirty) this.rebuildVrPanel();
-    if(!focused)return;
+    if(!focused){this.interactionIdleHint.reset(timeSeconds);this.vrIdleHint.visible=false;return;}
     this.updateVrPointers();
     this.updateVrButtonFocus();
     this.updateVrPaginationButtons();
-    this.updateSnapTurn();
+    this.updateSnapTurn(elapsed);
     this.updateVrIdleHint(timeSeconds);
   }
 
   private beginVrSelection(controller: THREE.Group): void {
+    this.interactionIdleHint?.reset(performance.now()*.001);if(this.vrIdleHint)this.vrIdleHint.visible=false;
     const inside = Boolean(this.pickVrPanel(controller));
     this.setRaycasterFromController(controller);
     this.vrSelectionStarts.set(controller, { panel: this.vrPanelVisible, inside,
@@ -1230,6 +1345,7 @@ export class BroadStreetScene {
   }
 
   private selectFromVrController(controller: THREE.Group): void {
+    if(this.dayTransition?.active)return;
     // WebXR may deliver select before or after selectend. Neither may click
     // through a released object to the person, ground or panel behind it.
     if(this.tactileVrSelections?.has(controller))return;
@@ -1252,10 +1368,13 @@ export class BroadStreetScene {
       if (start && (!start.panel || start.inside
         || start.origin.distanceTo(this.controllerRaycaster.ray.origin) > .06
         || start.direction.angleTo(this.controllerRaycaster.ray.direction) > .04)) return;
-      this.gameState.closeDialogue();
-      this.vrPanelMode = "home";
-      this.hideVrPanel();
-      return;
+      if(!this.conversationPanelOpen()) {
+        this.gameState.closeDialogue();
+        this.vrPanelMode = "home";
+        this.hideVrPanel();
+        return;
+      }
+      if(this.activateTactile(this.controllerRaycaster,controller))return;
     }
     this.setRaycasterFromController(controller);
     const travel = this.worldTravel?.routeFor(this.pickWorldTravelHit(this.controllerRaycaster)?.object as THREE.Object3D);
@@ -1269,6 +1388,8 @@ export class BroadStreetScene {
         if (hotspot) this.activateVrHotspot(hotspot);
       } else if (hit && this.walkable.canTeleport(hit)) {
         teleportViewer(this.playerRig, this.camera, hit.point);
+      } else if(this.conversationPanelOpen()) {
+        this.gameState.closeDialogue();this.hideVrPanel();
       }
       return;
     }
@@ -1316,7 +1437,7 @@ export class BroadStreetScene {
   private updateWorldTravelZones(): void {
     if (!this.walkable) return;
     const position = this.camera.getWorldPosition(this.cameraWorldPosition);
-    const blocked = this.worldTravelPending || (this.renderer.xr.isPresenting ? this.vrPanelVisible
+    const blocked = this.worldTravelPending || (this.renderer.xr.isPresenting ? this.vrPanelBlocksWorld()
       : !this.canUseDesktopMovement());
     const route = this.travelZones.update(position.x, position.z, worldTravelRoutes.filter(r => r.from === this.gameState.getCurrentLocation().id),
       candidate => !blocked && this.gameState.canTravelToLocation(candidate.to));
@@ -1341,22 +1462,24 @@ export class BroadStreetScene {
       return;
     }
 
+    const previousConversation=this.gameState.getConversationView()?.id;
     const result = this.gameState.inspectHotspot(hotspot.id);
-    this.showVrPanel(!wasPanelVisible);
+    this.showVrPanel(!wasPanelVisible || previousConversation!==this.gameState.getConversationView()?.id);
     this.vrStatus = result.dialogue?.intro ?? result.message;
     this.refreshHotspots();
     this.markVrPanelDirty();
   }
 
   private handleVrButton(action: VrButtonAction): void {
+    if(this.dayTransition?.active)return;
     this.sound?.effect(action.type==="mode" && ["map","notebook"].includes(action.mode)?"paper":"select");
     switch (action.type) {
       case 'resume-survey':this.gameState.resumePumpComparison();this.vrPanelMode='home';this.placeVrPanelInFront();break;
       case 'guided-survey': { const revision=this.gameState.fieldworkTravelRevision;this.gameState.advancePumpComparison(action.action,action.stepKey);if(revision!==this.gameState.fieldworkTravelRevision)this.placeVrPanelInFront();break; }
-      case 'continue-inquiry':this.gameState.continueInquiry();this.applyCurrentLocation();break;
+      case 'continue-inquiry':this.gameState.continueInquiry();this.applyCurrentLocation();if(!this.gameState.dayIntroOpen){this.hideVrPanel();return;}break;
       case 'new-inquiry':this.gameState.reset();this.applyCurrentLocation();break;
-      case 'dismiss-day':this.gameState.dismissDayIntroduction();this.vrPanelMode='home';this.showVrPanel();return;
-      case 'end-day':this.gameState.endDay();this.vrPanelMode='home';break;
+      case 'dismiss-day':this.gameState.dismissDayIntroduction();this.vrPanelMode='home';this.hideVrPanel();return;
+      case 'end-day':this.endDay();return;
       case 'board-decision':this.gameState.closeDialogue();this.vrPanelMode='synthesis';break;
       case 'review-theory':this.gameState.closeDialogue();this.vrPanelMode='synthesis';break;
       case "exit-vr":
@@ -1386,6 +1509,9 @@ export class BroadStreetScene {
         this.vrStatus = this.getDefaultVrStatus();
         break;
       case "close-panel":
+        if(this.gameState.getStage()==='complete' && ['home','synthesis'].includes(this.vrPanelMode)){
+          this.hideVrPanel();return;
+        }
         if (["sound","height","controls"].includes(this.vrPanelMode)) {
           this.vrPanelMode="settings";
         } else if (this.vrPanelMode !== "home") {
@@ -1445,14 +1571,8 @@ export class BroadStreetScene {
         this.vrStatus = result.message;
         break;
       }
-      case "prepare-board": {
-        const result = this.gameState.prepareBoardArgument();
-        this.vrPanelMode = "synthesis";
-        this.vrStatus = result.message;
-        break;
-      }
       case "present-board": {
-        const result = this.gameState.presentToBoard();
+        const result = this.gameState.attendBoardMeeting();
         this.vrPanelMode = "synthesis";
         this.vrStatus = result.message;
         break;
@@ -1481,7 +1601,7 @@ export class BroadStreetScene {
 
   private openVrShortcut(mode:"map"|"notebook"|"settings"):void {
     if(mode==='map' && !this.gameState.canUseMap()) {
-      this.vrPanelMode='home';this.vrStatus='Receive today’s assignments from Snow before using the map.';this.showVrPanel();return;
+      this.vrStatus='Receive today’s assignments from Snow before using the map.';this.markVrPanelDirty();return;
     }
     if(this.vrPanelVisible&&this.vrPanelMode===mode) {this.hideVrPanel(true,true);return;}
     this.vrPanelMode=mode;
@@ -1514,10 +1634,10 @@ export class BroadStreetScene {
   }
 
   private showVrPanel(placeInFront = true): void {
-    this.propHold?.release(true);
+    if(!this.gameState.getConversationView?.())this.propHold?.release(true);
     this.vrPanelVisible = true;
     this.vrPanel.visible = true;
-    this.vrPanelHiddenSince = undefined;
+    this.interactionIdleHint?.reset();
     this.vrIdleHint.visible = false;
     if (placeInFront) {
       this.placeVrPanelInFront();
@@ -1526,15 +1646,12 @@ export class BroadStreetScene {
   }
 
   private hideVrPanel(startIdleHintTimer = true, preserveAnswer = false): void {
-    if(this.renderer.xr.isPresenting && this.gameState.needsDailyBriefing() && !this.gameState.startupOpen) {
-      this.vrPanelMode='home';this.showVrPanel(false);return;
-    }
     if(!preserveAnswer)this.gameState.clearActiveDialogueAnswer();
     this.vrStatus = this.getDefaultVrStatus();
     this.vrPanelVisible = false;
     this.vrPanel.visible = false;
     this.vrIdleHint.visible = false;
-    this.vrPanelHiddenSince = startIdleHintTimer ? performance.now() * 0.001 : undefined;
+    this.interactionIdleHint?.reset(startIdleHintTimer ? performance.now() * 0.001 : undefined);
     this.markVrPanelDirty();
   }
 
@@ -1548,13 +1665,13 @@ export class BroadStreetScene {
     }
 
     if (this.vrPanelMode === "synthesis") {
-      return "Compare the strongest evidence, choose a theory and prepare the Board argument.";
+      return "Compare the strongest evidence, choose a theory and attend the meeting.";
     }
 
     if (this.walkable) {
-      return "Left stick walks; right stick turns. Trigger selects or teleports. Grip opens the menu.";
+      return "Left stick walks; right stick turns. Trigger selects or teleports. Grip grabs objects; stick click opens the menu.";
     }
-    return "Trigger selects. Grip opens the menu. Right stick turns.";
+    return "Trigger selects. Grip grabs objects; stick click opens the menu. Right stick turns.";
   }
 
   private rebuildVrPanel(): void {
@@ -1575,19 +1692,32 @@ export class BroadStreetScene {
       this.vrSurfaceHeight=2.0;
       this.addVrText(this.gameState.startupOpen?'The Broad Street Inquiry':this.gameState.getDay().date,0,.72,2.5,.18,{fontSize:36,color:'#f1d79c'});
       this.addPaginatedVrText(`day-intro-${this.gameState.day}`,this.gameState.startupOpen
-        ? 'Three days of inquiry, September 5–7, 1854. Progress saves in this browser. '+this.gameState.saveNotice
+        ? 'Soho, London, 1854. '+inquiryOpening+(this.gameState.saveNotice?' '+this.gameState.saveNotice:'')
         : this.gameState.getDayIntroduction().slice(1).join(' '),0,.2,2.5,.65,{fontSize:28});
       if(this.gameState.startupOpen){
         if(this.gameState.hasSavedInquiry)this.addVrPanelButton('Continue',0,-.43,1.8,.22,{type:'continue-inquiry'});
         this.addVrPanelButton('New Inquiry',0,-.72,1.8,.22,{type:'new-inquiry'});
-      }else this.addVrPanelButton('Speak with Snow',0,-.65,1.8,.24,{type:'dismiss-day'});
+      }else this.addVrPanelButton('Enter the office',0,-.65,1.8,.24,{type:'dismiss-day'});
+      this.addVrPanelSurface();return;
+    }
+    const epilogue=this.gameState.getStage()==='complete' && ['home','synthesis'].includes(this.vrPanelMode);
+    if(epilogue!==!!this.vrEpilogueLayout){this.vrEpilogueLayout=epilogue;this.placeVrPanelInFront();}
+    if(epilogue){
+      this.vrSurfaceHeight=1.9;
+      this.addVrText('After the meeting',-.1,.61,2.2,.16,{fontSize:34,color:'#f1d79c'});
+      this.addVrIconButton('x',1.22,.61,.2,{type:'close-panel'});
+      this.addPaginatedVrText('epilogue',this.gameState.getCurrentSceneBody().join(' '),0,.12,2.5,.66,{fontSize:30,color:'#e7ece8'},-.33);
+      this.addVrPanelButton("Return to Snow’s desk",0,-.55,2.5,.23,{type:'travel',locationId:'snow-desk'});
+      this.addVrPanelButton('Notebook',-.65,-.79,1.18,.19,{type:'mode',mode:'notebook'});
+      this.addVrPanelButton('Exit VR',.65,-.79,1.18,.19,{type:'exit-vr'});
       this.addVrPanelSurface();return;
     }
     const survey=this.vrPanelMode==='home'?this.gameState.getFieldworkView():undefined;
     if(survey?.guided){
       const guide=survey.guided;
       this.vrSurfaceHeight=2.5;
-      this.addVrText(guide.progress,0,1.05,2.5,.13,{fontSize:24,color:'#f1d79c'});
+      this.addVrText(guide.progress,-.1,1.05,2.2,.13,{fontSize:24,color:'#f1d79c'});
+      this.addVrIconButton('x',1.22,1.05,.2,{type:'close-dialogue'});
       this.addVrText(guide.title,0,.81,2.5,.20,{fontSize:30});
       this.addVrMap(.66,.02,1.25,1.25);
       this.addVrText('John Snow: '+guide.text,-.67,.25,1.15,.80,{fontSize:25});
@@ -1596,15 +1726,30 @@ export class BroadStreetScene {
       this.addVrPanelSurface();return;
     }
     const conversation = this.vrPanelMode === "home" ? this.gameState.getConversationView() : undefined;
+    if(conversation?.id==='board-hearing' && this.vrConversationSpeaker!==`${conversation.id}:${conversation.actorId}`)
+      this.placeVrPanelInFront();
+    if(conversation?.map) {
+      this.vrSurfaceHeight=2.35;
+      this.addVrText('Day 1 review · John Snow',-.1,.97,2.2,.15,{fontSize:30,color:'#f1d79c'});
+      this.addVrIconButton('x',1.22,.97,.2,{type:'close-dialogue'});
+      this.addVrMap(.66,.14,1.25,1.25,true);
+      this.addVrText('Bars: deaths · Teal circles: pumps',.66,-.58,1.25,.18,{fontSize:21});
+      this.addVrText(conversation.text,-.67,.18,1.15,1.06,{fontSize:27,color:'#e7ece8'});
+      conversation.choices.forEach((choice,index)=>this.addVrPanelButton(choice.label,0,-.78-index*.25,2.46,.22,
+        {type:'conversation-choice',beatId:conversation.beatId,choiceId:choice.id}));
+      if(conversation.terminalAction==='end-day')this.addVrPanelButton('End day',.65,-.86,1.18,.24,{type:'end-day'});
+      if(conversation.complete)this.addVrPanelButton('Return to the scene',-.65,-.86,1.18,.24,{type:'close-dialogue'});
+      this.addVrPanelSurface();return;
+    }
     if (conversation) {
       this.vrSurfaceHeight = 1.32;
       this.addVrText(conversation.speaker, -.10, .48, 2.28, .14, { fontSize: 34, color: "#f1d79c", weight: "700" });
-      if(!this.gameState.needsDailyBriefing())this.addVrIconButton("x", 1.22, .48, .2, {type:"close-dialogue"});
+      this.addVrIconButton("x", 1.22, .48, .2, {type:"close-dialogue"});
       this.addVrText(conversation.text, 0, .17, 2.46, .40, {fontSize:30, color:"#e7ece8"});
       conversation.choices.forEach((choice,index) => this.addVrPanelButton(choice.label, 0, -.15-index*.18, 2.46, .16,
         {type:"conversation-choice", beatId:conversation.beatId, choiceId:choice.id}));
-      if(conversation.terminalAction)this.addVrPanelButton(conversation.terminalAction==='resume-survey'?'Join Snow at the map table':conversation.terminalAction==='end-day'?'End day':conversation.terminalAction==='board-decision'?'Read the Board decision':'Review the theories',0,-.43,1.8,.18,{type:conversation.terminalAction});
-      if (conversation.complete && !this.gameState.needsDailyBriefing()) this.addVrPanelButton("Return to the scene", 0, -.25, 1.6, .20, {type:"close-dialogue"});
+      if(conversation.terminalAction)this.addVrPanelButton(conversation.terminalAction==='resume-survey'?'Join Snow at the map table':conversation.terminalAction==='end-day'?'End day':conversation.terminalAction==='board-decision'?'Read the Board decision':'Review the theories',0,-.49,2.46,.20,{type:conversation.terminalAction});
+      if (conversation.complete) this.addVrPanelButton("Return to the scene", 0, -.22, 2.46, .20, {type:"close-dialogue"});
       this.addVrPanelSurface(); return;
     }
     const compactHome=this.vrPanelMode==="home" && !this.gameState.getActiveDialogue()
@@ -1618,7 +1763,7 @@ export class BroadStreetScene {
       this.addVrPanelButton("Notebook",0,-.15,.85,.23,{type:"mode",mode:"notebook"});
       this.addVrPanelButton("Settings",.88,-.15,.78,.23,{type:"mode",mode:"settings"});
       if(this.gameState.canResumePumpComparison())this.addVrPanelButton(this.gameState.getPumpComparisonLabel(),0,-.43,2.5,.22,{type:'resume-survey'});
-      this.addVrText("Trigger selects · Grip closes · Left stick walks · Right stick turns",0,this.gameState.canResumePumpComparison()?-.71:-.43,2.55,.14,{fontSize:24,color:"#b9c9c4"});
+      this.addVrText("Trigger selects · Stick click: menu · Grip grabs · Right stick turns",0,this.gameState.canResumePumpComparison()?-.71:-.43,2.55,.14,{fontSize:24,color:"#b9c9c4"});
       this.addVrPanelSurface();return;
     }
     if(["settings","height","controls"].includes(this.vrPanelMode)) {
@@ -1716,12 +1861,12 @@ export class BroadStreetScene {
       if(parts.length)bindings.push(`${left?"Left":"Right"} — ${parts.join(" · ")}`);
     }
     this.addVrText("Left stick: walk · Right stick: turn",0,.30,2.5,.14,{fontSize:30});
-    this.addVrText("Trigger: select / pump · Hold on an object to inspect",0,.12,2.5,.14,{fontSize:30});
+    this.addVrText("Trigger: select / pump · Hold grip: grab an object",0,.12,2.5,.14,{fontSize:30});
     if(bindings.length)bindings.slice(0,2).forEach((text,index)=>
       this.addVrText(text,0,-.07-index*.17,2.5,.14,{fontSize:28,color:"#b9c9c4"}));
     else this.addVrText("Use the menu for map, notebook, height and settings. Extra controller buttons vary by device.",0,-.14,2.5,.28,{fontSize:28,color:"#b9c9c4"});
     this.addVrPanelButton(`Stick walking: ${this.vrWalkingEnabled?"On":"Off"}`,0,-.46,1.7,.21,{type:"walk-toggle"});
-    this.addVrText("Release trigger: return object · Grip: menu · Stick click: page",0,-.66,2.5,.12,{fontSize:23,color:"#b9c9c4"});
+    this.addVrText("Release grip: return · Right stick: rotate held item · Stick click: menu / page",0,-.66,2.5,.12,{fontSize:23,color:"#b9c9c4"});
   }
 
   private buildVrSoundPanel(): void {
@@ -2057,10 +2202,10 @@ export class BroadStreetScene {
       });
     }
     if (canPrepare || boardPrepared) {
-      this.addVrPanelButton(boardPrepared ? "Attend the meeting" : "Prepare Board Argument", 0, -0.85, 1.42, 0.2,
-        { type: boardPrepared ? "present-board" : "prepare-board" });
+      this.addVrPanelButton("Attend the meeting", 0, -0.85, 1.42, 0.2,
+        { type: "present-board" });
     } else {
-      this.addVrText(selected ? "Collect more evidence and return to Snow's desk." : "Select a theory to prepare your argument.", 0, -0.85, vrPanelContentWidth, 0.16, {
+      this.addVrText(selected ? "Collect more evidence and return to Snow's desk." : "Select a theory before attending the meeting.", 0, -0.85, vrPanelContentWidth, 0.16, {
         color: "#b9c9c4", fontSize: 26,
       });
     }
@@ -2080,9 +2225,9 @@ export class BroadStreetScene {
     });
   }
 
-  private addVrMap(x: number, y: number, width: number, height: number): void {
+  private addVrMap(x: number, y: number, width: number, height: number, referenceOnly=false): void {
     const currentLocationId = this.gameState.getCurrentLocation().id;
-    const deathsVisible = this.gameState.hasEvidence("attack-timeline") && this.gameState.hasEvidence("pump-cluster");
+    const deathsVisible = this.gameState.hasMappedDeaths();
     this.vrPanelDrawCommands.push({
       kind: "map",
       x,
@@ -2094,7 +2239,7 @@ export class BroadStreetScene {
       accessVisible:this.gameState.hasWalkingBoundary(),
       exercisePoint:this.gameState.getFieldworkView()?.guided.mapPoint,
       exercisePumps:this.gameState.getFieldworkView()?.guided.mapPumps,
-      locations: (this.gameState.getFieldworkView()?[]:this.gameState.getMapLocations())
+      locations: (referenceOnly || this.gameState.getFieldworkView()?[]:this.gameState.getMapLocations())
         .map((location) => ({
           id: location.id,
           label: location.shortTitle,
@@ -2177,6 +2322,7 @@ export class BroadStreetScene {
       width,
       height,
       active: options.active,
+      selectedTheory: action.type === 'select-hypothesis' && options.active,
       highlight: options.highlight,
     });
 
@@ -2281,6 +2427,7 @@ export class BroadStreetScene {
     this.vrPanel.position.y = Math.max(1.05, this.vrPanelWorldPosition.y - 0.18);
 
     const conversation = this.vrPanelMode === "home" ? this.gameState.getConversationView() : undefined;
+    this.vrConversationSpeaker=conversation ? `${conversation.id}:${conversation.actorId}` : undefined;
     if (conversation) {
       const actor = new THREE.Vector3(...conversation.anchor);
       const toward = actor.clone().sub(this.vrPanelWorldPosition); toward.y = 0;
@@ -2288,27 +2435,41 @@ export class BroadStreetScene {
       const distance = THREE.MathUtils.clamp(toward.length(), 1.7, 2.5);
       toward.normalize();
       const right = new THREE.Vector3(-toward.z, 0, toward.x);
-      this.vrPanel.position.copy(this.vrPanelWorldPosition).addScaledVector(toward, distance).addScaledVector(right, 1.65);
+      this.vrPanel.position.copy(this.vrPanelWorldPosition).addScaledVector(toward, distance).addScaledVector(right, 1.15);
       this.vrPanel.position.y = Math.max(.95, this.vrPanelWorldPosition.y - .12);
     }
-    this.vrPanelLookTarget.set(this.vrPanelWorldPosition.x, this.vrPanel.position.y, this.vrPanelWorldPosition.z);
-    const yawToCamera = Math.atan2(
-      this.vrPanelLookTarget.x - this.vrPanel.position.x,
-      this.vrPanelLookTarget.z - this.vrPanel.position.z,
-    );
-    this.vrPanel.rotation.set(0, yawToCamera, 0);
+    const epilogue=this.gameState.getStage()==='complete' && ['home','synthesis'].includes(this.vrPanelMode);
+    if(epilogue && this.gameState.getCurrentLocation().id==='broad-street'){
+      // Anchor beside the pump's sightline, independent of the direction the visitor faces.
+      const toward=new THREE.Vector3(-3.8,0,1.3).sub(this.vrPanelWorldPosition);toward.y=0;
+      if(toward.lengthSq()<.01)toward.copy(this.vrPanelWorldDirection);
+      toward.normalize();const right=new THREE.Vector3(-toward.z,0,toward.x);
+      this.vrPanel.position.copy(this.vrPanelWorldPosition).addScaledVector(toward,2.05).addScaledVector(right,1.85);
+      this.vrPanel.position.y=Math.max(.95,this.vrPanelWorldPosition.y-.12);
+    }
+    this.vrPanel.scale.setScalar(epilogue ? .68 : conversation ? (conversation.map ? .85 : .78) : 1);
+    // Face the eye position, including height/pitch; keep this world pose until reopened.
+    this.vrPanelLookTarget.copy(this.vrPanelWorldPosition);
+    this.vrPanel.lookAt(this.vrPanelLookTarget);
   }
 
   private updateVrIdleHint(timeSeconds: number): void {
-    if (this.vrPanelVisible || this.vrPanelHiddenSince === undefined) {
-      this.vrIdleHint.visible = false;
-      return;
+    // Accumulate pose changes against the last meaningful movement, allowing
+    // normal tracking jitter without treating slow walking/aiming as inactivity.
+    let moved=false;
+    for(const object of [this.camera,...this.vrControllers]) {
+      object.getWorldPosition(this.idlePosePosition);object.getWorldQuaternion(this.idlePoseRotation);
+      const previous=this.idlePoseSamples.get(object);
+      if(!previous || previous.position.distanceToSquared(this.idlePosePosition)>.03*.03
+        || previous.rotation.angleTo(this.idlePoseRotation)>.12) {
+        this.idlePoseSamples.set(object,{position:this.idlePosePosition.clone(),rotation:this.idlePoseRotation.clone()});moved=true;
+      }
     }
-
-    if (timeSeconds - this.vrPanelHiddenSince < vrIdleHintDelaySeconds) {
-      this.vrIdleHint.visible = false;
-      return;
-    }
+    const inputActive=[...this.vrInputSources.values()].some(source=>source.gamepad &&
+      (source.gamepad.axes.some(axis=>Math.abs(axis)>.15) || source.gamepad.buttons.some(button=>button.pressed)));
+    const busy=this.vrPanelVisible || this.gameState.startupOpen || this.gameState.dayIntroOpen
+      || !!this.propHold.prop || !!this.activePump?.action.water.visible || this.worldTravelPending || moved || inputActive;
+    if(!this.interactionIdleHint.update(timeSeconds,busy)) {this.vrIdleHint.visible=false;return;}
 
     this.camera.getWorldPosition(this.vrIdleHintPosition);
     this.camera.getWorldDirection(this.vrIdleHintDirection);
@@ -2354,6 +2515,8 @@ export class BroadStreetScene {
         }
       }
 
+      if(!(this.vrActivePageKey && this.vrPanelVisible) && !this.propHold?.prop &&
+        ((nextState.nextPagePressed&&!previousState.nextPagePressed)||(nextState.previousPagePressed&&!previousState.previousPagePressed)))this.toggleVrPanel();
       this.vrControllerButtonStates.set(controller, nextState);
     }
   }
@@ -2409,23 +2572,26 @@ export class BroadStreetScene {
     this.markVrPanelDirty();
   }
 
-  private updateSnapTurn(): void {
-    let turnAxis = 0;
+  private updateSnapTurn(delta = 0): void {
+    let turnAxis = 0, pitchAxis = 0;
     for (const controller of this.vrControllers) {
       const inputSource = this.vrInputSources.get(controller);
       // Reserve the left stick for translation; unhanded single controllers can still turn.
       if(inputSource?.handedness==="left" || inputSource?.hand)continue;
+      if(inputSource?.gamepad?.mapping==="xr-standard")pitchAxis=inputSource.gamepad.axes[3]??0;
       const candidate = this.getSnapTurnAxis(inputSource);
       if (Math.abs(candidate) > Math.abs(turnAxis)) {
         turnAxis = candidate;
       }
     }
 
-    if (this.vrPanelVisible && this.gameState.getConversationView()) {
-      this.snapTurnLocked = Math.abs(turnAxis) >= snapTurnReleaseThreshold;
-      return;
+    if(this.propHold?.prop) {
+      const deadzone=(v:number)=>Math.abs(v)<.18?0:Math.sign(v)*(Math.abs(v)-.18)/.82;
+      this.propHold.rotate(-deadzone(turnAxis)*Math.min(.05,delta)*1.8,-deadzone(pitchAxis)*Math.min(.05,delta)*1.8);
+      // Releasing a grip while the stick is deflected must not snap-turn the player.
+      this.snapTurnLocked=true;return;
     }
-    if (Math.abs(turnAxis) < snapTurnReleaseThreshold) {
+    if (Math.max(Math.abs(turnAxis),Math.abs(pitchAxis)) < snapTurnReleaseThreshold) {
       this.snapTurnLocked = false;
       return;
     }
@@ -2449,7 +2615,7 @@ export class BroadStreetScene {
   private turnWalkableView(angle: number): void {
     turnViewer(this.playerRig, this.camera, angle);
     this.yaw = this.playerRig.rotation.y;
-    if (this.vrPanelVisible) this.placeVrPanelInFront();
+    if (this.vrPanelBlocksWorld()) this.placeVrPanelInFront();
   }
 
   private updateVrPointers(): void {
@@ -2512,7 +2678,7 @@ export class BroadStreetScene {
     }
 
     if (this.walkable) {
-      if (this.vrPanelVisible) return undefined;
+      if (this.vrPanelBlocksWorld()) return undefined;
       return this.pickWorldTravelHit(this.controllerRaycaster);
     }
     const visibleHotspots = [...this.hotspotVisuals.values()].map((visual) => visual.mesh).filter((mesh) => mesh.visible);
@@ -2589,12 +2755,12 @@ export class BroadStreetScene {
     if(!active.length)return;
     const hits: THREE.Object3D[]=[];
     if(this.renderer.xr.isPresenting) {
-      if(this.vrPanelVisible)return;
+      if(this.vrPanelBlocksWorld())return;
       for(const controller of this.vrControllers)if(this.vrInputSources.has(controller)) {
         const hit=this.pickVrPointerHit(controller);if(hit)hits.push(hit.object);
       }
     } else {
-      if(document.body.dataset.overlayOpen==="true"||this.dragging||this.characterHoverPointer===null)return;
+      if(this.desktopWorldBlocked()||this.dragging||this.characterHoverPointer===null)return;
       if(this.characterHoverPointer) {
         const rect=this.canvas.getBoundingClientRect();
         this.pointer.set(((this.characterHoverPointer.x-rect.left)/rect.width)*2-1,-((this.characterHoverPointer.y-rect.top)/rect.height)*2+1);
@@ -2818,10 +2984,10 @@ function drawVrPanelButton(ctx: CanvasRenderingContext2D, command: VrPanelButton
   const isIconButton = Boolean(command.icon);
   const radius = isIconButton ? rect.height * 0.5 : Math.min(rect.height * 0.18, 26);
   drawRoundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius);
-  ctx.fillStyle = command.active ? "#315f67" : command.highlight ? "#334e45" : "#274953";
+  ctx.fillStyle = command.selectedTheory ? "#bca575" : command.active ? "#315f67" : command.highlight ? "#334e45" : "#274953";
   ctx.fill();
-  ctx.lineWidth = command.highlight ? Math.max(8, rect.height * 0.055) : Math.max(5, rect.height * 0.035);
-  ctx.strokeStyle = command.highlight ? "#f6d36f" : command.active ? "#cde8df" : "#9fc6c0";
+  ctx.lineWidth = command.highlight || command.selectedTheory ? Math.max(8, rect.height * 0.055) : Math.max(5, rect.height * 0.035);
+  ctx.strokeStyle = command.selectedTheory ? "#efdab0" : command.highlight ? "#f6d36f" : command.active ? "#cde8df" : "#9fc6c0";
   ctx.stroke();
 
   if (command.icon) {
@@ -2831,7 +2997,8 @@ function drawVrPanelButton(ctx: CanvasRenderingContext2D, command: VrPanelButton
 
   const fontSize = command.height < 0.14 ? 30 : command.height < 0.18 ? 34 : 40;
   drawTextIntoRect(ctx, command.label ?? "", rect, {
-    color: "#fff4d8",
+    color: command.selectedTheory ? "#1a2523" : "#fff4d8",
+    outline: !command.selectedTheory,
     fontSize,
     weight: "800",
     maxLines: command.height < 0.11 ? 1 : 2,
@@ -3567,7 +3734,7 @@ function drawTextIntoRect(
   ctx: CanvasRenderingContext2D,
   text: string,
   rect: { x: number; y: number; width: number; height: number },
-  options: { color: string; fontSize: number; weight: string; maxLines?: number },
+  options: { color: string; fontSize: number; weight: string; maxLines?: number; outline?: boolean },
 ): void {
   const scale = vrPanelTextureWidth / vrPanelDesignWidth;
   const baseFontSize = options.fontSize * scale;
@@ -3595,7 +3762,7 @@ function drawTextIntoRect(
   const startY = rect.y + rect.height / 2 - ((layout.lines.length - 1) * layout.lineHeight) / 2;
   layout.lines.forEach((line, index) => {
     const y = startY + index * layout.lineHeight;
-    ctx.strokeText(line, rect.x + rect.width / 2, y);
+    if(options.outline!==false)ctx.strokeText(line, rect.x + rect.width / 2, y);
     ctx.fillText(line, rect.x + rect.width / 2, y);
   });
 }
@@ -4661,14 +4828,18 @@ function createSpriteLabel(text: string, color: string): THREE.Sprite {
   if (!ctx) {
     throw new Error("Could not create label texture.");
   }
+  const font="600 34px Georgia, serif";
+  ctx.font=font;
+  // 30px outer margins and at least 20px padding on either side of the text.
+  canvas.width=Math.max(384,Math.ceil(ctx.measureText(text).width)+100);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "rgba(18, 17, 14, 0.72)";
-  roundRect(ctx, 30, 28, 324, 68, 24);
+  roundRect(ctx, 30, 28, canvas.width-60, 68, 24);
   ctx.fill();
   ctx.strokeStyle = "rgba(239, 214, 151, 0.32)";
   ctx.stroke();
   ctx.fillStyle = color;
-  ctx.font = "600 34px Georgia, serif";
+  ctx.font = font;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(text, canvas.width / 2, 64);
@@ -4682,7 +4853,7 @@ function createSpriteLabel(text: string, color: string): THREE.Sprite {
       depthWrite: false,
     }),
   );
-  sprite.scale.set(1.25, 0.42, 1);
+  sprite.scale.set(.42*canvas.width/canvas.height, .42, 1);
   return sprite;
 }
 
@@ -4706,7 +4877,7 @@ function createVrIdleHintSprite(): THREE.Sprite {
   ctx.font = "700 44px Arial, Helvetica, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("Aim at a person or the pump. Trigger selects.", canvas.width / 2, canvas.height / 2);
+  ctx.fillText("Click to interact with people or objects.", canvas.width / 2, canvas.height / 2);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;

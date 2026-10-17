@@ -41,6 +41,7 @@ export class FurnishedRoom implements WalkableEnvironment {
   private readonly lighting = new THREE.Group();
   private readonly desk?: THREE.Mesh;
   protected readonly deskPrompt: THREE.Mesh;
+  private visualModel?: THREE.Group;
   private visualsPromise?: Promise<void>;
 
   constructor(private readonly options: RoomOptions) {
@@ -108,7 +109,7 @@ export class FurnishedRoom implements WalkableEnvironment {
       }
       this.prepareVisuals(gltf.scene);
       this.props.push(...extractProps(gltf.scene,this.group,this.options.asset));
-      this.group.add(gltf.scene);this.fallback.visible=false;
+      this.visualModel=gltf.scene;this.group.add(gltf.scene);this.fallback.visible=false;
       this.group.userData.environmentStatus="ready";
     } catch (error) {
       this.group.userData.environmentStatus="fallback";
@@ -122,7 +123,10 @@ export class FurnishedRoom implements WalkableEnvironment {
     if(this.characters)this.deskPrompt.layers.mask=this.characters.ready?0:1;
     const furniture=raycaster.intersectObjects([this.floor,...this.solids],false)[0];
     const prop=raycaster.intersectObjects(this.props.filter(p=>!p.returning && !p.held).map(p=>p.group),true)[0];
-    const nearest=prop && (!furniture || prop.distance < furniture.distance) ? prop : furniture;
+    // Furniture collision boxes enclose shelves as well as the books on them.
+    // For pickup, check the actual art so a shelf proxy cannot hide its contents.
+    const obstruction=prop && this.visualModel ? raycaster.intersectObject(this.visualModel,true)[0] : furniture;
+    const nearest=prop && (!obstruction || prop.distance < obstruction.distance) ? prop : furniture;
     const person=this.characters?.pick(raycaster);
     return person && (!nearest || person.distance<nearest.distance) ? person : nearest;
   }

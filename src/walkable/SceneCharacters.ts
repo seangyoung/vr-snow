@@ -71,12 +71,12 @@ export class SceneCharacters {
     this.group.updateMatrixWorld(true);
   }
   pick(raycaster: THREE.Raycaster): THREE.Intersection | undefined {
-    return this.ready ? raycaster.intersectObjects(this.targets,false)[0] : undefined;
+    return this.group.visible && this.ready ? raycaster.intersectObjects(this.targets,false)[0] : undefined;
   }
-  owns(object: THREE.Object3D): boolean { return this.ready && this.targets.includes(object as THREE.Mesh); }
-  blocks(point: THREE.Vector3): boolean { return this.ready && this.footprints.some(rect=>inRectangle(point,rect)); }
+  owns(object: THREE.Object3D): boolean { return this.group.visible && this.ready && this.targets.includes(object as THREE.Mesh); }
+  blocks(point: THREE.Vector3): boolean { return this.group.visible && this.ready && this.footprints.some(rect=>inRectangle(point,rect)); }
   blocksPath(from: THREE.Vector3,to: THREE.Vector3): boolean {
-    return this.ready && this.footprints.some(rect=>{
+    return this.group.visible && this.ready && this.footprints.some(rect=>{
       if(inRectangle(from,rect)) {
         // A figure finishing its load must not trap a visitor already at its feet.
         const cx=(rect.minX+rect.maxX)/2,cz=(rect.minZ+rect.maxZ)/2;

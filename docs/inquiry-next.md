@@ -90,8 +90,11 @@ and sends the player to investigate the exception rather than explaining it away
   Broad Street account, comparisons, distant exposures, alternative pumps and Table I.
 - [Original Table I image](https://www.academia.dk/MedHist/Biblioteket/Grafik/Snow_1855/table1.gif):
   preceding-day **deaths** for the three openings are 71 (Sept 4), 45 (Sept 5), and
-  37 (Sept 6). These are explicitly retrospective context, not instant registrar
-  reports or new attacks. The registrar’s evidence now describes the sudden surge
+  37 (Sept 6). Snow now delivers these in his morning conversation as an authored
+  report from the registrar, rather than a separate historical-context panel.
+  This dramatizes the availability of retrospectively compiled figures; they count
+  deaths in the local outbreak, not London-wide deaths or new attacks.
+  The registrar’s evidence describes the sudden surge
   without importing the later publication’s numerical fatal-attack series.
 - [UCLA John Snow Archive, Stream 2e](https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_e.html):
   Whitehead's initial opposition, later inquiry, and neighborhood observations,
@@ -200,27 +203,24 @@ Desktop Chrome testing activated each handle, waited for flowing water, inspecte
 both samples and verified saved progress, with no browser errors. Visual review
 confirmed the replacement fitting and its captured-sky lighting.
 
-## Required daily briefings — 16 October 2026
+## Player-initiated morning conversations — 17 October 2026
 
-Each morning’s “Speak with Snow” action now opens that day’s assignment conversation
-immediately. Until its shared concluding beat grants the assignment, all inter-scene
-travel and map access are locked against the current day, including earlier locations,
-world exits, desktop map shortcuts and VR controller/menu shortcuts. The mandatory
-briefing cannot be dismissed by Escape, outside selection or controller grip; head
-movement and VR settings shortcuts remain available. Normal dialogue dismissal returns once Snow
-has given the assignment. The notebook shortcut also remains available.
+Each morning’s “Enter the office” action dismisses the date card without opening
+a conversation. Players can walk, teleport around the room, and inspect or return
+desk objects before selecting Snow. His assignment remains required for map access
+and every exit, including controller shortcuts and automatic doorway travel.
+Conversations can be closed and resumed with their saved choices intact; the same
+applies to day three’s map comparison. Continue restores the office without forcing
+a panel open. Legacy unbriefed saves outside the office return there safely.
 
-Reloading an unfinished briefing resumes its saved beat at Snow’s office. Older preview
-saves made outside the office before the current day’s assignment are safely returned
-there without discarding evidence or previous daily work. New day progression still
-requires the prior day’s fieldwork, recap and explicit End day action.
+Day one’s assignment recommends speaking with local people, including Reverend
+Whitehead, without preannouncing his view of Snow’s theory. The opening has also
+been reduced to the setting, the investigation’s purpose, and a prompt to speak
+with Snow; a single short dramatization note appears at the ending.
 
-All 197 automated checks pass, including all three daily locks, shared conversation
-conclusions, legacy save recovery and VR dismissal/shortcut guards.
-
-Desktop browser checks passed on all three days: automatic briefing, blocked map
-shortcut, dismissal guard, reload/resume and travel unlocked after the assignment.
-Production-base and preview-base builds and web-app packaging checks also pass.
+The 222-check regression suite covers daily travel locks, voluntary initiation,
+interruption, reload/resume, legacy saves, and VR panel/shortcut behavior. Physical
+Quest validation remains a separate check.
 
 ## Daily destinations and street population — 16 October 2026
 
@@ -293,3 +293,125 @@ Validation includes all optional branches across three days, interruption/resume
 without rewards, actor/target/anchor agreement, exported source hashes, geometry
 budgets, browser rendering, and the existing campaign regression suite. Full
 headset acceptance remains pending.
+
+## Quiet interaction reminder — 17 October 2026
+
+The VR reminder now waits for 30 seconds of inactivity, displays for four seconds,
+and stays dismissed until another activity begins a fresh idle period. Walking,
+teleportation, turning, meaningful head/controller movement, stick/button input,
+held objects, pump water, open panels, day introductions and travel suppress it.
+Unfocused sessions reset the timer. The text is “Click to interact with people or
+objects.” Normal tracking jitter does not count as deliberate activity.
+
+All 224 regression checks pass, including timed dismissal/rearming and activity
+suppression through the VR scene's actual hint update path. Device review remains
+necessary for subjective timing and readability in the Quest.
+
+### Portable objects and controller inspection
+
+Loose props now use a five-metre pickup reach, with actual scene geometry still
+blocking grabs through furniture or walls. Hold either controller’s grip to grab;
+release that grip to return the object. Triggers continue to select conversations,
+buttons and pump handles. While holding an item, the right stick rotates it in
+both axes; it must return to neutral before player snap-turning resumes. Stick
+click opens the menu, or changes pages while reading a multipage panel. Existing
+face-button shortcuts remain available. Desktop pickup/return remains click or
+Space; Q/E spin and R/F tilt the held object.
+
+The authored inventory now has 258 items across the eight furnished environments:
+books and documents, instruments and bottles, household cups/jugs/cloth/spools,
+workhouse buckets, brewery mugs and the account book, and Board papers/registers.
+Compound parts travel together. Furniture, fixed fittings, large vats/casks and
+filled grain sacks remain scenery; Broad Street currently has no separate loose
+portable props. Objects are not evidence awards. They always return to their
+original position and orientation rather than becoming physics debris.
+
+`scripts/assets/build_prop_manifest.py` generates `portable-props.json` from the
+semantic objects in the saved Blender files. Complete triangles retain their
+original materials and baked UVs. Resting props are batched by material; only the
+held/returning item draws separately. Shelf pickup checks the actual visual
+geometry rather than the bookshelf’s broad collision box. This avoids adding a
+draw call for every book and label.
+
+Selected items show a small non-modal description while held. Desktop cards link
+to museum collection photographs; VR cards include a short source credit. The
+photographs are linked at the collection site, not redistributed with the app.
+Instrument descriptions reference:
+
+- [Science Museum Group: monaural stethoscope, 1840–1850](https://collection.sciencemuseumgroup.org.uk/objects/co91097/monaural-stethoscope).
+- [Science Museum Group: Snow-type chloroform inhaler, 1848–1870](https://collection.sciencemuseumgroup.org.uk/objects/co75826/snow-type-chloroform-inhaler-inhaler).
+
+These describe comparable collection instruments; the models are interpretations.
+Controller event tests cover grip ownership, trigger independence, reach and
+obstructions, two-axis rotation and neutral release. Exported-asset tests cover
+all prop sets, triangle conservation, UVs and batching. Actual Quest ergonomics
+and frame-rate acceptance remain a device check.
+
+### Day-one recap map
+
+Snow's first evening review displays the death map alongside the conversation in desktop and VR. Starting the recap reveals the plotted deaths on the normal map as well; closing the exchange or restoring a save keeps that layer available. The existing conversation cursor supplies this state, so there is no new save version or separate UI-only unlock. The cluster finding and End day still require completing the recap. The embedded map omits location/travel buttons so attention stays on the pattern being discussed.
+
+### Between-day transition
+
+End day now fades to black, holds briefly, then fades into the next morning's introduction. Desktop and VR share the same frame-driven sequence: roughly 0.55 seconds out, a fully black frame before advancing/saving the day, 0.25 seconds of black, then 0.65 seconds back in. Reduced-motion mode shortens this to 0.2/0.15/0.2 seconds. The desktop cover includes the HUD; the XR veil covers both eyes and follows tracked head motion without moving the camera. Input is blocked during the transition and keyboard focus returns to the next day's introduction afterward. Hidden tabs and unfocused XR sessions pause progression. Cutscenes are deferred.
+
+## Conversation placement and free movement — 17 October 2026
+
+Ordinary VR conversation panels are 22% smaller, face the eye position including
+pitch when opened, and remain fixed in the world through head movement and snap
+turns. The map recap uses a gentler 15% reduction. Desktop dialogue width is now
+760px maximum. Conversations allow walking, turning, nearby ground teleportation
+and prop pickup/rotation/return. Menu and notebook movement locks remain.
+
+Switching to another person or travelling away restarts unfinished exchanges;
+walking beyond speaking range does the same (4m horizontally, extended by 1.5m
+beyond the initial distance if started farther away). Completed evidence and
+conclusions are retained. Closing a panel while staying nearby can still resume
+the same exchange. Picking up a handheld prop never switches dialogue. On desktop,
+WASD returns focus to the scene, arrows look while the scene has focus, and Tab
+returns to dialogue choices. The shared graph cursor saves these resets.
+
+## Single meeting action — 17 October 2026
+
+After selecting a theory, **Attend the meeting** now records the argument and
+travels to the Board room in one action on desktop and VR. The selected theory
+and completed day/recap requirements still apply. Arrival is saved atomically;
+it does not start or complete the hearing. Existing saves with an already
+prepared argument remain usable.
+
+## Board speaker placement — 17 October 2026
+
+Board hearing beats now use the matching figure positions from the character
+layout, including Snow’s Board-room model. The VR dialogue panel is placed beside
+the current speaker’s sight line when the speaker changes, facing the player’s
+current eye position. It stays fixed during that speaker’s turn. The entire Board
+room counts as the conversation area, so walking between speakers does not reset
+the hearing. Desktop retains its central bottom dialogue overlay and speaker name.
+
+## Snow's map on the Board table — 17 October 2026
+
+The table's schematic grid sheet now displays a warm-paper print derived from
+`public/maps/broad-street.svg` and the existing cleaned pump-service-area layer.
+It shows streets, death bars, pump locations and the service boundary. The sheet
+retains its pickup, rotation and return behavior; its old batched grid triangles
+stay hidden after returning it. The replacement adds just a paper slab and printed
+plane, using a 1400 × 1900 PNG rather than rasterizing the large SVG in the headset.
+
+Regenerate `public/maps/board-table-map.png` with
+`node scripts/assets/build_board_map.mjs` and the optional authoring dependency
+`sharp` available (the same dependency used by the app-icon generator). Texture
+failure retains the original schematic prop. Browser review confirmed placement,
+texture loading, pickup and return; the walkable checks and build passed.
+
+### Epilogue framing — 17 October 2026
+
+- The desktop ending is a compact right-side reading panel, with a scrollable bottom panel on narrow screens. The pump and closure notice remain visible at arrival.
+- VR uses a smaller paginated ending panel beside the pump's sightline, placed once and facing the viewer. Notebook and Exit VR remain available.
+- Completed inquiries hide street figures, including their selection targets and collision footprints. Only Return to Snow's desk remains as a street travel exit; the desk can still return to the closed pump. Reset restores the daily population and destinations.
+- Verified desktop/mobile rendering, VR panel rendering, return travel, and 257 automated tests, including seated/standing pump sightline checks. Physical Quest review remains separate.
+
+### South London map on Snow's desk — 17 October 2026
+
+Added the Wellcome Library scan of Snow's south London water-supply Map 2 as a portable sheet on the office writing surface. The ledger sits to the right on the correspondence; the notes and pen move clear of the map. All retain their pickup/return behaviour. The held map displays a short explanation and the collection/license credit, without adding a campaign evidence card.
+
+The texture is local, 2048 × 1670, approximately 1.3 MB, with mipmaps and anisotropic filtering. Image-load failure retains the previous desk arrangement. The 1855 publication is used as an interpretive office prop; the source, CC BY 4.0 license, resizing details, and regeneration command are recorded in `public/maps/south-london-water-supply.source.md`.

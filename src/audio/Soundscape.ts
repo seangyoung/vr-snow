@@ -48,6 +48,8 @@ export class Soundscape implements SoundControls {
   private air?: AudioBuffer;
   private noise?: AudioBuffer;
   private cart?: AudioBuffer;
+  private water?: AudioBuffer;
+  private waterSource?: AudioBufferSourceNode;
   private active: AmbientSource[]=[];
   private events=new Set<AmbientSource>();
   private recordings=new Map<string,AudioBuffer>();
@@ -98,7 +100,7 @@ export class Soundscape implements SoundControls {
         this.effects=c.createGain();this.effects.connect(this.master);
         this.master.gain.value=0;this.applyLevels();
         // Original, bounded fallback buffers are ready before recordings finish loading.
-        this.air=this.makeNoise(8,true);this.noise=this.makeNoise(.3,false);this.cart=this.makeCart();
+        this.air=this.makeNoise(8,true);this.noise=this.makeNoise(.3,false);this.cart=this.makeCart();this.water=this.makeWater();
         this.configureAmbient();
         this.recordingLoad=this.loadRecordings();
       }
@@ -130,8 +132,30 @@ export class Soundscape implements SoundControls {
     }
     return buffer;
   }
+  private makeWater(): AudioBuffer {
+    const rate=22050,buffer=this.context!.createBuffer(1,Math.ceil(rate*.95),rate),data=buffer.getChannelData(0);
+    let seed=1854,low=0,phase=0,dropAge=0,dropLength=0,frequency=0;
+    // A continuous splash with irregular, descending bubble resonances. Generated
+    // locally so feedback never depends on a recording download completing.
+    for(let i=0;i<data.length;i++) {
+      seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+      const random=seed/4294967296,white=random*2-1,t=i/rate;
+      low+=.24*(white-low);
+      if(dropAge>=dropLength){dropAge=0;dropLength=.025+random*.055;frequency=650+random*1600;phase=0;}
+      phase+=2*Math.PI*frequency*Math.exp(-dropAge*12)/rate;
+      const bubble=Math.sin(phase)*Math.exp(-dropAge*60)*Math.min(1,dropAge*1200);
+      data[i]=(.3*white+.4*low)*(.8+.2*Math.sin(t*41))+.25*bubble;
+      dropAge+=1/rate;
+    }
+    return buffer;
+  }
+  stopWater(): void {
+    const source=this.waterSource;this.waterSource=undefined;
+    if(source){try{source.stop();}catch{}source.disconnect();}
+  }
   setLocation(location: string): void {
     if(location===this.location)return;
+    this.stopWater();
     this.location=location;this.steps.reset();this.configureAmbient();
   }
   /** Reduce distractions while reading without changing the saved volume. */
@@ -267,32 +291,37 @@ export class Soundscape implements SoundControls {
   }
   effect(kind: SoundEffect): void {
     const c=this.context;if(!c||!this.noise||!this.effects||c.state!=="running"||this.hidden||this.settings.muted||!this.settings.effects)return;
-    const now=c.currentTime;if(kind!=="evidence"&&now-this.lastEffect<.07)return;this.lastEffect=now;
+    const water=kind==="water";
+    const now=c.currentTime;
+    if(!water){if(kind!=="evidence"&&now-this.lastEffect<.07)return;this.lastEffect=now;}
+    else this.stopWater();
     const indoor=["snow-desk","household","household-routines","household-away","registrar","board-room"].includes(this.location);
     const recorded=kind==="step"?this.pickClip(indoor?"woodStep":"stoneStep"):
       kind==="paper"||kind==="evidence"?this.pickClip("paper"):undefined;
-    const source=c.createBufferSource();source.buffer=recorded??this.noise;
-    source.loop=kind==="water";
-    source.playbackRate.value=.96+this.random()*.08;
-    const filter=c.createBiquadFilter();filter.type="bandpass";
+    const source=c.createBufferSource();source.buffer=water?this.water!:recorded??this.noise;
+    source.playbackRate.value=water?1:.96+this.random()*.08;
+    const filter=c.createBiquadFilter();filter.type=water?"lowpass":"bandpass";
     const paper=kind==="paper"||kind==="evidence";
-    filter.frequency.value=kind==="water"?2200:paper?1450:kind==="step"?(indoor?310:620):900;
+    filter.frequency.value=water?4500:paper?1450:kind==="step"?(indoor?310:620):900;
     filter.Q.value=paper?.5:.8;
-    const gain=c.createGain(),duration=recorded?recorded.duration/source.playbackRate.value:kind==="water"?.9:paper?.23:kind==="step"?.12:.045;
-    const start=now+(kind==="water"?.55:0);
-    gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(kind==="water"?.16:paper?.24:kind==="step"?(recorded?.32:.5):.28,start+.008);
-    gain.gain.exponentialRampToValueAtTime(.0001,start+duration);
+    const gain=c.createGain(),duration=water?.95:recorded?recorded.duration/source.playbackRate.value:paper?.23:kind==="step"?.12:.045;
+    const start=now;
+    gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(water?.85:paper?.24:kind==="step"?(recorded?.32:.5):.28,start+(water?.025:.008));
+    if(water){gain.gain.setValueAtTime(.85,start+.72);gain.gain.linearRampToValueAtTime(0,start+duration);this.waterSource=source;}
+    else gain.gain.exponentialRampToValueAtTime(.0001,start+duration);
     source.connect(filter);filter.connect(gain);gain.connect(this.effects);this.oneShots.add(source);
-    source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();this.oneShots.delete(source);};
+    source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();this.oneShots.delete(source);if(this.waterSource===source)this.waterSource=undefined;};
     source.start(start);source.stop(start+duration+.02);
   }
   setHidden(hidden: boolean,source: "document"|"xr"="document"): void {
     if(hidden)this.hiddenSources.add(source);else this.hiddenSources.delete(source);
     this.hidden=this.hiddenSources.size>0;this.steps.reset();this.deferEvent();this.applyLevels();
+    if(this.hidden)this.stopWater();
     if(this.hidden)void this.context?.suspend().then(()=>{if(!this.hidden)void this.unlock();}).catch(()=>{});
     else if(this.context)void this.unlock();
   }
   dispose(): void {
+    this.stopWater();
     this.disposed=true;this.loadAbort.abort();this.recordings.clear();this.walkingClips.clear();
     for(const node of this.allSources) {try{node.source.stop();}catch{}node.source.disconnect();node.filter.disconnect();node.panner.disconnect();node.gain.disconnect();}
     for(const source of this.oneShots){try{source.stop();}catch{}source.disconnect();}

@@ -7,6 +7,7 @@ The walkable branch supports keyboard navigation through scene interaction, inte
 | Scene | W / S, A / D | Walk forward/back and strafe, with existing collisions |
 | Scene | Left / Right, Up / Down | Turn and look up/down; pitch is bounded |
 | Scene | Space / Enter | Activate the target under the center reticle |
+| Held object | Q / E, R / F | Spin and tilt; click / Space / Enter / Escape returns it |
 | Tools | M / N | Open or toggle map / notebook |
 | Panel | Tab / Shift+Tab, arrows | Cycle enabled choices, with visible focus |
 | Panel | Enter / Space | Activate the focused button |
@@ -14,17 +15,17 @@ The walkable branch supports keyboard navigation through scene interaction, inte
 | Panel | Page Up / Down | Scroll content; Up/Down also scroll the notebook |
 | Tool rail | Escape | Return focus to the scene |
 
-The Board panorama supports keyboard looking but has no walking floor. Chapter/Board instructions can be dismissed and reopened with the book button in the tool rail; their required steps still need to be completed using their action buttons. Disabled locations are skipped. Keyboard movement stops when a panel opens, the page is hidden or focus enters a UI control; release and press a held key again to resume. Quick arrow taps receive one rendered frame even if released between frames.
+The Board panorama supports keyboard looking but has no walking floor. Chapter/Board instructions can be dismissed and reopened with the book button in the tool rail; their required steps still need to be completed using their action buttons. Disabled locations are skipped. Keyboard movement stops for modal panels, hidden pages or editable UI fields; conversations allow WASD movement, which returns focus to the scene. Arrows look when the scene has focus; Tab enters the dialogue choices, where arrows navigate. For modal panels, release and press a held key again to resume. Quick arrow taps receive one rendered frame even if released between frames.
 
-`DesktopKeyboard` delegates actions to the existing DOM buttons and `GameState`. It traps panel focus, preserves selected controls when content redraws, keeps them in view and makes the background HUD inert while a modal is open. The canvas remains available for pointer drags, while keyboard scene actions stay blocked. The scene handler respects consumed UI events; desktop panel shortcuts are suspended during immersive XR and travel transitions.
+`DesktopKeyboard` delegates actions to the existing DOM buttons and `GameState`. It traps panel focus, preserves selected controls when content redraws, keeps them in view and makes the background HUD inert while a modal is open. The canvas remains available for pointer drags. Conversations are nonmodal and permit keyboard scene actions and object handling. The scene handler respects consumed UI events; desktop panel shortcuts are suspended during immersive XR and travel transitions.
 
 ## Click outside to close
 
-A primary click or tap outside the panel closes the open dialogue, notebook, map, settings, review or chapter panel. The first outside click only dismisses: it does not also select a person, teleport, travel or activate a toolbar button. Click again to use that background target. Clicking inside the panel keeps existing controls working.
+A primary click or tap outside the panel closes the open dialogue, notebook, map, settings, review or chapter panel. For conversations, clicking a handheld object preserves the exchange, clicking another person switches speakers, and clicking clear ground teleports within speaking range. Walking away or changing scenes restarts unfinished exchanges. For other panels, the first outside click only dismisses: it does not also select a person, teleport, travel or activate a toolbar button. Click again to use that background target. Clicking inside the panel keeps existing controls working.
 
 Camera drags keep the panel open. Pointer travel above 6 CSS pixels, a press starting inside the panel, cancellation, multiple touches and keyboard-generated clicks do not count as outside clicks. Closing returns keyboard focus to the scene and retains collected evidence and progress. Chapter instructions remain available through the book button.
 
-In VR, a trigger select outside the panel also closes it without acting on the scenery. A ray starting inside the panel, moving over about 2.3 degrees, or shifting over 6 cm during the press does not dismiss it. Grip/menu access still reopens the panel. Actual headset verification remains separate from automated input tests.
+In VR, conversations likewise permit selecting another person, nearby ground and props; grip grabs keep the conversation open. Other panels close on an outside trigger select without acting on scenery. A ray starting inside the panel, moving over about 2.3 degrees, or shifting over 6 cm during the press does not dismiss it. Stick click or the existing face-button shortcuts reopen the panel. Actual headset verification remains separate from automated input tests.
 
 ## Browser acceptance sequence
 

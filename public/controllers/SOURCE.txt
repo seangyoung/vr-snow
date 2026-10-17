@@ -1,0 +1,14 @@
+WebXR Input Profiles controller models and metadata
+Source: https://github.com/immersive-web/webxr-input-profiles/tree/main/packages/assets
+Package: @webxr-input-profiles/assets 1.0.20
+Archive: https://registry.npmjs.org/@webxr-input-profiles/assets/-/assets-1.0.20.tgz
+Retrieved: 2026-10-17
+License: MIT; see LICENSE.txt alongside this notice.
+
+Only profiles used by the app's known controller mappings and generic controller
+fallback profiles are included. GLB files are unchanged; profile assetPath values
+point to deduplicated, content-addressed local files. Reproduce the export with
+scripts/assets/sync-controller-assets.mjs and an unpacked copy of the package.
+
+Models portray their manufacturers' hardware and trademarks for accurate device
+representation. These trademarks do not imply endorsement of this experience.

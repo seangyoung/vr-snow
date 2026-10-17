@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { PumpAction } from "./PumpAction";
+import { streetBounds } from "./StreetBoundary";
 import { SceneCharacters } from "./SceneCharacters";
 import { loadBakedRoomLighting } from "./BakedRoomLighting";
 import { inRectangle, crossesRectangle } from "./WalkableArea";
@@ -9,7 +10,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 export const pumpPosition = new THREE.Vector3(-3.8, 0, 1.3);
 export const streetSpawn = new THREE.Vector3(1.6, 0, -2);
 const pumpClearance = 0.65;
-const bounds = { minX: -13, maxX: 15, minZ: -7.85, maxZ: 13 };
+const bounds = streetBounds;
 // Expanded building/railing envelopes include a person's clearance from the facade.
 const obstacles = [
   { minX: -60, maxX: 0.4, minZ: 2.6, maxZ: 60 },
