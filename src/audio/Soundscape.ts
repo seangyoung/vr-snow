@@ -296,9 +296,9 @@ export class Soundscape implements SoundControls {
     if(!water){if(kind!=="evidence"&&now-this.lastEffect<.07)return;this.lastEffect=now;}
     else this.stopWater();
     const indoor=["snow-desk","household","household-routines","household-away","registrar","board-room"].includes(this.location);
-    const recorded=kind==="step"?this.pickClip(indoor?"woodStep":"stoneStep"):
+    const recorded=water?this.pickClip("water"):kind==="step"?this.pickClip(indoor?"woodStep":"stoneStep"):
       kind==="paper"||kind==="evidence"?this.pickClip("paper"):undefined;
-    const source=c.createBufferSource();source.buffer=water?this.water!:recorded??this.noise;
+    const source=c.createBufferSource();source.buffer=recorded??(water?this.water!:this.noise);
     source.playbackRate.value=water?1:.96+this.random()*.08;
     const filter=c.createBiquadFilter();filter.type=water?"lowpass":"bandpass";
     const paper=kind==="paper"||kind==="evidence";

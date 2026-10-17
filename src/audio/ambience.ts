@@ -1,5 +1,6 @@
 /** Interpretive sound placement; no audio carries evidence or unique information. */
 export const clipGroups = {
+  water: ["pump-water"],
   wagon: ["wagon"], wood: ["wood-1", "wood-2"], paper: ["paper-1", "paper-2"],
   metal: ["metal-1", "metal-2"], creak: ["creak-1", "creak-2"],
   cloth: ["cloth"], door: ["door"],

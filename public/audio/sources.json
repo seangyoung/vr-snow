@@ -178,5 +178,17 @@
     "seconds": 12.0,
     "bytes": 529244,
     "changes": "Mono, low-pass/downsampled to 22050 Hz, peak normalized, edge fades; wagon excerpt 1-13 seconds"
+  },
+  {
+    "file": "pump-water.wav",
+    "original": "water.ogg",
+    "source": "https://commons.wikimedia.org/wiki/File:Water_flowing_pouring_trickling.ogg",
+    "author": "stephan / PDSounds",
+    "license": "Public-domain",
+    "sourceSha256": "39b32876bab48f0ed3626ffb88eb65c66f0b4d884332f7b5613d44ed62f7f924",
+    "sha256": "d93d2d7066e2e5d4af0f3f770a2e5d1a417bf62644a666db71669f9d7f84838d",
+    "seconds": 0.95,
+    "bytes": 41940,
+    "changes": "Excerpt 30-30.95 seconds; mono, low-pass/downsampled to 22050 Hz, DC removal, peak normalized, 12 ms edge fades"
   }
 ]

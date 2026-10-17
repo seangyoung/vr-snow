@@ -1030,6 +1030,14 @@ export class BroadStreetScene {
       return;
     }
     const hit=this.walkable?.pick(this.controllerRaycaster),prop=propFor(hit?.object);
+    const pump=this.activePump;
+    if(hit && pump?.action.owns(hit.object)) {
+      if(hit.distance<=2.4) {
+        this.interactionIdleHint?.reset(performance.now()*.001);
+        pump.action.stroke();
+      }
+      return;
+    }
     if(!hit || !prop || hit.distance>grabReach)return;
     this.interactionIdleHint?.reset(performance.now()*.001);
     if(this.propHold.begin(prop,controller,false))this.sound?.effect("select");
@@ -1075,7 +1083,7 @@ export class BroadStreetScene {
       if(hit) {
         const prop=propFor(hit.object);
         if(prop)text=hit.distance>grabReach?"Move closer to inspect":`${prop.name} · ${this.renderer.xr.isPresenting?"hold grip":"click / Space"}`;
-        else if(this.activePump?.action.owns(hit.object))text=hit.distance>2.4?"Move closer to the handle":"Work pump · select handle";
+        else if(this.activePump?.action.owns(hit.object))text=hit.distance>2.4?"Move closer to the handle":this.renderer.xr.isPresenting?"Work pump · grip or trigger":"Work pump · select handle";
         else if(this.activePump && ['broad-street-pump','workhouse-pump'].includes(this.walkable?.hotspotFor(hit.object)??''))
           text=this.gameState.hasPumpedWater(this.activePump.location)?"Inspect water · select pump":"Draw water first · select the handle";
         if(text)point=prop?prop.group.getWorldPosition(new THREE.Vector3()):hit.point.clone();
@@ -1237,7 +1245,10 @@ export class BroadStreetScene {
       });
 
       controller.addEventListener("select", () => this.selectFromVrController(controller));
-      controller.addEventListener("squeezestart", () => this.beginGripGrab(controller));
+      controller.addEventListener("squeezestart", () => {
+        void this.sound?.unlock();
+        this.beginGripGrab(controller);
+      });
       controller.addEventListener("squeezeend", () => {
         if(this.propHold.anchor===controller)this.propHold.release();
       });
@@ -1902,7 +1913,7 @@ export class BroadStreetScene {
       if(parts.length)bindings.push(`${left?"Left":"Right"} — ${parts.join(" · ")}`);
     }
     this.addVrText("Left stick: walk · Right stick: turn",0,.30,2.5,.14,{fontSize:30});
-    this.addVrText("Trigger: select / pump · Hold grip: grab an object",0,.12,2.5,.14,{fontSize:30});
+    this.addVrText("Trigger: select / pump · Grip: grab / pump",0,.12,2.5,.14,{fontSize:30});
     if(bindings.length)bindings.slice(0,2).forEach((text,index)=>
       this.addVrText(text,0,-.07-index*.17,2.5,.14,{fontSize:28,color:"#b9c9c4"}));
     else this.addVrText("Use the menu for map, notebook, height and settings. Extra controller buttons vary by device.",0,-.14,2.5,.28,{fontSize:28,color:"#b9c9c4"});

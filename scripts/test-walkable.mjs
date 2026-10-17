@@ -1758,8 +1758,8 @@ test('recordings load once after a gesture, with two workers; failed clips leave
     if(url.includes('wagon'))throw new Error('missing');return new ArrayBuffer(8);
   });
   assert.equal(requests,0);await Promise.all([sound.unlock(),sound.unlock()]);await sound.recordingLoad;
-  assert.equal(peak,2);assert.equal(requests,15);assert.equal(sound.recordings.size,14);
-  assert.ok(sound.cart);sound.setLocation('registrar');await sound.unlock();assert.equal(requests,15);
+  assert.equal(peak,2);assert.equal(requests,16);assert.equal(sound.recordings.size,15);
+  assert.ok(sound.cart);sound.setLocation('registrar');await sound.unlock();assert.equal(requests,16);
   sound.dispose();
 });
 
@@ -1796,7 +1796,7 @@ test('shipped recordings have source credits, verified checksums and a bounded m
     const data=await readFile('public/audio/'+item.file);bytes+=data.length;seconds+=item.seconds;
     assert.equal(createHash('sha256').update(data).digest('hex'),item.sha256);
     assert.match(item.source,/^https:\/\/(kenney.nl|commons.wikimedia.org)\//);assert.ok(item.author&&item.changes);
-    assert.ok(['CC0-1.0','CC-BY-4.0'].includes(item.license));
+    assert.ok(['CC0-1.0','CC-BY-4.0','Public-domain'].includes(item.license));
     assert.equal(data.toString('ascii',0,4),'RIFF');assert.equal(data.toString('ascii',8,12),'WAVE');
     assert.equal(data.readUInt16LE(20),1);assert.equal(data.readUInt16LE(22),1);assert.equal(data.readUInt32LE(24),22050);
     assert.equal(data.readUInt16LE(34),16);
@@ -3320,4 +3320,48 @@ test('handoff requires proximity or an unobstructed ray to the held object and r
   const takeover=controllerLabelSpecs(helpSource(),{...helpContext,held:true,holdingThis:false}).find(l=>l.button===1);
   assert.equal(takeover.text,'Grip · Take item');assert.equal(takeover.enabled,true);
  }finally{globalThis.document=previous;}
+});
+
+test('grip and trigger operate both attached pump handles with range, panel and closure guards',()=>{
+ const oldDocument=globalThis.document,oldWindow=globalThis.window;
+ globalThis.document=new EventTarget();document.body={dataset:{}};globalThis.window=new EventTarget();
+ try {
+  for(const location of ['broad-street','workhouse']) {
+   const scene=Object.create(BroadStreetScene.prototype),hand=new THREE.Group(),other=new THREE.Group();
+   const street=new PumpCourtyard(),workhouse=new WorkhouseCourtyard(),game=gameAtDay(2);
+   game.travelToLocation(location);street.group.visible=location==='broad-street';workhouse.group.visible=location==='workhouse';
+   const room=location==='broad-street'?street:workhouse,action=room.pumpAction,parent=action.handle.parent;
+   let distance=3,blocked=false,unlocks=0;room.pick=()=>({object:action.handle.children[0],distance});
+   Object.assign(scene,{canvas:new EventTarget(),renderer:{xr:{isPresenting:true,getController:i=>i===0?hand:other,addEventListener:()=>{}}},
+    playerRig:new THREE.Group(),camera:new THREE.PerspectiveCamera(),courtyard:street,workhouse,gameState:game,
+    vrControllers:[],vrControllerPointers:[],vrPanelVisible:false,propHold:new PropHold(),tactileVrSelections:new Set(),
+    controllerRaycaster:new THREE.Raycaster(),setRaycasterFromController:()=>{},pickVrPanel:()=>undefined,
+    vrPanelBlocksWorld:()=>blocked,reducedCharacterMotion:{matches:true},sound:{unlock(){unlocks++;},effect(){},stopWater(){}}});
+   scene.addInputHandlers();
+   const tick=()=>{for(let i=0;i<15;i++)scene.updatePumpInteractions(.05);};
+   hand.dispatchEvent({type:'squeezestart'});tick();assert.equal(game.hasPumpedWater(location),false,'out of range');
+   distance=1;blocked=true;hand.dispatchEvent({type:'squeezestart'});tick();assert.equal(game.hasPumpedWater(location),false,'modal panel blocks pump');
+   blocked=false;
+   for(const event of ['squeezestart','selectstart']) {
+    action.reset();hand.dispatchEvent({type:event});tick();assert.equal(action.water.visible,true);
+    assert.equal(scene.propHold.prop,undefined,'handle never becomes a portable prop');assert.equal(action.handle.parent,parent);
+    hand.dispatchEvent({type:'squeezeend'});assert.equal(action.water.visible,true,'release leaves stroke animation intact');
+    for(let i=0;i<35;i++)scene.updatePumpInteractions(.05);assert.equal(action.water.visible,false,'holding does not repeat strokes');
+   }
+   assert.ok(game.hasPumpedWater(location));assert.ok(unlocks>=4,'grip is also an audio gesture');
+   action.reset(false);hand.dispatchEvent({type:'squeezestart'});tick();assert.equal(action.water.visible,false,'removed handle cannot pump');
+  }
+ } finally {globalThis.document=oldDocument;globalThis.window=oldWindow;}
+});
+
+test('pump uses the bundled pour once decoded and retains generated fallback on failure',async()=>{
+ for(const fails of [false,true]) {
+  const c=fakeAudioContext(),clip=c.createBuffer(1,Math.round(.95*22050),22050),urls=[];
+  c.decodeAudioData=async()=>clip;
+  const sound=new Soundscape(()=>c,async url=>{urls.push(url);if(fails)throw Error('offline');return new ArrayBuffer(8);});
+  await sound.unlock();await sound.recordingLoad;
+  assert.match(urls[0],/pump-water.wav$/,'water downloads before incidental ambience');
+  sound.effect('water');assert.equal(sound.waterSource.buffer,fails?sound.water:clip);
+  assert.equal(sound.waterSource.loop,undefined);sound.stopWater();assert.equal(sound.waterSource,undefined);sound.dispose();
+ }
 });
