@@ -17,6 +17,7 @@ export interface WorldTravelRoute {
 
 /** These are route entrances, not straight-line bearings or measured destination positions. */
 export const streetTravelRoutes: WorldTravelRoute[] = [
+ {id:'street-manufactory',from:'broad-street',to:'manufactory',title:'37 Broad Street',direction:'Percussion-cap manufactory',position:[10.2,1.65,1.6],yaw:-Math.PI/2,labelWidth:1.7,zone:{x:10.1,z:1.6,radius:.55}},
  {id:'street-routines',from:'broad-street',to:'household-routines',title:'Household 2',direction:'WEST · Household 2',position:[-13.4,1.65,-1.5],yaw:Math.PI/2,zone:{x:-12.3,z:-1.5,radius:.65}},
  {id:'street-away',from:'broad-street',to:'household-away',title:'Household 3',direction:'WEST, THEN SOUTH · Household 3',position:[-13.4,1.65,2.0],yaw:Math.PI/2,zone:{x:-12.3,z:2,radius:.65}},
   { id: "street-brewery", from: "broad-street", to: "brewery", title: "Lion Brewery", direction: "EAST · Along Broad Street", position: [13.4, 1.65, -1.5], yaw: -Math.PI/2, zone: {x:12.3,z:-1.5,radius:.75} },
@@ -28,6 +29,7 @@ export const streetTravelRoutes: WorldTravelRoute[] = [
 ];
 
 export const returnTravelRoutes: WorldTravelRoute[] = [
+ {id:'manufactory-return',from:'manufactory',to:'broad-street',title:'Return to Broad Street',direction:'Leave the workshop',position:[0,2.8,3.8],yaw:Math.PI,labelWidth:1.45,zone:{x:0,z:3.25,radius:.4},door:true},
  ...(['household-routines','household-away'] as const).map(from=>({id:from+'-return',from,to:'broad-street' as const,title:'Return to Broad Street',direction:'Leave the household',position:[1.25,2.8,3.2] as [number,number,number],labelWidth:1.45,yaw:Math.PI,zone:{x:1.25,z:2.8,radius:.32},door:true})),
   // Fixed exits in panorama scenes; the modeled interiors also have walk-in doorway zones.
   { id:"household-return", from:"household", to:"broad-street", title:"Return to Broad Street", direction:"Leave the household", position:[1.25,2.8,2.8],labelWidth:1.45,yaw:Math.PI, zone:{x:1.25,z:2.4,radius:.32}, door:true },

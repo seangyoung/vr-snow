@@ -309,5 +309,44 @@
         "yaw": 0
       }
     ]
+  },
+  "manufactory": {
+    "asset": "manufactory-characters",
+    "room": "manufactory-room",
+    "label": "Workshop worker",
+    "hotspot": "manufactory-worker",
+    "actors": [
+      {
+        "id": "factory-worker",
+        "source": "seamstress",
+        "position": [
+          -0.9,
+          0,
+          -0.4
+        ],
+        "pose": "standing",
+        "dress": true,
+        "coat": "716354",
+        "vest": "716354",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": 0.1
+      },
+      {
+        "id": "factory-assistant",
+        "source": "porter",
+        "position": [
+          2.1,
+          0,
+          -2.65
+        ],
+        "pose": "standing",
+        "coat": "494b48",
+        "vest": "73705e",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": -0.7
+      }
+    ]
   }
 }

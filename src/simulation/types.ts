@@ -12,6 +12,7 @@ export type LocationId =
   | "registrar"
   | "workhouse"
   | "brewery"
+  | "manufactory"
   | "board-room";
 export type EvidenceSourceType = "observation" | "interview" | "document" | "inference";
 

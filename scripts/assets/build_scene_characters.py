@@ -17,7 +17,7 @@ def empty(name,z=0):
     ob=bpy.data.objects.new(name,None);bpy.context.scene.collection.objects.link(ob);ob.location.z=z;return ob
 
 for index,spec in enumerate(config['actors']):
-    source=ROOT/f"assets/scene-people/{spec['id']}.blend"
+    source=ROOT/f"assets/scene-people/{spec.get('source',spec['id'])}.blend"
     if not source.exists():raise RuntimeError(f'Missing authored source {source}')
     sources[spec['id']]=hashlib.sha256(source.read_bytes()).hexdigest()
     with bpy.data.libraries.load(str(source),link=False) as (available,loaded):loaded.objects=available.objects

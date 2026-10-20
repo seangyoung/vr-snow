@@ -6,10 +6,11 @@ import characterDefinitions from '../walkable/scene-characters.json' with { type
 const choice = (id: string, label: string, next: string) => ({id,label,next});
 const source = 'Authored teaching dialogue informed by Snow (1855), On the Mode of Communication of Cholera, Broad Street account and Table I. Dates are compressed; these are not verbatim historical conversations.';
 const composite = source + ' This household, its room and testimony are composites; no named historical family or surveyed address is represented.';
+const populationFlightSource = ' Authored resident observations informed by Snow (1855), Broad Street account, passage beginning “The mortality would undoubtedly have been much greater”: lodgers leaving, furniture left behind, closed houses and tradesmen sending away their families. Not verbatim witness testimony.';
 // Keep graph/choice identifiers stable so saved conversations resume after copy edits.
 function interview(id: string, actorId: ActorId, locationId: LocationId, speaker: string, anchor: [number,number,number], objective: ObjectiveId, evidenceId: string,
  opening: string, approaches: [string,string][], followup: string, details: [string,string], context: [string,string], summary: string, followupQuestion?: string): ConversationDefinition {
- return {id,actorId,locationId,title:actorId==='pump'?'Pump inspection':'Field interview',anchor,start:'opening',sourceNote:locationId.startsWith('household')?composite:source,beats:[
+ return {id,actorId,locationId,title:actorId==='pump'?'Pump inspection':'Field interview',anchor,start:'opening',sourceNote:locationId==='manufactory'?source+' The witness and workshop are reconstructed. About a dozen is an authored interim estimate, not a documented September 6 count; Snow later reported eighteen deaths among roughly two hundred workers.':locationId.startsWith('household')?composite:source,beats:[
   {id:'opening',speaker,text:opening,choices:approaches.map(([label],i)=>choice(`approach-${i}`,label,`answer-${i}`))},
   ...approaches.map(([,text],i)=>({id:`answer-${i}`,speaker,text,choices:[choice('follow',followupQuestion ?? (actorId==='pump'?'Examine the water.':'Please, go on.'),'followup')]})),
   {id:'followup',speaker,text:followup,choices:[choice('limits',details[0],'limits'),choice('compare',context[0],'comparison')]},
@@ -70,7 +71,17 @@ export const campaignConversations: ConversationDefinition[] = [
  ['How has the outbreak affected your work?','There is constant concern for the wards. I have the inmates and staff to attend to, whatever is happening outside.'],
  'You have the particulars, then. If you’ll excuse me, I must get back to my round.',
  'Do the inmates use Broad Street water, or a separate supply?'),
- interview('brewery-supply','brewery-owner','brewery','Edward and John Huggins',[-2.65,1.4,2.5],'brewery','brewery-exception',
+ interview('manufactory-supply','factory-worker','manufactory','Workshop worker',[-.9,1.4,-.4],'manufactory','manufactory-exposure',
+ 'We have lost about a dozen, I think, and some are sick now. Their families send word from home; there are empty places at nearly every bench.',[
+ ['How many people work here?','About two hundred, men and women. There are far fewer here now.'],
+ ['Have many of your colleagues died?','About a dozen, I think, and some are sick now. The news comes from their families; it is hard to keep account.'],
+ ['Were they taken ill here?','The people we have lost died at their own homes. They lived in different streets, but we worked together here.']],
+ 'Those two tubs are kept filled from the Broad Street pump for any of our two hundred or so workers who want a drink. The people we have lost died at their own homes, in different streets.',
+ ['Did everyone drink from them?','I could not say what each person drank. The tubs were there for all of us, but I did not watch everyone take a drink.'],
+ ['How many have died, and where?','About a dozen, I think, and others are still sick. Those we have lost died at home, though their work brought them here together.'],
+ 'Please tell Dr. Snow what we have told you. We are waiting for news of the others.',
+ 'What drinking water is provided at work?'),
+ interview('brewery-supply' ,'brewery-owner','brewery','Edward and John Huggins',[-2.65,1.4,2.5],'brewery','brewery-exception',
  'Dr. Snow has sent you? We have been fortunate here: none of our men has died in this outbreak.',[
  ['What do the men drink during work?','They have an allowance of beer, and we have our own well. They do not generally fetch water from the street pump.'],
  ['Have they continued working here?','Yes, here at the brewery, close to all this trouble. We have been anxious for them and their families.'],
@@ -95,12 +106,12 @@ export const campaignConversations: ConversationDefinition[] = [
 for (const day of [2,3] as const) campaignConversations.push({id:`snow-day-${day}`,actorId:'john-snow',locationId:'snow-desk',title:`Day ${day} assignments`,anchor:[-.65,1.35,-2.15],start:'opening',sourceNote:source,beats:[
  {id:'opening',speaker:'John Snow',text:`${snowMorningReport(day)} ${day===2?'Today we must ask about the water people drink, especially where nearby people have escaped the worst.':'Come to the map table before you go out; I have measured the walking times to the pumps.'}`,choices:[choice('plan','What shall I investigate?','plan'),choice('doubt','What would challenge our interpretation?','doubt')]},
  {id:'doubt',speaker:'John Snow',text:'People who used the pump and remained well trouble Whitehead. I want to hear about them too, and about anyone who fell ill without drinking its water.',choices:[choice('plan','Let us plan the inquiries.','plan')]},
- {id:'plan',speaker:'John Snow',text:day===2?'Inspect the pump sample, visit Household 2 and ask about their experience, and ask the workhouse steward about its supply. Bring all three accounts back.':'I walked from each of two starting points to Broad Street and an alternative pump, measuring the time. Let us compare the journeys from each point, then look beyond the area nearest Broad Street.',choices:[choice('accept',day===3?'Let us examine the map.':'I will bring back those findings.','conclusion')]},
+ {id:'plan',speaker:'John Snow',text:day===2?'Inspect the pump sample and visit Household 2, the workhouse, and the manufactory at 37 Broad Street. Ask about illness and where people get their drinking water.':'I walked from each of two starting points to Broad Street and an alternative pump, measuring the time. Let us compare the journeys from each point, then look beyond the area nearest Broad Street.',choices:[choice('accept',day===3?'Let us examine the map.':'I will bring back those findings.','conclusion')]},
  {id:'conclusion',speaker:'John Snow',text:day===3?'Here is the map. Follow the streets from the marked point; I will show you the times I measured.':'Come back when you have those accounts. I shall be here working through the addresses.',choices:[],...(day===3?{terminalAction:'resume-survey' as const}:{}),conclusion:{assignmentDay:day}},
 ]});
 for (const day of [1,2,3] as InquiryDay[]) campaignConversations.push({id:`snow-recap-${day}`,actorId:'john-snow',locationId:'snow-desk',title:`Day ${day} review`,anchor:[-.65,1.35,-2.15],start:'opening',sourceNote:source,...(day===1?{map:'deaths' as const}:{}),beats:[
  {id:'opening',speaker:'John Snow',text:day===1?'You have brought the returns and spoken with the household. Let us put these addresses on the map.':day===2?'You found nothing obvious in the sample, but the workhouse account is striking. Let us go over what you heard.':'We have the brewery’s account, the brother’s journey and our map comparison. Let us prepare for the Board’s questions.',choices:[choice('pattern',day===1?'Plot the addresses.':'Compare the exposure accounts.','pattern'),choice('limits','Start with what remains uncertain.','limits')]},
- {id:'pattern',speaker:'John Snow',text:day===1?'Look how closely the deaths gather around Broad Street. The household you visited drank from this pump; tomorrow we must ask about other water supplies.':day===2?'The workhouse has over five hundred inmates, very few deaths and its own water supply. Outside its walls, families fetch the Broad Street water because they prefer it.':'The brewery men breathe the neighborhood’s air but have their own drinks. And the man who fell ill farther away drank Broad Street water while at work.',choices:[choice('limits','What still troubles you?','limits')]},
+ {id:'pattern',speaker:'John Snow',text:day===1?'Look how closely the deaths gather around Broad Street. The household you visited drank from this pump; tomorrow we must ask about other water supplies.':day===2?'The workhouse has few deaths and its own supply. At the manufactory, many workers have died at different homes, but they shared a workplace supplied with Broad Street water; Household 2 also uses that pump.':'The brewery men breathe the neighborhood’s air but have their own drinks. And the man who fell ill farther away drank Broad Street water while at work.',choices:[choice('limits','What still troubles you?','limits')]},
  {id:'limits',speaker:'John Snow',text:day===1?'The deaths cluster around Broad Street, but the map cannot settle whether water or another local cause is responsible. We need to learn who used the pump and who did not.':day===2?'We have not found the cause by looking at the water. I would like more accounts of people who escaped, particularly the brewery men.':'A convenient pump is not always the one people use. The household preferred Broad Street water enough to carry it farther; we must explain that to the Board.',choices:[choice('next','What should happen next?','next')]},
  {id:'next',speaker:'John Snow',text:day<3?'Let us finish for tonight, unless there is someone you wish to see again. We shall take up the remaining questions tomorrow.':'I believe the pump should be closed while we investigate further. Let us set down our argument and the action we will ask the Guardians to take.',choices:[choice('record','Record our review.','conclusion')]},
  {id:'conclusion',speaker:'John Snow',text:day<3?'I have your notes here. We can leave the rest until morning.':'Once our recommendation is ready, we can go before the Guardians.',choices:[],terminalAction:day<3?'end-day':'review-theory',conclusion:{recapDay:day,...(day===1?{evidenceId:'pump-cluster'}:{})}},
@@ -116,13 +127,13 @@ const street: Record<string,{actor: ActorId; speaker:string; anchor:[number,numb
  'They are still spreading lime. I hope it does some good; the smell reaches right into my shop.',
  'I have scrubbed the step again, but there is hardly any trade. People hurry past where they once stopped to talk.']},
  'resident-east':{actor:'resident-east',speaker:'Street resident · neighbor',anchor:[11,1.5,-7],days:[
- 'Ordinary errands have become visits for help and news. A closed shutter may mean illness, mourning, or a household that has gone away.',
- 'Some neighbors have left, while others carry provisions for people who cannot go out. Our routines are not what they were a week ago.',
- 'I went to call on a neighbor and found the shutters closed. I still do not know whether the family has gone away or needs help.']},
+ 'So many people have gone away these past few days. Houses where I used to hear children and visitors are shut up; in some, the people who kept them have died.',
+ 'Several tradesmen are still opening their shops, but they have sent their families away. You can walk past door after door without seeing a familiar face.',
+ 'The street is quieter, but so many families have fled that I would not take the silence for good news. There are still sick people behind some of those shutters.']},
 };
 for (const [id,person] of Object.entries(street)) for(const day of [1,2,3] as const) {
  if(id==='whitehead' && day===1)continue;
- campaignConversations.push({id:`${id}-day-${day}`,actorId:person.actor,locationId:'broad-street',title:'Neighborhood conversation',anchor:person.anchor,start:'opening',sourceNote:'Authored contextual conversation, informed by Whitehead and contemporary accounts reproduced in UCLA John Snow archive, Stream 2e. No evidence card; Whitehead’s later findings are reserved for the epilogue.',beats:[
+ campaignConversations.push({id:`${id}-day-${day}`,actorId:person.actor,locationId:'broad-street',title:'Neighborhood conversation',anchor:person.anchor,start:'opening',sourceNote:'Authored contextual conversation, informed by Whitehead and contemporary accounts reproduced in UCLA John Snow archive, Stream 2e. No evidence card; Whitehead’s later findings are reserved for the epilogue.'+(id==='resident-east'?populationFlightSource:''),beats:[
   {id:'opening',speaker:person.speaker,text:person.days[day-1],choices:[choice('follow',id==='whitehead'?'Dr. Snow suspects the pump water. Do you agree?':id==='resident-west'?'How is the shop managing?':'Have you been helping your neighbors?','follow'),choice('listen','Thank you. I will keep your account in mind.','conclusion')]},
   {id:'follow',speaker:person.speaker,text:id==='whitehead'?'Everyone’s account matters, especially an account that contradicts Dr. Snow. I will not accept the water explanation merely because the deaths are close together.':id==='resident-west'?['With so many households in trouble, ordinary business scarcely seems to matter. I open the shop, but I spend much of the day waiting for news.','Some customers have left the neighborhood. Others ask me to send what they need because they cannot leave the sick.','I want to see familiar faces at the counter again. Every time someone returns, I am relieved.'][day-1]:['I have carried a few provisions and knocked at doors. Sometimes all a person wants is news of someone in the next street.','Those who are well enough are doing what they can. It is hard when several homes need help at once.','I shall call again later. I do not like leaving without knowing whether someone is inside.'][day-1],choices:[choice('thanks','Thank you for speaking with me.','conclusion')]},
   {id:'conclusion',speaker:person.speaker,text:id==='whitehead'?'I have families to visit. Give them time to speak if you call; good day to you.':'Thank you for stopping. I hope you find something that will help us.',choices:[],conclusion:{}},
@@ -177,10 +188,10 @@ campaignConversations.push({id:'workhouse-sample',actorId:'workhouse-pump',locat
 // Optional neighbors report their own work and worries, without advancing assignments.
 const additionalNeighbors: {actor:ActorId;speaker:string;openings:[string,string,string];topics:[string,string][];closing:string}[] = [
  {actor:'seamstress',speaker:'Seamstress',openings:[
-  'I have a bundle of mending to take home. Half the doors I called at this morning were shut.',
+  'The people in furnished lodgings were among the first to leave. I have been taking mending round this morning and finding nobody there to receive it.',
   'A customer has asked me to finish a mourning dress. I keep putting the work down to listen for news from next door.',
   'I am trying to deliver the work I promised. Some families have gone, and I do not know where to leave it.'],topics:[
-  ['Has your work changed?','There are fewer ordinary orders. I mend what people bring, and sometimes they ask me to leave it on the step instead of coming inside.'],
+  ['Have many people gone away?','A great many. Some lodgers have even left their furniture behind; they say they will send for it when they have somewhere to put it.'],
   ['Are your neighbors helping one another?','Those who can go out carry a message or a parcel for those who cannot. I knock before I leave, in case there is something they need.'],
   ['How are you managing?','By keeping my hands occupied. Sitting idle and listening to every footstep is worse.']],closing:'If you call on the families, give them a little time to answer. Some have been awake all night.'},
  {actor:'laundress',speaker:'Laundress',openings:[
@@ -207,7 +218,7 @@ const additionalNeighbors: {actor:ActorId;speaker:string;openings:[string,string
 ];
 for(const person of additionalNeighbors)for(const day of [1,2,3] as const)campaignConversations.push({
  id:`${person.actor}-day-${day}`,actorId:person.actor,locationId:'broad-street',title:'Neighborhood conversation',anchor:[0,1.45,0],
- sourceNote:'Authored composite street resident. Everyday work, disrupted errands and mutual aid are interpretive context; this is not testimony from a named historical witness.',start:'opening',beats:[
+ sourceNote:'Authored composite street resident. Everyday work, disrupted errands and mutual aid are interpretive context; this is not testimony from a named historical witness.'+(person.actor==='seamstress'?populationFlightSource:''),start:'opening',beats:[
   {id:'opening',speaker:person.speaker,text:person.openings[day-1],choices:person.topics.map(([label],i)=>choice(`ask-${i}`,label,`answer-${i}`))},
   ...person.topics.map(([,text],i)=>({id:`answer-${i}`,speaker:person.speaker,text,choices:[choice('another','May I ask something else?','followup'),choice('thanks','Thank you. I will let you get on.','conclusion')]})),
   {id:'followup',speaker:person.speaker,text:'Of course. What did you want to know?',choices:person.topics.map(([label],i)=>choice(`ask-${i}`,label,`detail-${i}`))},

@@ -52,6 +52,8 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
     summary: "A shared drinking-water source spreads cholera.",
     boardAction: "Close the pump temporarily while inquiry continues.",
     supportingEvidence: [
+      { evidenceIds: ["manufactory-exposure", "brewery-exception"], text: "Manufactory workers had Broad Street water available and many died; nearby brewery workers avoided the pump and none died." },
+      { evidenceIds: ["manufactory-exposure"], text: "Workers who died at different homes shared a workplace supplied with Broad Street water." },
       { evidenceIds: ["household-water-pattern", "workhouse-exception"], text: "Households describe drinking pump water; the nearby workhouse had few deaths and a separate supply." },
       { evidenceIds: ["household-water-pattern"], text: "The households describe drinking Broad Street water and collecting it during daily errands." },
       { evidenceIds: ["workhouse-exception"], text: "The nearby workhouse had few deaths and used a separate water supply." },
@@ -119,6 +121,7 @@ export const locationInteractionHints: Record<LocationId, string> = {
   household: "Select the seated household survivor to interview her.",
   registrar: "Select the registrar or the open ledger to review the death returns.",
   workhouse: "Select the steward to ask about the water supply. You can also work the pump handle and inspect its water.",
+  manufactory: "Speak with the workshop worker about the absent colleagues.",
   brewery: "Select either brewery owner to ask about the workers' drinking water.",
   "household-routines": "Select the householder to begin the interview.",
   "household-away": "Select the householder to begin the interview.",
@@ -128,6 +131,7 @@ export const locationInteractionHints: Record<LocationId, string> = {
 };
 
 export const evidenceCards: EvidenceCard[] = [
+  {id:"manufactory-exposure",title:"Shared workplace, deaths at home",summary:"A worker at 37 Broad Street estimates about a dozen colleagues have died at their homes, with others still sick. About two hundred people work there; two tubs are supplied from the Broad Street pump for anyone who wishes to drink.",confidence:"reported",sourceType:"interview",sourceLabel:"Manufactory worker interview",supports:["Shared water exposure","Workplace connections"],complicates:["Residence alone identifies exposure"]},
   {
     id: "pump-cluster",
     title: "Deaths cluster around the Broad Street pump",
@@ -219,6 +223,7 @@ export const fieldStudyGoal: StudyGoal = {
 export const dialogueNodes: DialogueNode[] = [];
 
 export const locations: InvestigationLocation[] = [
+  {id:"manufactory",title:"37 Broad Street · Manufactory",shortTitle:"Manufactory",description:"A percussion-cap workshop on Broad Street.",mapPoint:{x:66,y:49}},
   {
     id: "snow-desk",
     title: "Snow's Desk",
@@ -274,6 +279,7 @@ export const locations: InvestigationLocation[] = [
 ];
 
 export const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
+  manufactory: ["manufactory-exposure"],
   "snow-desk": ["pump-cluster", "walking-access"],
   "broad-street": ["pump-water-inspection"],
   household: ["household-exposure"],
@@ -285,6 +291,7 @@ export const locationEvidenceIds: Partial<Record<LocationId, string[]>> = {
 };
 
 export const hotspots: Hotspot[] = [
+  {id:"manufactory-worker",locationId:"manufactory",label:"Workshop worker",shortLabel:"Worker",description:"Ask about the workshop and absent colleagues.",position:[-.9,1.9,-.4]},
   ...streetExtras.map(person=>({id:person.id,locationId:'broad-street' as const,label:person.label,shortLabel:person.label,description:'Speak about life in the neighborhood.',position:[person.days[0][0],1.82,person.days[0][1]] as [number,number,number]})),
   {id:'workhouse-pump',locationId:'workhouse',label:'Workhouse pump',shortLabel:'Water sample',description:'Work the handle, then select the pump to inspect its water.',position:[3,1.4,-5.8]},
   {id:"resident-west",locationId:"broad-street",label:"Street shopkeeper",shortLabel:"Shopkeeper",description:"Ask about the chloride of lime and the neighborhood.",position:[-10,1.82,-7]},

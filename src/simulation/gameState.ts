@@ -50,6 +50,7 @@ export class GameState {
       return {...view,text:'Both samples look clear, with no notable difference between them. Neither inspection explains the difference in illness; you record the comparison in your notebook.'};
     return view;
   }
+  private legacyManufactoryWaiver=false;
   private activeSurvey?: string;
   private surveyProgress?: SurveyProgress;
   fieldworkTravelRevision = 0;
@@ -119,7 +120,7 @@ export class GameState {
   isPumpClosed(): boolean { return this.stage==='complete' && this.boardPresented && this.selectedHypothesisId==='waterborne'; }
   getDisplayDate(): string { return this.isPumpClosed()?'September 8, 1854':this.getDay().date; }
   getDay() { return dayDefinition(this.day); }
-  getAssignments() { return this.getDay().objectives.map(item=>({...item,complete:this.objectives.has(item.id)})); }
+  getAssignments() { return this.getDay().objectives.filter(item=>!(this.legacyManufactoryWaiver && item.id==='manufactory')).map(item=>({...item,complete:this.objectives.has(item.id)})); }
   hasCurrentAssignment(): boolean { return this.assignedDays.has(this.day) && (this.day!==3 || this.objectives.has('walking-access')); }
   needsDailyBriefing(): boolean { return this.stage==='field' && !this.hasCurrentAssignment(); }
   canUseMap(): boolean { return !this.startupOpen && !this.dayIntroOpen && this.hasCurrentAssignment() && !['briefing','board'].includes(this.stage); }
@@ -134,7 +135,7 @@ export class GameState {
     const id=this.day===1?'snow-introduction':`snow-day-${this.day}`;
     this.conversations.open(id);this.activeDialogueId=id;this.activeDialogueQuestionId=undefined;
   }
-  isDayFieldworkComplete(): boolean { return this.getDay().objectives.every(o=>this.objectives.has(o.id)); }
+  isDayFieldworkComplete(): boolean { return this.getDay().objectives.every(o=>this.objectives.has(o.id) || (this.legacyManufactoryWaiver && o.id==='manufactory')); }
   canEndDay(): boolean { return this.day<3 && this.recaps.has(this.day) && this.currentLocationId==='snow-desk'; }
   /** Plotting begins with the recap; the cluster finding still requires finishing it. */
   hasMappedDeaths(): boolean {
@@ -215,7 +216,7 @@ export class GameState {
     else {
       const source: Record<string,string>={'registrar-ledger':'registrar-records','broad-street-household':'household-first',
         'broad-street-pump':'pump-sample','workhouse-pump':'workhouse-sample','routines-household':'household-routines','away-household':'household-away',
-        'poland-workhouse':'workhouse-supply','broad-street-brewery':'brewery-supply'};
+        'manufactory-worker':'manufactory-supply','poland-workhouse':'workhouse-supply','broad-street-brewery':'brewery-supply'};
       id=source[hotspotId];
       const graph=conversations.find(c=>c.id===id),objective=graph?.beats.find(b=>b.conclusion?.objective)?.conclusion?.objective;
       const assigned=days.find(d=>d.objectives.some(o=>o.id===objective));
@@ -521,6 +522,7 @@ export class GameState {
       findings.push("The Lion Brewery on Broad Street had no deaths, and did not rely on the Broad Street pump.");
     }
 
+    if(this.hasEvidence("manufactory-exposure"))findings.push("At 37 Broad Street, workers who died at different homes shared a workplace supplied with Broad Street pump water.");
     if(this.hasEvidence("nonlocal-exposure"))findings.push("A distant residence can be connected to exposure near Broad Street.");
     if(this.hasEvidence("walking-access"))findings.push("The paired routes compare access to Broad Street, Marlborough and Rupert Street pumps.");
     return findings;
@@ -757,7 +759,7 @@ export class GameState {
 
   reset(): void {
     this.startupOpen=false;this.pendingSave=undefined;this.recordedRoutes.clear();this.surveyProgress=undefined;this.pumpedWater.clear();this.selectedRoute=undefined;this.activeSurvey=undefined;
-    this.conversations.reset();this.day=1;this.assignedDays.clear();this.objectives.clear();this.recaps.clear();this.dayIntroOpen=true;
+    this.legacyManufactoryWaiver=false;this.conversations.reset();this.day=1;this.assignedDays.clear();this.objectives.clear();this.recaps.clear();this.dayIntroOpen=true;
     this.inspectedHotspots.clear();
     this.collectedEvidence.clear();
     this.askedQuestions.clear();
@@ -794,7 +796,7 @@ export class GameState {
     this.pendingSave=undefined;this.startupOpen=false;this.emitChange();return true;
   }
   serializeSave(): string {
-    return JSON.stringify({version:1,mapExercise:2,day:this.day,location:this.currentLocationId,stage:this.stage,
+    return JSON.stringify({version:1,campaignRevision:2,legacyManufactoryWaiver:this.legacyManufactoryWaiver,mapExercise:2,day:this.day,location:this.currentLocationId,stage:this.stage,
       conversation:this.conversations.serialize(),hypothesis:this.selectedHypothesisId,
       pumpedWater:[...this.pumpedWater],prepared:this.preparedForBoard,dayIntro:this.dayIntroOpen,routes:[...this.recordedRoutes],selectedRoute:this.selectedRoute,surveyProgress:this.surveyProgress});
   }
@@ -802,6 +804,7 @@ export class GameState {
     try {
       const value=JSON.parse(json);
       if(value && ['marlborough-pump','rupert-pump'].includes(value.location))value.location='snow-desk';
+      if((value?.campaignRevision!==undefined && value.campaignRevision!==2) || (value?.legacyManufactoryWaiver!==undefined && typeof value.legacyManufactoryWaiver!=='boolean'))return false;
       if(value?.version!==1 || (value.mapExercise!==undefined && value.mapExercise!==2) || ![1,2,3].includes(value.day) || !this.getLocation(value.location)
         || !['field','synthesis','board','complete'].includes(value.stage) || typeof value.prepared!=='boolean'
         || typeof value.dayIntro!=='boolean' || (value.hypothesis!==undefined && !this.getHypothesis(value.hypothesis)))return false;
@@ -835,10 +838,12 @@ export class GameState {
         if(end.objective)objectives.add(end.objective);if(end.recapDay)recaps.add(end.recapDay);
         if(end.evidenceId)evidence.add(end.evidenceId);if(end.hearing)hearing=true;
       }
+      const waived=(value.campaignRevision===undefined || value.legacyManufactoryWaiver===true) && recaps.has(2);
+      if(value.legacyManufactoryWaiver===true && !recaps.has(2))return false;
       for(const day of days) {
         if(day.day>value.day && (assigned.has(day.day)||recaps.has(day.day)||day.objectives.some(o=>objectives.has(o.id))))return false;
         if(day.day<value.day && !recaps.has(day.day))return false;
-        if(recaps.has(day.day) && (!assigned.has(day.day)||!day.objectives.every(o=>objectives.has(o.id))))return false;
+        if(recaps.has(day.day) && (!assigned.has(day.day)||!day.objectives.every(o=>objectives.has(o.id) || (o.id==='manufactory' && waived))))return false;
         if(day.objectives.some(o=>objectives.has(o.id)) && !assigned.has(day.day))return false;
       }
       if(value.mapExercise===2 && value.routes.length && !guided && !objectives.has('walking-access'))return false;
@@ -855,7 +860,7 @@ export class GameState {
       if(value.stage==='synthesis'&&!ready)return false;
       if((locationDay[value.location as LocationId]??1)>value.day || (!assigned.has(1) && value.location!=='snow-desk'))return false;
       // Commit only after full validation; callers can retain their current session on failure.
-      this.conversations.restore(value.conversation);this.day=value.day;this.currentLocationId=value.location;
+      this.legacyManufactoryWaiver=waived;this.conversations.restore(value.conversation);this.day=value.day;this.currentLocationId=value.location;
       this.stage=value.stage;this.objectives=objectives;this.recaps=recaps;this.assignedDays=assigned;this.collectedEvidence=evidence;
       this.askedQuestions=new Set(assigned.has(1)?['snow-method-question']:[]);this.inspectedHotspots.clear();
       this.selectedHypothesisId=value.hypothesis;this.preparedForBoard=value.prepared;this.boardPresented=hearing;

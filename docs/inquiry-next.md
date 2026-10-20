@@ -11,7 +11,7 @@ acceptance; automated or desktop results do not establish headset readiness.
 
 - **September 5:** Snow assigns registrar records and the bereaved household.
   Returning for the recap plots the addresses and awards the cluster finding.
-- **September 6:** pump sample, water-routines household, workhouse comparison.
+- **September 6:** pump sample, Household 2, the manufactory at 37 Broad Street, and the workhouse comparison.
 - **September 7:** Snow’s morning map comparison, then the brewery and Household 3
   outside the pump service area. Snow reviews the argument before the Board hearing.
 - Explicit assignments and concluded conversations govern progression. Earlier
@@ -88,6 +88,13 @@ and sends the player to investigate the exception rather than explaining it away
 
 - [Snow, *On the Mode of Communication of Cholera* (1855)](https://www.academia.dk/MedHist/Biblioteket/Print/snow_1855.html):
   Broad Street account, comparisons, distant exposures, alternative pumps and Table I.
+  The seamstress and neighbor also draw on the passage beginning “The mortality
+  would undoubtedly have been much greater,” describing the flight of residents.
+  Their authored dialogue mentions furnished lodgings emptied first, furniture
+  left for later collection, houses closed after deaths, and tradesmen sending
+  their families away. Residents describe what they see rather than reciting
+  Snow's retrospective three-quarters estimate; a quieter street is not presented
+  as proof that the danger has passed.
 - [Original Table I image](https://www.academia.dk/MedHist/Biblioteket/Grafik/Snow_1855/table1.gif):
   preceding-day **deaths** for the three openings are 71 (Sept 4), 45 (Sept 5), and
   37 (Sept 6). Snow now delivers these in his morning conversation as an authored
@@ -421,3 +428,36 @@ The texture is local, 2048 × 1670, approximately 1.3 MB, with mipmaps and aniso
 VR panels still remain readable over room scenery, but now write their actual depth using an always-pass depth function. Characters, their labels, controller models/callouts, and held objects draw afterwards with normal depth testing. A nearer person or controller covers the panel; one behind it does not. This stays in the existing single render per frame, with no extra scene pass. Temporary material copies avoid modifying materials shared with room geometry, and normal rendering is restored when panels close.
 
 Controller button/panel rays also reject visible character or held-object geometry nearer than the panel. Invisible interaction proxies and hidden scenes do not block them. Checked WebGL pixels at left/right eye offsets and a shifted viewpoint, actual household/controller rendering, material restoration, selection depth, and 259 automated tests. Physical Quest checks remain required.
+
+## Manufactory visit — 20 October 2026
+
+Day 2 now has four assignments; Household 2 remains. The new workshop at 37
+Broad Street offers a short interview and a tenth substantive evidence card,
+“Shared workplace, deaths at home.” All approaches converge on the shared water
+supply after the player asks about drinking water. The approximate “about a dozen”
+losses are attributed to the worker, never treated as a precise register count.
+This is an authored interim estimate: Snow's retrospective account records
+18 deaths (16 men and 2 women) among approximately 200 employees. It does not
+document that interim count or a named witness. Sources: Snow (1855), the paragraph
+beginning “At the percussion-cap manufactory, 37 Broad Street,” also reproduced in
+[UCLA Stream 2a](https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_a.html).
+
+The two water tubs are documented. The 8 × 8 m workshop, benches, packaged stock,
+figures and furnishings are illustrative. The map pin and street travel target
+are approximate wayfinding placements along Broad Street, not a verified plot
+boundary or surveyed doorway. The workshop represents one small part of the
+premises, not seating for the full workforce. Two existing authored MakeHuman
+sources (seamstress and porter) are reused as unnamed employees with new placement
+and room lighting. No manufacturing process is modeled.
+
+`build_manufactory_room.py` regenerates the room and baked lighting;
+`build_scene_characters.py -- manufactory` exports the figures;
+`build_prop_manifest.py` includes 15 portable boxes, parcels, trays and a cup.
+The room loads on first visit. Existing desktop/VR navigation, conversations,
+pickup/return and character idles are shared with the other interiors.
+
+Saves record campaign revision 2. Older saves that already completed the Day 2
+recap retain that completion without an invented interview or evidence card.
+Other existing saves gain the additional assignment. The visit is visible only
+on Day 2; its visited map mark remains afterward. Production and preview saves
+continue to use separate storage keys. Quest acceptance remains outstanding.

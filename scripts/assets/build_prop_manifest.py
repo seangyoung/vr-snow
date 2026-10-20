@@ -54,6 +54,9 @@ def build(inventory):
         elif asset == 'brewery-room':
             one('Account book','Closed account book','Book pages')
             each('Drinking mug','Drinking mug','Mug handle')
+        elif asset == 'manufactory-room':
+            each('Stock box','Stock box');each('Work parcel','Work parcel');each('Wrapped stock','Paper-wrapped stock')
+            each('Sorting tray','Sorting tray','Copper piece');one('Drinking cup','Drinking cup','Cup rim')
         elif asset == 'board-room':
             one('Street map','Map sheet','Map street')
             each('Board register','Register cover','Register pages');each('Meeting papers','Loose papers')
@@ -70,7 +73,7 @@ if __name__ == '__main__':
     import bpy
     from mathutils import Vector
     inventory={}
-    for asset in ['snow-office','registrar-room','household-room','household-routines-room','household-away-room','workhouse-courtyard','brewery-room','board-room']:
+    for asset in ['snow-office','registrar-room','household-room','household-routines-room','household-away-room','workhouse-courtyard','brewery-room','board-room','manufactory-room']:
         bpy.ops.wm.open_mainfile(filepath=str(ROOT/f'assets/{asset}/{asset}.blend'))
         deps=bpy.context.evaluated_depsgraph_get();items=[]
         for obj in bpy.context.scene.objects:

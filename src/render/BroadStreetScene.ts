@@ -1,3 +1,4 @@
+import { ManufactoryRoom } from '../walkable/ManufactoryRoom';
 import { PanelDepthLayers, foregroundBefore } from './PanelDepthLayers';
 import { ControllerVisuals, createControllerModelFactory } from "../walkable/ControllerVisuals";
 import { ObjectInspection, objectNotes } from "../walkable/ObjectInspection";
@@ -242,6 +243,7 @@ export class BroadStreetScene {
   private readonly away = new AdditionalHousehold("household-away");
   private readonly workhouse = new WorkhouseCourtyard();
   private readonly brewery = new BreweryRoom();
+  private readonly manufactory = new ManufactoryRoom();
   private readonly board = new BoardRoom();
   private get walkable(): WalkableEnvironment | undefined {
     if (this.courtyard?.group.visible) return this.courtyard;
@@ -252,6 +254,7 @@ export class BroadStreetScene {
     if (this.away?.group.visible) return this.away;
     if (this.workhouse?.group.visible) return this.workhouse;
     if (this.brewery?.group.visible) return this.brewery;
+    if (this.manufactory?.group.visible) return this.manufactory;
     if (this.board?.group.visible) return this.board;
     return undefined;
   }
@@ -428,7 +431,7 @@ export class BroadStreetScene {
     this.camera.position.set(0, cameraHeight, 0);
     this.playerRig.add(this.camera);
     this.scene.add(this.playerRig);
-    this.scene.add(this.courtyard.group, this.office.group, this.registrar.group, this.household.group, this.routines.group, this.away.group, this.workhouse.group, this.brewery.group, this.board.group, this.worldTravel.group);
+    this.scene.add(this.courtyard.group, this.office.group, this.registrar.group, this.household.group, this.routines.group, this.away.group, this.workhouse.group, this.brewery.group, this.manufactory.group, this.board.group, this.worldTravel.group);
     void this.brewery.loadVisuals(import.meta.env.BASE_URL || "/");
     void this.workhouse.loadVisuals(import.meta.env.BASE_URL || "/");
     void this.household.loadVisuals(import.meta.env.BASE_URL || "/");
@@ -477,7 +480,7 @@ export class BroadStreetScene {
       this.updateWorldTravelZones();
       this.updateHotspots(timeSeconds);
       if(this.office.group.visible)this.office.character.update(timeSeconds,this.reducedCharacterMotion.matches);
-      for(const room of [this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.courtyard,this.board]) {
+      for(const room of [this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.manufactory,this.courtyard,this.board]) {
         if(room?.group.visible)room.characters?.update(timeSeconds,this.reducedCharacterMotion.matches);
       }
       this.updateVrControls(timeSeconds,elapsed);
@@ -502,7 +505,7 @@ export class BroadStreetScene {
   }
 
   private panelPeople(): THREE.Object3D[] {
-    return [this.office?.character.group,...[this.courtyard,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.board].map(room=>room?.characters?.group)]
+    return [this.office?.character.group,...[this.courtyard,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.manufactory,this.board].map(room=>room?.characters?.group)]
       .filter((root):root is THREE.Group=>!!root);
   }
 
@@ -572,7 +575,8 @@ export class BroadStreetScene {
     this.household.group.visible = location.id === "household";
     if(this.routines)this.routines.group.visible=location.id==='household-routines';
     if(this.away)this.away.group.visible=location.id==='household-away';
-    for(const room of [this.routines,this.away])if(room?.group.visible)void room.loadVisuals(import.meta.env?.BASE_URL || '/');
+    if(this.manufactory)this.manufactory.group.visible=location.id==='manufactory';
+    for(const room of [this.routines,this.away,this.manufactory])if(room?.group.visible)void room.loadVisuals(import.meta.env?.BASE_URL || '/');
     this.workhouse.group.visible = location.id === "workhouse";
     this.brewery.group.visible = location.id === "brewery";
     if (this.board) {
@@ -581,8 +585,8 @@ export class BroadStreetScene {
     }
     this.panoramaLighting.visible = !this.walkable;
     this.scene.background = new THREE.Color(this.courtyard.group.visible || this.workhouse.group.visible ? "#abb0ac" : "#111619");
-    this.scene.fog = (this.office.group.visible || this.registrar.group.visible || this.household.group.visible || this.routines?.group.visible || this.away?.group.visible || this.workhouse.group.visible || this.brewery.group.visible || this.board?.group.visible) ? null : new THREE.FogExp2(this.courtyard.group.visible ? "#abb0ac" : "#111619", this.courtyard.group.visible ? 0.014 : 0.043);
-    for(const room of [this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.courtyard,this.board]) {
+    this.scene.fog = (this.office.group.visible || this.registrar.group.visible || this.household.group.visible || this.routines?.group.visible || this.away?.group.visible || this.workhouse.group.visible || this.brewery.group.visible || this.manufactory?.group.visible || this.board?.group.visible) ? null : new THREE.FogExp2(this.courtyard.group.visible ? "#abb0ac" : "#111619", this.courtyard.group.visible ? 0.014 : 0.043);
+    for(const room of [this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.manufactory,this.courtyard,this.board]) {
       if(room?.group.visible)void room.characters?.loadVisuals(import.meta.env?.BASE_URL || "/");
     }
     if (this.panoramaSky) this.panoramaSky.visible = !this.walkable;
@@ -616,8 +620,8 @@ export class BroadStreetScene {
       const active = activeHotspotIds.has(mesh.userData.hotspot.id);
       if(ground)ground.visible=active;
       const inspected = this.gameState.hasInspected(mesh.userData.hotspot.id);
-      mesh.visible = active && !["broad-street-pump", "workhouse-pump", "john-snow", "registrar-ledger", "broad-street-household", "poland-workhouse", "broad-street-brewery", ...streetActorIds, "routines-household", "away-household", "board-hearing"].includes(mesh.userData.hotspot.id);
-      label.visible = active && !["workhouse-pump","john-snow","registrar-ledger","broad-street-household","poland-workhouse","broad-street-brewery",...streetActorIds,"routines-household","away-household","board-hearing"].includes(mesh.userData.hotspot.id);
+      mesh.visible = active && !["broad-street-pump", "workhouse-pump", "john-snow", "registrar-ledger", "broad-street-household", "poland-workhouse", "broad-street-brewery", ...streetActorIds, "routines-household", "away-household", "manufactory-worker", "board-hearing"].includes(mesh.userData.hotspot.id);
+      label.visible = active && !["workhouse-pump","john-snow","registrar-ledger","broad-street-household","poland-workhouse","broad-street-brewery",...streetActorIds,"routines-household","away-household","manufactory-worker","board-hearing"].includes(mesh.userData.hotspot.id);
       mesh.material.color.set(inspected ? "#89d6ba" : "#f3d37a");
       mesh.material.emissive.set(inspected ? "#1b7e62" : "#8b621a");
     });
@@ -852,7 +856,7 @@ export class BroadStreetScene {
       if (hotspot.id === "broad-street-brewery" && this.brewery.characters) {
         label.position.copy(this.brewery.characters!.labelPosition);label.scale.set(.95,.32,1);label.visible=false;
       }
-      const extra=hotspot.id==='routines-household'?this.routines:hotspot.id==='away-household'?this.away:undefined;
+      const extra=hotspot.id==='routines-household'?this.routines:hotspot.id==='away-household'?this.away:hotspot.id==='manufactory-worker'?this.manufactory:undefined;
       if(extra?.characters){label.position.copy(extra.characters.labelPosition);label.scale.set(.95,.32,1);label.visible=false;}
       if(streetActorIds.includes(hotspot.id) && hotspot.id!=='whitehead'){label.scale.set(.95,.32,1);label.visible=false;}
       // Keep the chosen text height while allowing longer names a wider plaque.
@@ -912,7 +916,7 @@ export class BroadStreetScene {
 
   private applyPanorama(locationId: LocationId): void {
     this.activePanoramaLocationId = locationId;
-    if (["broad-street", "snow-desk", "registrar", "household", "household-routines", "household-away", "marlborough-pump", "rupert-pump", "workhouse", "brewery", "board-room"].includes(locationId)) return;
+    if (["broad-street", "snow-desk", "registrar", "household", "household-routines", "household-away", "marlborough-pump", "rupert-pump", "workhouse", "brewery", "manufactory", "board-room"].includes(locationId)) return;
     this.setSkyTexture(this.fallbackPanoramaTexture);
 
     const cachedTexture = this.panoramaTextureCache.get(locationId);
@@ -978,7 +982,7 @@ export class BroadStreetScene {
     this.streetBoundary?.reset();
     this.sound?.stopWater();
     this.propHold?.release(true);
-    for(const room of [this.office,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.board])
+    for(const room of [this.office,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.manufactory,this.board])
       for(const prop of room?.props??[])prop.release(true);
     this.courtyard?.setPumpClosed?.(this.gameState.isPumpClosed());
     this.courtyard?.pumpAction?.reset(!this.gameState.isPumpClosed());
@@ -1049,7 +1053,7 @@ export class BroadStreetScene {
       ? this.vrPanelBlocksWorld() || !!(session && session.visibilityState!=="visible")
       : this.desktopWorldBlocked());
     if(blocked)this.propHold.release(true);
-    for(const room of [this.office,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.board])
+    for(const room of [this.office,this.registrar,this.household,this.routines,this.away,this.workhouse,this.brewery,this.manufactory,this.board])
       for(const prop of room?.props??[])prop.update(Math.min(.05,delta),this.reducedCharacterMotion.matches);
     this.propHold.update(delta);
     if(this.propHold.prop&&!this.objectInspection)this.objectInspection=new ObjectInspection(this.scene);
@@ -2799,7 +2803,7 @@ export class BroadStreetScene {
       {id:"john-snow", visible:this.office.group.visible, ready:this.office.character.group.userData.characterStatus==="ready", targets:[this.office.character.target]},
       ...(streetActorIds.filter(id=>id!=='whitehead').map(id=>({id,visible:!!this.courtyard?.group.visible,ready:!!this.courtyard?.characters.ready,targets:this.courtyard?.characters.targets.filter(t=>t.name===id)??[]}))),
       ...([["registrar-ledger",this.registrar],["broad-street-household",this.household],["routines-household",this.routines],["away-household",this.away],
-        ["poland-workhouse",this.workhouse],["broad-street-brewery",this.brewery]] as const)
+        ["poland-workhouse",this.workhouse],["broad-street-brewery",this.brewery],["manufactory-worker",this.manufactory]] as const)
         .filter(([,room])=>!!room?.characters).map(([id,room])=>({id,visible:room!.group.visible,ready:room!.characters!.ready,targets:room!.characters!.targets})),
     ];
     for(const entry of entries){const label=this.hotspotVisuals.get(entry.id)?.label;if(label)label.visible=false;}
@@ -3972,6 +3976,7 @@ const locationLookTargets: Record<LocationId, [number, number, number]> = {
   household: [householdInterviewTarget.x, householdInterviewTarget.y, householdInterviewTarget.z],
   registrar: [registrarLedgerTarget.x, registrarLedgerTarget.y, registrarLedgerTarget.z],
   workhouse: [workhouseStewardTarget.x, workhouseStewardTarget.y, workhouseStewardTarget.z],
+  manufactory: [-.9,1.4,-.4],
   brewery: [breweryOwnersTarget.x, breweryOwnersTarget.y, breweryOwnersTarget.z],
   "board-room": [0, 1.2, -2],
   "household-routines": [-.65,1.4,-.2], "household-away": [1,1.4,-1],

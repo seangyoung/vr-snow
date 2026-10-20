@@ -50,3 +50,4 @@ ambienceProfiles['household-away'] = ambienceProfiles.household;
 ambienceProfiles['marlborough-pump'] = ambienceProfiles['broad-street'];
 ambienceProfiles['rupert-pump'] = ambienceProfiles['broad-street'];
 ambienceProfiles['board-room'] = ambienceProfiles.registrar;
+ambienceProfiles.manufactory = {...ambienceProfiles.brewery,interval:[18,32]};
