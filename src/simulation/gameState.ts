@@ -137,9 +137,9 @@ export class GameState {
   }
   isDayFieldworkComplete(): boolean { return this.getDay().objectives.every(o=>this.objectives.has(o.id) || (this.legacyManufactoryWaiver && o.id==='manufactory')); }
   canEndDay(): boolean { return this.day<3 && this.recaps.has(this.day) && this.currentLocationId==='snow-desk'; }
-  /** Plotting begins with the recap; the cluster finding still requires finishing it. */
+  /** Reveal deaths after the recap’s unmarked map; the finding still requires finishing it. */
   hasMappedDeaths(): boolean {
-    return this.hasEvidence('attack-timeline') && (this.hasEvidence('pump-cluster') || this.conversations.hasStarted('snow-recap-1'));
+    return this.hasEvidence('attack-timeline') && (this.hasEvidence('pump-cluster') || this.conversations.mapFor('snow-recap-1')==='deaths');
   }
   getDayIntroduction(): string[] { const day=this.getDay(); return [
     `${day.date} · ${day.title}`,

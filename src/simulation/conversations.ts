@@ -7,6 +7,7 @@ export type ActorId = "factory-worker" | "seamstress" | "laundress" | "porter" |
 export type ConversationId = string;
 export interface ConversationChoice { id: string; label: string; next: string }
 export interface ConversationBeat {
+  map?: "base" | "deaths";
   id: string;
   speaker: string;
   text: string;
@@ -17,7 +18,7 @@ export interface ConversationBeat {
   actorId?: ActorId;
 }
 export interface ConversationDefinition {
-  map?: "deaths";
+  map?: "base" | "deaths";
   id: ConversationId;
   actorId: ActorId;
   locationId: LocationId;
@@ -28,7 +29,7 @@ export interface ConversationDefinition {
   sourceNote: string;
 }
 export interface ConversationView {
-  map?: "deaths";
+  map?: "base" | "deaths";
   id: ConversationId; actorId: ActorId; title: string; beatId: string;
   speaker: string; text: string; choices: readonly ConversationChoice[];
   anchor: readonly [number, number, number]; complete: boolean; terminalAction?: ConversationBeat["terminalAction"];
@@ -93,6 +94,11 @@ export class ConversationProgress {
   }
   hasCompleted(id: string): boolean { return this.concluded.has(id); }
   hasStarted(id: string): boolean { return this.cursors.has(id); }
+  mapFor(id: string): ConversationView["map"] {
+    const definition = conversations.find(item => item.id === id);
+    const beat = definition?.beats.find(item => item.id === this.cursors.get(id));
+    return beat ? beat.map ?? definition?.map : undefined;
+  }
   serialize() { return { cursors: Object.fromEntries(this.cursors), concluded: [...this.concluded] }; }
   restore(data: unknown): boolean {
     if (!data || typeof data !== "object") return false;
@@ -116,7 +122,7 @@ export class ConversationProgress {
     const definition = conversations.find(item => item.id === this.activeId);
     const beat = definition?.beats.find(item => item.id === this.cursors.get(definition.id));
     return definition && beat ? { id: definition.id, actorId: beat.actorId ?? definition.actorId, title: definition.title,
-      beatId: beat.id, speaker: beat.speaker, text: beat.text, choices: beat.choices, map: definition.map,
+      beatId: beat.id, speaker: beat.speaker, text: beat.text, choices: beat.choices, map: beat.map ?? definition.map,
       anchor: beat.anchor ?? definition.anchor, complete: beat.conclusion !== undefined, terminalAction: beat.terminalAction } : undefined;
   }
   choose(beatId: string, choiceId: string): { advanced: boolean; conclusion?: ConversationBeat["conclusion"] } {

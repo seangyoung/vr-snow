@@ -1788,8 +1788,8 @@ export class BroadStreetScene {
       this.vrSurfaceHeight=2.35;
       this.addVrText('Day 1 review · John Snow',-.1,.97,2.2,.15,{fontSize:30,color:'#f1d79c'});
       this.addVrIconButton('x',1.22,.97,.2,{type:'close-dialogue'});
-      this.addVrMap(.66,.14,1.25,1.25,true);
-      this.addVrText('Bars: deaths · Teal circles: pumps',.66,-.58,1.25,.18,{fontSize:21});
+      this.addVrMap(.66,.14,1.25,1.25,true,conversation.map==='deaths');
+      this.addVrText(conversation.map==='deaths'?'Bars: deaths · Teal circles: pumps':'Teal circles: pumps',.66,-.58,1.25,.18,{fontSize:21});
       this.addVrText(conversation.text,-.67,.18,1.15,1.06,{fontSize:27,color:'#e7ece8'});
       conversation.choices.forEach((choice,index)=>this.addVrPanelButton(choice.label,0,-.78-index*.25,2.46,.22,
         {type:'conversation-choice',beatId:conversation.beatId,choiceId:choice.id}));
@@ -2281,9 +2281,8 @@ export class BroadStreetScene {
     });
   }
 
-  private addVrMap(x: number, y: number, width: number, height: number, referenceOnly=false): void {
+  private addVrMap(x: number, y: number, width: number, height: number, referenceOnly=false, deathsVisible=this.gameState.hasMappedDeaths()): void {
     const currentLocationId = this.gameState.getCurrentLocation().id;
-    const deathsVisible = this.gameState.hasMappedDeaths();
     this.vrPanelDrawCommands.push({
       kind: "map",
       x,

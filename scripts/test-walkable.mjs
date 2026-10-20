@@ -3142,30 +3142,33 @@ test('desktop and left-stick collisions show the same street cue without alterin
   cue.reset();scene.courtyard.group.visible=false;check(from,from.clone().add(new THREE.Vector3(.1,0,0)));assert.equal(cue.contact,undefined);
 });
 
-test('day-one recap plots deaths before awarding the cluster, retaining the map through close and reload on either branch',()=>{
- for(const branch of ['pattern','limits']) {
-  let game=gameAtDay(1);assert.equal(game.hasMappedDeaths(),false);
-  talk(game,'registrar','registrar-ledger');assert.equal(game.hasMappedDeaths(),false);
-  talk(game,'household','broad-street-household');game.travelToLocation('snow-desk');
-  assert.equal(game.hasMappedDeaths(),false);game.inspectHotspot('john-snow');
-  assert.equal(game.getConversationView().map,'deaths');assert.equal(game.hasMappedDeaths(),true);
-  assert.equal(game.hasEvidence('pump-cluster'),false);assert.equal(game.canEndDay(),false);
-  game.chooseConversation('opening',branch);const beat=game.getConversationView().beatId;
-  game.closeDialogue();assert.equal(game.hasMappedDeaths(),true);
-  const restored=new GameState();assert.ok(restored.restoreSave(game.serializeSave()));game=restored;
-  assert.equal(game.hasMappedDeaths(),true);assert.equal(game.hasEvidence('pump-cluster'),false);
-  game.inspectHotspot('john-snow');assert.equal(game.getConversationView().beatId,beat);assert.equal(game.getConversationView().map,'deaths');
-  finishConversation(game);assert.equal(game.hasEvidence('pump-cluster'),true);assert.equal(game.canEndDay(),true);
-  game.endDay();assert.equal(game.hasMappedDeaths(),true);
- }
+test('day-one recap starts with an unmarked map then plots deaths, retaining each stage through close and reload',()=>{
+ let game=gameAtDay(1);assert.equal(game.hasMappedDeaths(),false);
+ talk(game,'registrar','registrar-ledger');assert.equal(game.hasMappedDeaths(),false);
+ talk(game,'household','broad-street-household');game.travelToLocation('snow-desk');game.inspectHotspot('john-snow');
+ assert.equal(game.getConversationView().map,'base');assert.equal(game.hasMappedDeaths(),false);
+ assert.deepEqual(game.getConversationView().choices.map(c=>c.id),['pattern'],'the comparison cannot be skipped');
+ game.closeDialogue();
+ let restored=new GameState();assert.ok(restored.restoreSave(game.serializeSave()));game=restored;
+ assert.equal(game.hasMappedDeaths(),false);game.inspectHotspot('john-snow');assert.equal(game.getConversationView().map,'base');
+ game.chooseConversation('opening','pattern');assert.equal(game.getConversationView().map,'deaths');assert.equal(game.hasMappedDeaths(),true);
+ assert.equal(game.hasEvidence('pump-cluster'),false);assert.equal(game.canEndDay(),false);
+ game.closeDialogue();assert.equal(game.hasMappedDeaths(),true);
+ restored=new GameState();assert.ok(restored.restoreSave(game.serializeSave()));game=restored;
+ assert.equal(game.hasMappedDeaths(),true);assert.equal(game.hasEvidence('pump-cluster'),false);
+ game.inspectHotspot('john-snow');assert.equal(game.getConversationView().beatId,'pattern');assert.equal(game.getConversationView().map,'deaths');
+ finishConversation(game);assert.equal(game.hasEvidence('pump-cluster'),true);assert.equal(game.canEndDay(),true);
+ game.endDay();assert.equal(game.hasMappedDeaths(),true);
 });
-test('VR day-one recap shows a death map without travel controls beside every conversation beat',()=>{
+test('VR day-one recap changes the map and legend together without travel controls',()=>{
  const game=gameAtDay(1);talk(game,'registrar','registrar-ledger');talk(game,'household','broad-street-household');game.travelToLocation('snow-desk');game.inspectHotspot('john-snow');
  const scene=Object.create(BroadStreetScene.prototype),buttons=[];
- Object.assign(scene,{gameState:game,vrMapImages:new Map([['deaths','death-image']]),vrPanelMode:'home',vrPanelVisible:true,vrPanelDrawCommands:[],clearVrPanel:()=>{},addVrIconButton:()=>{},addVrPanelSurface:()=>{},addVrPanelButton:(label,x,y,w,h,action)=>buttons.push({label,action,y,h})});
+ Object.assign(scene,{gameState:game,vrMapImages:new Map([['base','base-image'],['deaths','death-image']]),vrPanelMode:'home',vrPanelVisible:true,vrPanelDrawCommands:[],clearVrPanel:()=>{},addVrIconButton:()=>{},addVrPanelSurface:()=>{},addVrPanelButton:(label,x,y,w,h,action)=>buttons.push({label,action,y,h})});
  for(let i=0;i<10;i++) {
-  buttons.length=0;scene.rebuildVrPanel();const view=game.getConversationView(),map=scene.vrPanelDrawCommands.find(c=>c.kind==='map');
-  assert.equal(map.deathsVisible,true);assert.equal(map.mapImage,'death-image');assert.deepEqual(map.locations,[]);
+  buttons.length=0;scene.vrPanelDrawCommands=[];scene.rebuildVrPanel();const view=game.getConversationView(),map=scene.vrPanelDrawCommands.find(c=>c.kind==='map');
+  const revealed=view.beatId!=='opening';
+  assert.equal(map.deathsVisible,revealed);assert.equal(map.mapImage,revealed?'death-image':'base-image');assert.deepEqual(map.locations,[]);
+  assert.ok(scene.vrPanelDrawCommands.some(c=>c.kind==='text'&&c.text===(revealed?'Bars: deaths · Teal circles: pumps':'Teal circles: pumps')));
   assert.ok(scene.vrPanelDrawCommands.some(c=>c.kind==='text'&&c.text===view.text));
   assert.ok(buttons.every(b=>Math.abs(b.y)+b.h/2<scene.vrSurfaceHeight/2),'choices stay inside panel');
   if(view.complete){assert.ok(buttons.some(b=>b.action.type==='end-day'));break;}
@@ -3394,11 +3397,18 @@ test('old saves retain completed days without fabricating manufactory evidence, 
  resumed=new GameState();assert.ok(resumed.restoreSave(game.serializeSave()));game.reset();beginDay(game);assert.equal(game.hasEvidence('manufactory-exposure'),false);
 });
 
-test('manufactory interview carries the approximate report through every approach and never invents an exact contemporary tally',()=>{
+test('manufactory interview introduces illness through questions before asking about water on every approach',()=>{
  const graph=conversations.find(c=>c.id==='manufactory-supply');assert.match(graph.sourceNote,/authored interim estimate.*not a documented September 6 count/);
- for(const approach of graph.beats[0].choices){const progress=new ConversationProgress();progress.open(graph.id);assert.match(progress.view().text,/about a dozen.*some are sick now/);
-  progress.choose('opening',approach.id);let view=progress.view();assert.match(view.choices[0].label,/drinking water/);progress.choose(view.beatId,view.choices[0].id);
-  view=progress.view();assert.match(view.text,/two tubs.*Broad Street.*two hundred.*own homes/);assert.doesNotMatch(view.text,/eighteen|\b18\b/);
+ for(const approach of graph.beats[0].choices){const progress=new ConversationProgress();progress.open(graph.id);
+  assert.doesNotMatch(progress.view().text,/died|deaths|dozen|sick|water/);
+  progress.choose('opening',approach.id);
+  if(progress.view().beatId!=='answer-1') {
+   const view=progress.view();assert.match(view.choices[0].label,/ill with cholera|How many have you lost/);
+   progress.choose(view.beatId,view.choices[0].id);
+  }
+  let view=progress.view();assert.equal(view.beatId,'answer-1');assert.match(view.text,/about a dozen.*some are sick now/);
+  assert.match(view.choices[0].label,/drinking water/);progress.choose(view.beatId,view.choices[0].id);
+  view=progress.view();assert.match(view.text,/two tubs.*Broad Street.*two hundred/);assert.doesNotMatch(view.text,/eighteen|\b18\b/);
  }
 });
 

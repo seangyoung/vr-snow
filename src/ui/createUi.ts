@@ -472,7 +472,7 @@ function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): stri
       <div class="dialogue-header"><strong>${escapeHtml(view.speaker)}</strong>
         <button class="icon-button" data-action="close-dialogue" aria-label="Close conversation"><i data-lucide="x"></i></button></div>
       <div class="conversation-content">
-      ${view.map ? `<figure class="recap-map"><svg class="map-exercise-map" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="Deaths plotted around the Broad Street pump">${renderCustomMapBase(new Set(gameState.getCollectedEvidence().map(c=>c.id)),gameState)}</svg><figcaption>Bars: deaths · Teal circles: pumps</figcaption></figure>` : ''}
+      ${view.map ? `<figure class="recap-map"><svg class="map-exercise-map" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="${view.map==='deaths'?'Deaths plotted around the Broad Street pump':'Streets and pumps around Broad Street, before plotting deaths'}">${renderCustomMapBase(new Set(gameState.getCollectedEvidence().map(c=>c.id)),gameState,view.map==='deaths')}</svg><figcaption>${view.map==='deaths'?'Bars: deaths · ':''}Teal circles: pumps</figcaption></figure>` : ''}
       <div><p class="conversation-beat" aria-live="polite">${escapeHtml(view.text)}</p>
       <div class="conversation-choices">${view.choices.map(choice => `<button class="question-button" data-action="conversation-choice" data-beat-id="${escapeHtml(view.beatId)}" data-choice-id="${escapeHtml(choice.id)}">${escapeHtml(choice.label)}</button>`).join("")}
       ${view.terminalAction ? `<button class="question-button" data-action="${view.terminalAction}">${view.terminalAction==='resume-survey'?'Join Snow at the map table':view.terminalAction==='end-day'?'End day':view.terminalAction==='board-decision'?'Read the Board decision':'Review the theories'}</button>` : ''}
@@ -889,10 +889,9 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
   `;
 }
 
-function renderCustomMapBase(collectedIds: Set<string>, gameState:GameState): string {
+function renderCustomMapBase(collectedIds: Set<string>, gameState:GameState, showDeaths = gameState.hasMappedDeaths()): string {
   const mapSource = publicAssetPath(broadStreetMapSvgPath);
   const href = (id: string) => escapeHtml(`${mapSource}#${id}`);
-  const showDeaths = gameState.hasMappedDeaths();
 
   return `
     <rect class="map-paper" x="0" y="0" width="${broadStreetMapViewBoxSize}" height="${broadStreetMapViewBoxSize}" />
