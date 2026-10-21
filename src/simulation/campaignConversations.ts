@@ -7,6 +7,26 @@ const choice = (id: string, label: string, next: string) => ({id,label,next});
 const source = 'Authored teaching dialogue informed by Snow (1855), On the Mode of Communication of Cholera, Broad Street account and Table I. Dates are compressed; these are not verbatim historical conversations.';
 const composite = source + ' This household, its room and testimony are composites; no named historical family or surveyed address is represented.';
 const populationFlightSource = ' Authored resident observations informed by Snow (1855), Broad Street account, passage beginning “The mortality would undoubtedly have been much greater”: lodgers leaving, furniture left behind, closed houses and tradesmen sending away their families. Not verbatim witness testimony.';
+const streetRumorSource = ' Authored rumor dialogue informed by Brody et al. (2000), reproduced in UCLA John Snow archive, Stream 2f, “The earliest spot map of all” (https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_f.html): public fears of sewer gases and sewer works disturbing a 1665 plague burial pit. These are reported beliefs, not established causes or verbatim witness accounts. Placement on September 5–7 is part of the compressed chronology; the later sewer inquiry is not anticipated.';
+const streetRumors: Record<string,{question:string;answer:string;topicIndex?:number;sourceNote?:string}> = {
+ 'resident-west-day-1': {
+  question:'What do people think is causing the cholera?',
+  answer:'Some customers blame the sewers. They say foul air rising through the street gratings is bringing the cholera into the houses; it makes me anxious to open the shop.'
+ },
+ 'resident-west-day-3': {
+  question:'What are you reading?',
+  answer:'Today’s Daily News carries a letter claiming the sewer builders dug up an “immense quantity of human bones” in the old pesthouse fields, where plague victims were buried. People were already talking about it; now it is in the newspaper.',
+  sourceNote:' Authored shopkeeper dialogue about a letter published in the Daily News on September 7, 1854, as described in Steven Johnson, The Ghost Map, conclusion (https://erenow.org/modern/the-ghost-map/9.php). The quoted phrase is reproduced there; the original newspaper page has not been inspected. The held paper is an interpretive prop, not a facsimile; no claim is made about the original page layout or headline. The alleged excavation remains the letter writer’s claim, not an established finding.'
+ },
+ 'seamstress-day-2': {
+  topicIndex:2, question:'What have you been hearing from your customers?',
+  answer:'One customer says the sewer works disturbed an old burial pit from the Great Plague and let something poisonous into the air. The thought frightens me, though I have only her word for it.'
+ },
+ 'porter-day-3': {
+  topicIndex:1, question:'What are people saying about the street?',
+  answer:'At one door they blame the sewer gases; at the next, an old plague burial ground they say the digging disturbed. I have carried plenty of bundles past, but I have seen no opened graves myself.'
+ },
+};
 // Keep graph/choice identifiers stable so saved conversations resume after copy edits.
 function interview(id: string, actorId: ActorId, locationId: LocationId, speaker: string, anchor: [number,number,number], objective: ObjectiveId, evidenceId: string,
  opening: string, approaches: [string,string][], followup: string, details: [string,string], context: [string,string], summary: string, followupQuestion?: string): ConversationDefinition {
@@ -130,7 +150,7 @@ const street: Record<string,{actor: ActorId; speaker:string; anchor:[number,numb
  'resident-west':{actor:'resident-west',speaker:'Street resident · shopkeeper',anchor:[-10,1.5,-7],days:[
  'The street smells strongly of chloride of lime. The parish has been washing the roadway, and the stones and gutters show the white residue.',
  'They are still spreading lime. I hope it does some good; the smell reaches right into my shop.',
- 'I have scrubbed the step again, but there is hardly any trade. People hurry past where they once stopped to talk.']},
+ 'There is hardly any trade, so I have been reading today’s Daily News. There is a letter here about the sewer works that has set people talking again.']},
  'resident-east':{actor:'resident-east',speaker:'Street resident · neighbor',anchor:[11,1.5,-7],days:[
  'So many people have gone away these past few days. Houses where I used to hear children and visitors are shut up; in some, the people who kept them have died.',
  'Several tradesmen are still opening their shops, but they have sent their families away. You can walk past door after door without seeing a familiar face.',
@@ -138,9 +158,11 @@ const street: Record<string,{actor: ActorId; speaker:string; anchor:[number,numb
 };
 for (const [id,person] of Object.entries(street)) for(const day of [1,2,3] as const) {
  if(id==='whitehead' && day===1)continue;
- campaignConversations.push({id:`${id}-day-${day}`,actorId:person.actor,locationId:'broad-street',title:'Neighborhood conversation',anchor:person.anchor,start:'opening',sourceNote:'Authored contextual conversation, informed by Whitehead and contemporary accounts reproduced in UCLA John Snow archive, Stream 2e. No evidence card; Whitehead’s later findings are reserved for the epilogue.'+(id==='resident-east'?populationFlightSource:''),beats:[
-  {id:'opening',speaker:person.speaker,text:person.days[day-1],choices:[choice('follow',id==='whitehead'?'Dr. Snow suspects the pump water. Do you agree?':id==='resident-west'?'How is the shop managing?':'Have you been helping your neighbors?','follow'),choice('listen','Thank you. I will keep your account in mind.','conclusion')]},
-  {id:'follow',speaker:person.speaker,text:id==='whitehead'?'Everyone’s account matters, especially an account that contradicts Dr. Snow. I will not accept the water explanation merely because the deaths are close together.':id==='resident-west'?['With so many households in trouble, ordinary business scarcely seems to matter. I open the shop, but I spend much of the day waiting for news.','Some customers have left the neighborhood. Others ask me to send what they need because they cannot leave the sick.','I want to see familiar faces at the counter again. Every time someone returns, I am relieved.'][day-1]:['I have carried a few provisions and knocked at doors. Sometimes all a person wants is news of someone in the next street.','Those who are well enough are doing what they can. It is hard when several homes need help at once.','I shall call again later. I do not like leaving without knowing whether someone is inside.'][day-1],choices:[choice('thanks','Thank you for speaking with me.','conclusion')]},
+ const rumor=streetRumors[`${id}-day-${day}`];
+ campaignConversations.push({id:`${id}-day-${day}`,actorId:person.actor,locationId:'broad-street',title:'Neighborhood conversation',anchor:person.anchor,start:'opening',sourceNote:'Authored contextual conversation, informed by Whitehead and contemporary accounts reproduced in UCLA John Snow archive, Stream 2e. No evidence card; Whitehead’s later findings are reserved for the epilogue.'+(id==='resident-east'?populationFlightSource:'')+(rumor?(rumor.sourceNote??streetRumorSource):'')+(id==='whitehead' && day===2?' Whitehead’s recovery objection is informed by Brody et al. (1999), John Snow revisited: getting a handle on the Broad Street pump (https://www.researchgate.net/publication/13105811_John_Snow_revisited_getting_a_handle_on_the_Broad_Street_pump), which describes several sick residents recovering after drinking pump water. The three-person count and personal-care phrasing follow the requested dramatization; that exact count was not independently verified in the consulted account.':''),beats:[
+  {id:'opening',speaker:person.speaker,text:person.days[day-1],choices:[choice('follow',id==='whitehead'?'Dr. Snow suspects the pump water. Do you agree?':id==='resident-west'?'How is the shop managing?':'Have you been helping your neighbors?','follow'),choice('listen','Thank you. I will keep your account in mind.','conclusion'),...(rumor?[choice('rumor',rumor.question,'rumor')]:[])]},
+  {id:'follow',speaker:person.speaker,text:id==='whitehead'?(day===2?'I personally cared for three people with cholera; they drank Broad Street pump water during their illness, and all three survived. How does Dr. Snow explain that, if the water is the poison?':'Everyone’s account matters, especially an account that contradicts Dr. Snow. I will not accept the water explanation merely because the deaths are close together.'):id==='resident-west'?['With so many households in trouble, ordinary business scarcely seems to matter. I open the shop, but I spend much of the day waiting for news.','Some customers have left the neighborhood. Others ask me to send what they need because they cannot leave the sick.','I want to see familiar faces at the counter again. Every time someone returns, I am relieved.'][day-1]:['I have carried a few provisions and knocked at doors. Sometimes all a person wants is news of someone in the next street.','Those who are well enough are doing what they can. It is hard when several homes need help at once.','I shall call again later. I do not like leaving without knowing whether someone is inside.'][day-1],choices:[choice('thanks','Thank you for speaking with me.','conclusion')]},
+  ...(rumor?[{id:'rumor',speaker:person.speaker,text:rumor.answer,choices:[choice('thanks','Thank you for telling me.','conclusion')]}]:[]),
   {id:'conclusion',speaker:person.speaker,text:id==='whitehead'?'I have families to visit. Give them time to speak if you call; good day to you.':'Thank you for stopping. I hope you find something that will help us.',choices:[],conclusion:{}},
  ]});
 }
@@ -221,13 +243,17 @@ const additionalNeighbors: {actor:ActorId;speaker:string;openings:[string,string
   ['Do your errands take you far?','Across several streets, sometimes farther. I go where the message must go, then return for an answer if one is wanted.'],
   ['What kind of news are you carrying?','Requests for help, mostly, and word for relatives. I would rather the families told you their own affairs.']],closing:'Excuse me; I should not keep them waiting for this note.'},
 ];
-for(const person of additionalNeighbors)for(const day of [1,2,3] as const)campaignConversations.push({
+for(const person of additionalNeighbors)for(const day of [1,2,3] as const) {
+ const rumor=streetRumors[`${person.actor}-day-${day}`];
+ const topics=person.topics.map((topic,index):[string,string]=>rumor?.topicIndex===index?[rumor.question,rumor.answer]:topic);
+ campaignConversations.push({
  id:`${person.actor}-day-${day}`,actorId:person.actor,locationId:'broad-street',title:'Neighborhood conversation',anchor:[0,1.45,0],
- sourceNote:'Authored composite street resident. Everyday work, disrupted errands and mutual aid are interpretive context; this is not testimony from a named historical witness.'+(person.actor==='seamstress'?populationFlightSource:''),start:'opening',beats:[
-  {id:'opening',speaker:person.speaker,text:person.openings[day-1],choices:person.topics.map(([label],i)=>choice(`ask-${i}`,label,`answer-${i}`))},
-  ...person.topics.map(([,text],i)=>({id:`answer-${i}`,speaker:person.speaker,text,choices:[choice('another','May I ask something else?','followup'),choice('thanks','Thank you. I will let you get on.','conclusion')]})),
-  {id:'followup',speaker:person.speaker,text:'Of course. What did you want to know?',choices:person.topics.map(([label],i)=>choice(`ask-${i}`,label,`detail-${i}`))},
-  ...person.topics.map(([,text],i)=>({id:`detail-${i}`,speaker:person.speaker,text,choices:[choice('thanks','Thank you for speaking with me.','conclusion')]})),
+ sourceNote:'Authored composite street resident. Everyday work, disrupted errands and mutual aid are interpretive context; this is not testimony from a named historical witness.'+(person.actor==='seamstress'?populationFlightSource:'')+(rumor?(rumor.sourceNote??streetRumorSource):''),start:'opening',beats:[
+  {id:'opening',speaker:person.speaker,text:person.openings[day-1],choices:topics.map(([label],i)=>choice(`ask-${i}`,label,`answer-${i}`))},
+  ...topics.map(([,text],i)=>({id:`answer-${i}`,speaker:person.speaker,text,choices:[choice('another','May I ask something else?','followup'),choice('thanks','Thank you. I will let you get on.','conclusion')]})),
+  {id:'followup',speaker:person.speaker,text:'Of course. What did you want to know?',choices:topics.map(([label],i)=>choice(`ask-${i}`,label,`detail-${i}`))},
+  ...topics.map(([,text],i)=>({id:`detail-${i}`,speaker:person.speaker,text,choices:[choice('thanks','Thank you for speaking with me.','conclusion')]})),
   {id:'conclusion',speaker:person.speaker,text:person.closing,choices:[],conclusion:{}},
  ]
 });
+}

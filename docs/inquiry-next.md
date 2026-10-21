@@ -95,6 +95,32 @@ and sends the player to investigate the exception rather than explaining it away
   their families away. Residents describe what they see rather than reciting
   Snow's retrospective three-quarters estimate; a quieter street is not presented
   as proof that the danger has passed.
+- [UCLA Stream 2f, “The earliest spot map of all”](https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_f.html),
+  reproducing Brody et al. (2000), documents fears about sewer gases and sewer
+  excavations disturbing an old plague burial pit. Optional street questions now
+  bring up these rumors with the shopkeeper on Day 1, the seamstress on Day 2,
+  and the porter on Day 3. They report hearsay in their own voices, without
+  evidence awards, new objectives, or claims that the rumors were correct.
+  These unnamed speakers and the exact days are authored within the compressed
+  chronology; they do not report findings from the later September 26 sewer inquiry.
+- On September 7, the shopkeeper carries an interpretive folded **Daily News**
+  and can discuss a letter alleging that sewer builders unearthed an “immense
+  quantity of human bones” in the old pesthouse fields. Date and quoted phrase
+  are supported by Steven Johnson, *The Ghost Map*, conclusion
+  ([transcription](https://erenow.org/modern/the-ghost-map/9.php)); the original
+  issue has not been inspected. The text remains an allegation attributed to the
+  letter. The generated masthead, date, column layout and section headings are
+  an illustrative prop, not a facsimile. It appears only on Day 3, follows the
+  shopkeeper’s hand with the existing idle movement, and adds no evidence or task.
+- Whitehead’s Day 2 response to the player raising Snow’s theory now describes
+  personally caring for three cholera sufferers who drank Broad Street water
+  during their illness and survived. This is his skeptical objection, not a claim
+  that the water cured them. Brody et al., *John Snow revisited: getting a handle
+  on the Broad Street pump* (1999), describes Whitehead knowing several such
+  recoveries ([account](https://www.researchgate.net/publication/13105811_John_Snow_revisited_getting_a_handle_on_the_Broad_Street_pump)).
+  The specific three-person count and personal-care phrasing follow the requested
+  dramatization; the exact count was not independently verified in that source.
+  Dialogue remains authored and the Day 2 placement uses the compressed chronology.
 - [Original Table I image](https://www.academia.dk/MedHist/Biblioteket/Grafik/Snow_1855/table1.gif):
   preceding-day **deaths** for the three openings are 71 (Sept 4), 45 (Sept 5), and
   37 (Sept 6). Snow now delivers these in his morning conversation as an authored

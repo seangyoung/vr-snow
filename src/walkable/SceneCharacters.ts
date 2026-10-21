@@ -2,6 +2,7 @@ import { streetPlacement } from '../simulation/streetPopulation';
 import type { InquiryDay } from '../simulation/campaign';
 import * as THREE from "three";
 import { CharacterIdle } from "./CharacterIdle";
+import { createStreetNewspaper } from "./StreetNewspaper";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import definitions from "./scene-characters.json" with { type: "json" };
 import { loadBakedRoomLighting } from "./BakedRoomLighting";
@@ -18,6 +19,7 @@ export class SceneCharacters {
   private loading?: Promise<void>;
   private day: InquiryDay = 1;
   private model?: THREE.Group;
+  private newspaper?: THREE.Group;
   private idles: CharacterIdle[] = [];
   private readonly footprints: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }> = [];
   constructor(readonly key: CharacterScene) {
@@ -42,6 +44,10 @@ export class SceneCharacters {
       model=(await new GLTFLoader().loadAsync(`${basePath}models/${asset}.glb`)).scene;
       await loadBakedRoomLighting(model,basePath,{lightMap:`${asset}-lightmap.png`,environment:`${asset}-environment.png`,preserveVertexColors:true});
       this.model=model;
+      if(this.key==='street') {
+        const reader=model.getObjectByName('resident-west_root');
+        if(reader) { this.newspaper=createStreetNewspaper();reader.add(this.newspaper); }
+      }
       this.setDay(this.day);
       for (const [index, actor] of actors.entries()) {
         const root=model.getObjectByName(`${actor.id}_root`);
@@ -59,6 +65,7 @@ export class SceneCharacters {
   setDay(day: InquiryDay): void {
     this.day=day;
     if(this.key!=="street")return;
+    if(this.newspaper)this.newspaper.visible=day===3;
     this.footprints.length=0;
     const footprint=(x:number,z:number)=>this.footprints.push({minX:x-.46,maxX:x+.46,minZ:z-.40,maxZ:z+.57});
     for(const actor of definitions.street.actors) {

@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["render/PanelDepthLayers", "render/DayTransition", "walkable/StreetBoundary", "walkable/ControllerVisuals", "walkable/ObjectInspection", "walkable/InteractionIdleHint", "simulation/streetPopulation", "walkable/WorkhousePump", "simulation/campaign", "simulation/campaignConversations", "simulation/fieldwork", "walkable/AdditionalHousehold", "walkable/PumpSurveyStop", "walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/ManufactoryRoom", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["render/PanelDepthLayers", "render/DayTransition", "walkable/StreetBoundary", "walkable/ControllerVisuals", "walkable/ObjectInspection", "walkable/InteractionIdleHint", "simulation/streetPopulation", "walkable/WorkhousePump", "simulation/campaign", "simulation/campaignConversations", "simulation/fieldwork", "walkable/AdditionalHousehold", "walkable/PumpSurveyStop", "walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "walkable/StreetNewspaper", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/ManufactoryRoom", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from (["'])(\.\.?\/[^"'.]+)\1/g, 'from "$2.js"');
@@ -2541,7 +2541,7 @@ test('Whitehead remains skeptical when asked, while his parish conversations can
   for(const id of ['whitehead-local-knowledge','whitehead-day-2','whitehead-day-3']) {
     const graph=conversations.find(c=>c.id===id);
     const response=graph.beats.find(b=>b.id===(id==='whitehead-local-knowledge'?'skepticism':'follow'));
-    assert.match(response.text,/unconvincing|will not accept/i);
+    assert.match(response.text,/unconvincing|will not accept|How does Dr\. Snow explain/i);
     const progress=new ConversationProgress();progress.open(id);
     if(id==='whitehead-local-knowledge') {
       progress.choose('opening','help');progress.choose('care','respect');
