@@ -83,3 +83,16 @@ The milestone freezes the approved feature revision before deployment branding
 and redirect changes. The six earlier snapshots and tags are unchanged.
 Desktop checks and automated tests are recorded separately from headset comfort
 and pacing; promotion does not imply those were newly measured.
+
+## Household environment promotion — 22 October 2026
+
+The approved [household pass](household-environment-pass.md) joins the main
+experience: three distinct domestic interiors, an ill family member and revised
+interview, additional portable artifacts with collection notes, richer materials
+and baked lighting, window depth, and more varied household figures.
+[Implementation commit 322a2d5](https://github.com/seangyoung/vr-snow/commit/322a2d5009234971a932a0e8ab74546fa1597dec)
+preserves the editable Blender sources and generated runtime assets. This is a
+development record, not an additional packaged milestone release. All 273
+automated checks, build, installation checks, and desktop interaction checks
+passed before promotion. Fresh Quest performance and comfort checks remain
+separate from the user's visual approval.

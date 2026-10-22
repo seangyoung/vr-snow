@@ -1,6 +1,6 @@
 # Household environment pass — October 2026
 
-This pass gives the three composite households different domestic identities while preserving their locations, scene boundaries, evidence identifiers, and conversation progression. It is developed on `codex/household-environments`, separately from the published main experience.
+This pass gives the three composite households different domestic identities while preserving their locations, scene boundaries, evidence identifiers, and conversation progression. Developed on `codex/household-environments`, it was approved and promoted to `main` on 22 October 2026. The implementation is preserved in commit `322a2d5009234971a932a0e8ab74546fa1597dec`.
 
 ## Three interiors
 
