@@ -1,3 +1,5 @@
+> Implementation note (15 October 2026): this design document includes earlier concepts. The current three-day feature preview, authored dialogue, historical qualifications and acceptance gates are specified in [inquiry-next.md](inquiry-next.md).
+
 # The Broad Street Inquiry
 
 Educational browser game design for WebXR and desktop fallback.

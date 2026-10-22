@@ -16,6 +16,8 @@ Dates below are the selected commits' dates, not claims about the start or durat
 | Baked lighting | 2026-10-01 | Textured period interiors, depth beyond the office window and baked lighting across six scenes. | [`milestone/04-baked-lighting`](https://github.com/seangyoung/vr-snow/tree/milestone/04-baked-lighting) · [`575793a`](https://github.com/seangyoung/vr-snow/commit/575793ad7210fad38be235302fefe383ed9c458c) | [ZIP](https://github.com/seangyoung/vr-snow/releases/download/milestone%2F06-tactile-interactions/04-baked-lighting.zip) | [Office](milestones/media/04-baked-lighting-office.png) · [Street](milestones/media/04-baked-lighting-street.png) |
 | Anatomical characters | 2026-10-15 | MakeHuman-based people, revised poses and plausible workhouse and brewery staging. | [`milestone/05-anatomical-characters`](https://github.com/seangyoung/vr-snow/tree/milestone/05-anatomical-characters) · [`b9b97b8`](https://github.com/seangyoung/vr-snow/commit/b9b97b8cd3fdf9bd82338cde33e9ad1e39bfc6e6) | [ZIP](https://github.com/seangyoung/vr-snow/releases/download/milestone%2F06-tactile-interactions/05-anatomical-characters.zip) | [Office](milestones/media/05-anatomical-characters-office.png) · [Street](milestones/media/05-anatomical-characters-street.png) |
 | Tactile interactions | 2026-10-15 | Working pump, returning inspectable props and subtle character idle movement. | [`milestone/06-tactile-interactions`](https://github.com/seangyoung/vr-snow/tree/milestone/06-tactile-interactions) · [`f701694`](https://github.com/seangyoung/vr-snow/commit/f7016949c777dc6eaf1f625ea4fc5b9fa1bf68c6) | [ZIP](https://github.com/seangyoung/vr-snow/releases/download/milestone%2F06-tactile-interactions/06-tactile-interactions.zip) | [Office](milestones/media/06-tactile-interactions-office.png) · [Street](milestones/media/06-tactile-interactions-street.png) |
+| Three-day inquiry | 2026-10-21 | Daily assignments, richer conversations, three households and manufactory, map comparison, walkable hearing and local saves. Promoted October 22. | [`milestone/07-three-day-inquiry`](https://github.com/seangyoung/vr-snow/tree/milestone/07-three-day-inquiry) · [`4fcd810`](https://github.com/seangyoung/vr-snow/commit/4fcd81016f9fb632f3fa9fadca781a30f19b6ef8) | [ZIP](https://github.com/seangyoung/vr-snow/releases/download/milestone%2F07-three-day-inquiry/07-three-day-inquiry.zip) | [Office](milestones/media/07-three-day-inquiry-office.png) · [Street](milestones/media/07-three-day-inquiry-street.png) |
+
 
 ## Using a snapshot for a presentation
 
@@ -44,6 +46,7 @@ A useful presentation sequence is:
 4. **Lighting and materials:** improve depth, contact shadows and the identity of period rooms.
 5. **People and staging:** replace markers with distinct characters and revise implausible furniture/poses using feedback.
 6. **Responsive objects:** add the pump, inspectable items and subtle idle movement without changing the evidence logic.
+7. **Three-day inquiry:** connect assignments, neighborhood conversations, map comparison and a playable hearing into a campaign.
 
 For short clips, replay a frozen build and record the interaction that distinguishes it. No edited video clips are included in this initial archive; the screenshot collection is ready to use.
 
@@ -63,7 +66,7 @@ python3 scripts/archive/build_milestones.py --only 06-tactile-interactions --out
 
 Omit `--only` to build all milestones. This requires Python 3.12+, Git, Node and npm, plus network access for locked dependencies. The script refuses to overwrite an existing snapshot folder. It builds with a relative Vite base (`./`) for portable hosting, without changing historical source. Source authoring files remain available through the tags; prebuilt snapshots contain runtime assets only. Browser compatibility can change, which is why the archive also includes captured images.
 
-For repeatable screenshots, serve the archive root on port 4180, provide a separately installed Playwright package through `PLAYWRIGHT_MODULE`, and run `node scripts/archive/capture_milestones.cjs`. The script expects system Chrome. It replaces the generated screenshots/check report, so review the diff before committing refreshed captures.
+For repeatable screenshots, serve the archive root on port 4180, provide a separately installed Playwright package through `PLAYWRIGHT_MODULE`, and run `node scripts/archive/capture_milestones.cjs`. To capture only the new milestone while retaining earlier reports, add `http://127.0.0.1:4180 07-three-day-inquiry`. The script expects system Chrome. It replaces the generated screenshots/check report, so review the diff before committing refreshed captures.
 
 When adding a milestone, publish its runnable ZIP and screenshots to a GitHub Release, verify the downloaded asset/hash and browser rendering, and update this document with a short description of what actually changed. Record headset observations separately from build and desktop checks.
 
@@ -72,3 +75,11 @@ When adding a milestone, publish its runnable ZIP and screenshots to a GitHub Re
 The promotion preserves the full development ancestry; it does not squash or rewrite earlier commits. Deployment now builds and tests `main` once, serves the walkable app at `/vr-snow/`, and redirects `/vr-snow/walkable/` to it while preserving query strings and fragments. Pull requests validate without publishing. The former prototype branch is retired only after successful deployment and a live-site check.
 
 Older installed shortcuts still reach the redirect. Because the main URL has a different manifest scope/app identity, reinstall from the main site if a legacy installation opens outside its standalone window. See [web app installation](web-app-installation.md).
+
+## Main experience promotion — 22 October 2026
+
+The three-day inquiry replaces the previous main app following user approval.
+The milestone freezes the approved feature revision before deployment branding
+and redirect changes. The six earlier snapshots and tags are unchanged.
+Desktop checks and automated tests are recorded separately from headset comfort
+and pacing; promotion does not imply those were newly measured.

@@ -683,6 +683,17 @@ button {
 
 .map-panel {
   width: min(860px, calc(100vw - 36px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scroll-padding-top: 84px;
+}
+
+.map-panel > .panel-header {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  background: #12100c;
 }
 
 .secondary-action {
@@ -825,8 +836,18 @@ button {
 }
 
 .hypothesis-card.is-selected {
-  border-color: rgba(99, 199, 189, 0.42);
-  background: rgba(99, 199, 189, 0.07);
+  border-color: #d8c18b;
+  box-shadow: inset 0 0 0 1px #d8c18b;
+  background: rgba(99, 199, 189, 0.18);
+}
+
+.hypothesis-card.is-selected .hypothesis-select {
+  color: #ffe8b5;
+}
+
+.hypothesis-card.is-selected .hypothesis-select svg {
+  color: #ffe8b5;
+  fill: rgba(216, 193, 139, 0.18);
 }
 
 .hypothesis-select {
@@ -1805,3 +1826,106 @@ button:focus-visible, [role="dialog"]:focus-visible {
 .sound-level > span { flex: 1; }
 .sound-level > button { min-width: 2.75rem; min-height: 2.75rem; }
 .sound-settings p { color: #c1cfca; line-height: 1.5; }
+
+/* Short authored exchanges keep the speaker visible above the reading surface. */
+.dialogue-panel.conversation-panel {
+  left: 50%; right: auto; bottom: 18px; transform: translateX(-50%);
+  width: min(760px, calc(100vw - 36px)); max-height: 34vh;
+  background: rgba(17, 22, 22, .98); overflow-y: auto;
+}
+.conversation-panel .dialogue-header { padding: 8px 14px 0; }
+.conversation-beat { margin: 6px 18px 12px; font-size: 18px; line-height: 1.45; }
+.conversation-choices { display: flex; gap: 8px; padding: 0 14px 14px; }
+.conversation-choices .question-button { flex: 1; min-width: 0; padding: 10px; }
+@media (max-width: 650px) {
+  .dialogue-panel.conversation-panel { max-height: 48vh; bottom: 8px; }
+  .conversation-choices { flex-direction: column; }
+  .conversation-beat { font-size: 16px; }
+}
+
+.imported-map-layer--access, .imported-map-layer--access * {
+  fill: none; stroke: #47633b; stroke-width: 50; stroke-dasharray: 130 80;
+}
+
+.assignment-summary { display: block; }
+.assignment-summary p + p { margin-top: .55rem; }
+
+/* Earlier field visits remain geographic references, never travel controls. */
+.map-visited-mark { position:absolute; transform:translate(-50%,-50%); width:14px; height:14px; border:1px solid #625c49; border-radius:50%; background:#eee3c7; color:#4c6152; font:bold 10px/12px sans-serif; text-align:center; cursor:default; }
+
+.pump-comparison-results { display:flex; gap:1rem; margin:.6rem 0; flex-wrap:wrap; }
+.pump-comparison-results > div { flex:1; min-width:10rem; border:1px solid #887750; border-radius:.4rem; padding:.5rem .75rem; }
+.pump-comparison-results dt { font-size:.85rem; }
+.pump-comparison-results dd { margin:.25rem 0 0; color:#f1d79c; font-weight:700; }
+
+.pump-comparison-panel > h3, .pump-comparison-panel > p, .pump-comparison-panel > dl { margin-left:18px; margin-right:18px; }
+.pump-comparison-panel > h3 { margin-top:.6rem; margin-bottom:.5rem; }
+.pump-comparison-panel > small { display:block; margin:0 18px 12px; color:#b9c9c4; }
+
+/* The morning comparison is a readable map-table spread, with no travel markers. */
+.map-exercise-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; padding: 20px; align-items: start; }
+.map-exercise-map { display: block; width: 100%; background: #ead9b0; border: 1px solid #8b7650; border-radius: 8px; }
+.map-exercise-layout h3 { margin: 10px 0; }
+.map-exercise-layout p { line-height: 1.55; }
+.map-exercise-caption { font-size: .85rem; }
+@media (max-width: 650px) { .map-exercise-layout { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 14px; } }
+
+.object-inspection {
+  position: fixed;
+  z-index: 12;
+  right: 1rem;
+  top: 5.5rem;
+  width: min(20rem, 36vw);
+  padding: 1rem;
+  border: 1px solid #8e8065;
+  border-radius: .6rem;
+  background: rgba(26, 27, 23, .96);
+  color: #f5f2e8;
+  font: .95rem/1.45 system-ui, sans-serif;
+  pointer-events: none;
+}
+.object-inspection[hidden] { display: none; }
+.object-inspection strong { color: #f7e7c4; }
+.object-inspection p { margin: .5rem 0; }
+.object-inspection a { color: #d8c9ac; font-size: .8rem; pointer-events: auto; }
+@media (max-width: 600px) {
+  .object-inspection { top: 4rem; right: .5rem; width: 44vw; padding: .65rem; font-size: .8rem; }
+}
+
+/* Day-one review keeps the plotted deaths beside Snow's current exchange. */
+.dialogue-panel.conversation-map-panel { max-height: 78vh; width: min(960px, calc(100vw - 36px)); }
+.conversation-map-panel .conversation-content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 8px; padding: 10px 14px 14px; }
+.conversation-map-panel .recap-map { min-width: 0; margin: 0; }
+.conversation-map-panel .recap-map svg { display: block; width: 100%; aspect-ratio: 1; }
+.conversation-map-panel figcaption { text-align: center; color: #d9cba8; font-size: .8rem; padding-top: 6px; }
+.conversation-map-panel .conversation-choices { flex-direction: column; }
+@media (max-width: 650px) {
+  .conversation-map-panel .conversation-content { grid-template-columns: 1fr; }
+  .conversation-map-panel .recap-map { width: min(100%, 320px); margin: auto; }
+}
+
+/* Outside the rerendered HUD so the next day's introduction changes under black. */
+.day-transition { position: fixed; inset: 0; z-index: 10000; background: #000; pointer-events: auto; }
+
+/* Keep the closed pump visible while reading the ending. */
+.chapter-panel.epilogue-panel {
+  left: auto;
+  right: 24px;
+  width: min(360px, 34vw);
+  max-height: calc(100vh - 180px);
+  padding: 18px;
+  transform: translateY(-50%);
+}
+.epilogue-panel .chapter-heading h2 { font-size: 1.6rem; }
+.epilogue-panel .chapter-copy p { font-size: .92rem; }
+@media (max-width: 700px) {
+  .chapter-panel.epilogue-panel {
+    top: auto;
+    bottom: 16px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: 32vh;
+    transform: none;
+  }
+}

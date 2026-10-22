@@ -20,7 +20,7 @@ export class DesktopKeyboard {
 
   private key(element: HTMLElement): string {
     return JSON.stringify([element.dataset.action, element.dataset.questionId, element.dataset.locationId,
-      element.dataset.hypothesisId]);
+      element.dataset.hypothesisId, element.dataset.beatId, element.dataset.choiceId, element.dataset.step, element.dataset.surveyKey]);
   }
 
   beforeRender(): void {
@@ -32,33 +32,36 @@ export class DesktopKeyboard {
   afterRender(): void {
     if (document.body.dataset.xrPresenting === "true" || this.transitioning()) return;
     const panel = this.panel();
+    const conversation=panel?.classList.contains('conversation-panel') ?? false;
     const panelKey = panel?.getAttribute("aria-label") ?? undefined;
-    // Keep pointer input for outside clicks and camera drags. Keyboard movement
-    // stays blocked by overlayOpen and Tab remains contained in the dialog.
+    // Conversations are nonmodal: movement can return focus to the scene,
+    // while Tab still provides access to the dialogue choices.
     if (this.scene) {
       this.scene.inert = false;
       if (!panel) this.scene.removeAttribute("aria-hidden");
     }
     for (const child of this.root.querySelector(".hud")?.children ?? []) {
-      if (child instanceof HTMLElement) child.inert = Boolean(panel && child !== panel);
+      if (child instanceof HTMLElement) child.inert = Boolean(panel && !conversation && child !== panel);
     }
     if (panel) {
       panel.setAttribute("role", "dialog");
-      panel.setAttribute("aria-modal", "true");
+      panel.setAttribute("aria-modal", conversation ? "false" : "true");
       panel.tabIndex = -1;
       const buttons = this.buttons(panel);
       const preserved = panelKey === this.previousPanel && this.focusedKey
         ? buttons.find(button => this.key(button) === this.focusedKey) : undefined;
-      const primary = buttons.find(button => ["ask", "travel", "begin", "finish-board", "select-hypothesis"].includes(button.dataset.action ?? ""));
+      const primary = buttons.find(button => ["guided-survey", "resume-survey", "conversation-choice", "ask", "travel", "begin", "begin-hearing", "finish-board", "select-hypothesis"].includes(button.dataset.action ?? ""));
       // A redraw resets scrolling; keep the selected control visible as well as focused.
-      (preserved ?? primary ?? buttons[0] ?? panel).focus();
+      if(!conversation || this.focusedInUi || panelKey!==this.previousPanel)
+        (preserved ?? primary ?? buttons[0] ?? panel).focus();
     } else if (this.previousPanel) {
       this.scene?.focus({ preventScroll: true });
     } else if (this.focusedInUi && this.focusedKey) {
       this.buttons(this.root).find(button => this.key(button) === this.focusedKey)?.focus({ preventScroll: true });
     }
     this.previousPanel = panelKey;
-    if (panel) this.scene?.setAttribute("aria-hidden", "true");
+    if (panel && !conversation) this.scene?.setAttribute("aria-hidden", "true");
+    else this.scene?.removeAttribute("aria-hidden");
   }
 
   private onKey(event: KeyboardEvent): void {
@@ -71,6 +74,10 @@ export class DesktopKeyboard {
       return;
     }
     const panel = this.panel();
+    const conversation=panel?.classList.contains('conversation-panel') ?? false;
+    if(conversation && ['w','a','s','d','q','e','r','f'].includes(event.key.toLowerCase())) {
+      this.scene?.focus({preventScroll:true});return;
+    }
     if (event.repeat && [" ", "enter", "escape", "m", "n"].includes(event.key.toLowerCase())) {
       event.preventDefault();
       return;
@@ -89,6 +96,8 @@ export class DesktopKeyboard {
       return;
     }
     if (!panel) return;
+    // Tab enters the choices; while the scene has focus, arrows remain look controls.
+    if(conversation && !panel.contains(document.activeElement) && event.key!=='Tab')return;
     const buttons = this.buttons(panel);
     if (event.key === "Tab") {
       event.preventDefault();

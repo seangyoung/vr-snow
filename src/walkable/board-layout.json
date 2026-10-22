@@ -1,0 +1,86 @@
+{
+  "width": 8,
+  "depth": 12,
+  "height": 3.9,
+  "spawn": [
+    0,
+    0,
+    5.2
+  ],
+  "deskTarget": [
+    0,
+    1.1,
+    -0.8
+  ],
+  "door": [
+    0,
+    0,
+    5.95
+  ],
+  "furniture": [
+    {
+      "id": "meeting-table",
+      "x": 0,
+      "z": -0.8,
+      "width": 2.4,
+      "depth": 6,
+      "height": 0.84
+    },
+    {
+      "id": "fireplace",
+      "x": -3.7,
+      "z": -3.6,
+      "width": 0.6,
+      "depth": 1.9,
+      "height": 1.7
+    },
+    {
+      "id": "map-cabinet",
+      "x": -3.7,
+      "z": 0.1,
+      "width": 0.6,
+      "depth": 2.6,
+      "height": 1.1
+    },
+    {
+      "id": "chair-board-chair",
+      "x": 0,
+      "z": -4.5,
+      "width": 0.7,
+      "depth": 0.7,
+      "height": 1.1
+    },
+    {
+      "id": "chair-board-tradesman",
+      "x": -1.85,
+      "z": -1.7,
+      "width": 0.7,
+      "depth": 0.7,
+      "height": 1.1
+    },
+    {
+      "id": "chair-board-guardian",
+      "x": 1.85,
+      "z": -2.5,
+      "width": 0.7,
+      "depth": 0.7,
+      "height": 1.1
+    },
+    {
+      "id": "empty-chair-west",
+      "x": -1.85,
+      "z": 0.8,
+      "width": 0.7,
+      "depth": 0.7,
+      "height": 1.1
+    },
+    {
+      "id": "empty-chair-east",
+      "x": 1.85,
+      "z": 0.8,
+      "width": 0.7,
+      "depth": 0.7,
+      "height": 1.1
+    }
+  ]
+}

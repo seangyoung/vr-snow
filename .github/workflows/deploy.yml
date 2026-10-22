@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
-  workflow_run:
-    workflows: [Validate inquiry preview]
-    branches: [codex/inquiry-next]
-    types: [completed]
 
 permissions:
   contents: read
@@ -22,10 +18,9 @@ concurrency:
 
 jobs:
   build:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      # A preview push must never publish its source as the production app.
+      # Publish main only; pull requests validate without deploying.
       - name: Checkout production (or the pull request for validation)
         uses: actions/checkout@v6
         with:
@@ -44,47 +39,20 @@ jobs:
         run: npm run build
       - run: node scripts/test-web-app.mjs dist /vr-snow/
 
-      # Rebuild the preview on production pushes too, so it is not erased.
-      - name: Find inquiry preview
-        id: preview
-        if: github.event_name != 'pull_request'
-        shell: bash
-        run: |
-          preview_sha=$(git ls-remote origin refs/heads/codex/inquiry-next | cut -f1)
-          echo "sha=$preview_sha" >> "$GITHUB_OUTPUT"
-      - name: Checkout inquiry at the resolved revision
-        if: steps.preview.outputs.sha != ''
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ steps.preview.outputs.sha }}
-          path: inquiry-source
-      - name: Validate and build inquiry preview
-        if: steps.preview.outputs.sha != ''
-        working-directory: inquiry-source
-        env:
-          VITE_BASE_PATH: /vr-snow/preview/inquiry/
-        run: |
-          npm ci
-          npm run test:walkable
-          npm run build
-          node scripts/test-web-app.mjs dist /vr-snow/preview/inquiry/
-      - name: Assemble publication
-        if: steps.preview.outputs.sha != ''
-        run: |
-          mkdir -p dist/preview/inquiry
-          cp -a inquiry-source/dist/. dist/preview/inquiry/
-          printf '%s\n' '${{ steps.preview.outputs.sha }}' > dist/preview/inquiry/revision.txt
+      - run: node scripts/test-promotion.mjs dist
+      - name: Record published revision
+        run: git rev-parse HEAD > dist/revision.txt
       - name: Configure Pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
-      - name: Upload production and preview together
+      - name: Upload production
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
         with:
           path: ./dist
 
   deploy:
-    # Pages only permits main. Successful feature validation wakes this workflow on main.
+    # Pages only permits main.
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest

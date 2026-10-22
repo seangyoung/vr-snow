@@ -13,6 +13,7 @@ export interface RoomLayout {
 export interface RoomOptions {
   name: string; asset: string; layout: RoomLayout; area: WalkableArea;
   interactionFurniture?: string; hotspot: string;
+  rayHeights?: Record<string,number>;
   daylight?: string; fill?: number;
   characters?: CharacterScene;
   bakedLighting?: { lightMap: string; environment: string };
@@ -40,6 +41,7 @@ export class FurnishedRoom implements WalkableEnvironment {
   private readonly lighting = new THREE.Group();
   private readonly desk?: THREE.Mesh;
   protected readonly deskPrompt: THREE.Mesh;
+  private visualModel?: THREE.Group;
   private visualsPromise?: Promise<void>;
 
   constructor(private readonly options: RoomOptions) {
@@ -69,7 +71,7 @@ export class FurnishedRoom implements WalkableEnvironment {
     box(0,layout.height/2,layout.depth/2,layout.width,layout.height,.1,plaster);
     let desk: THREE.Mesh | undefined;
     for (const f of layout.furniture) {
-      const height=f.id === "medical-table" ? .825 : f.height;
+      const height=options.rayHeights?.[f.id] ?? (f.id === "medical-table" ? .825 : f.height);
       const proxy=box(f.x,height/2,f.z,f.width,height,f.depth,timber);
       if (f.id === options.interactionFurniture) desk=proxy;
     }
@@ -105,21 +107,26 @@ export class FurnishedRoom implements WalkableEnvironment {
           console.warn(`Using the original lighting for ${this.options.name}.`, error);
         }
       }
+      this.prepareVisuals(gltf.scene);
       this.props.push(...extractProps(gltf.scene,this.group,this.options.asset));
-      this.group.add(gltf.scene);this.fallback.visible=false;
+      this.visualModel=gltf.scene;this.group.add(gltf.scene);this.fallback.visible=false;
       this.group.userData.environmentStatus="ready";
     } catch (error) {
       this.group.userData.environmentStatus="fallback";
       console.warn(`${this.options.name} model could not load; using the furnished fallback.`,error);
     }
   }
+  protected prepareVisuals(_model: THREE.Group): void {}
   pick(raycaster: THREE.Raycaster): THREE.Intersection | undefined {
     if (!this.group.visible) return undefined;
     this.group.updateMatrixWorld(true);
     if(this.characters)this.deskPrompt.layers.mask=this.characters.ready?0:1;
     const furniture=raycaster.intersectObjects([this.floor,...this.solids],false)[0];
     const prop=raycaster.intersectObjects(this.props.filter(p=>!p.returning && !p.held).map(p=>p.group),true)[0];
-    const nearest=prop && (!furniture || prop.distance < furniture.distance) ? prop : furniture;
+    // Furniture collision boxes enclose shelves as well as the books on them.
+    // For pickup, check the actual art so a shelf proxy cannot hide its contents.
+    const obstruction=prop && this.visualModel ? raycaster.intersectObject(this.visualModel,true)[0] : furniture;
+    const nearest=prop && (!obstruction || prop.distance < obstruction.distance) ? prop : furniture;
     const person=this.characters?.pick(raycaster);
     return person && (!nearest || person.distance<nearest.distance) ? person : nearest;
   }

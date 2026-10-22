@@ -132,6 +132,220 @@
         "labelHeight": 1.96,
         "height": 1.8,
         "yaw": -0.5
+      },
+      {
+        "id": "whitehead",
+        "position": [
+          -6.5,
+          -0.135,
+          -5.6
+        ],
+        "pose": "standing",
+        "coat": "292b2c",
+        "vest": "3b3a37",
+        "labelHeight": 1.96,
+        "height": 1.8,
+        "yaw": 0.25
+      },
+      {
+        "id": "seamstress",
+        "position": [
+          -0.4,
+          -0.135,
+          -6.7
+        ],
+        "pose": "standing",
+        "coat": "61525f",
+        "vest": "a8a296",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": 0.1,
+        "dress": true
+      },
+      {
+        "id": "laundress",
+        "position": [
+          0.8,
+          -0.135,
+          -6.5
+        ],
+        "pose": "standing",
+        "coat": "4b6264",
+        "vest": "bdb29a",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": 0.1,
+        "dress": true
+      },
+      {
+        "id": "porter",
+        "position": [
+          6.6,
+          -0.135,
+          8.8
+        ],
+        "pose": "standing",
+        "coat": "6d5840",
+        "vest": "8c7857",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": 0.1
+      },
+      {
+        "id": "messenger",
+        "position": [
+          -12,
+          -0.135,
+          -3.6
+        ],
+        "pose": "standing",
+        "coat": "48566b",
+        "vest": "91816b",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": 0.1
+      }
+    ]
+  },
+  "board": {
+    "asset": "board-characters",
+    "room": "board-room",
+    "label": "Board of Guardians",
+    "hotspot": "board-hearing",
+    "actors": [
+      {
+        "id": "board-snow",
+        "position": [
+          2.2,
+          0,
+          2.2
+        ],
+        "pose": "standing",
+        "coat": "303336",
+        "vest": "4e4b43",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": -0.55
+      },
+      {
+        "id": "board-chair",
+        "position": [
+          0,
+          0,
+          -4.5
+        ],
+        "pose": "lap",
+        "coat": "363b42",
+        "vest": "676363",
+        "height": 1.45,
+        "labelHeight": 1.62
+      },
+      {
+        "id": "board-tradesman",
+        "position": [
+          -1.85,
+          0,
+          -1.7
+        ],
+        "pose": "lap",
+        "coat": "4c392e",
+        "vest": "82694d",
+        "height": 1.45,
+        "labelHeight": 1.62,
+        "yaw": 1.5708
+      },
+      {
+        "id": "board-guardian",
+        "position": [
+          1.85,
+          0,
+          -2.5
+        ],
+        "pose": "lap",
+        "coat": "34463d",
+        "vest": "7c7b61",
+        "height": 1.45,
+        "labelHeight": 1.62,
+        "yaw": -1.5708
+      }
+    ]
+  },
+  "household-routines": {
+    "asset": "household-routines-characters",
+    "room": "household-routines-room",
+    "actors": [
+      {
+        "id": "water-householder",
+        "position": [
+          -0.65,
+          0,
+          -0.2
+        ],
+        "pose": "standing",
+        "coat": "5a5145",
+        "vest": "8b7861",
+        "height": 1.8,
+        "labelHeight": 1.86,
+        "yaw": 0
+      }
+    ]
+  },
+  "household-away": {
+    "asset": "household-away-characters",
+    "room": "household-away-room",
+    "actors": [
+      {
+        "id": "away-householder",
+        "position": [
+          1,
+          0,
+          -1
+        ],
+        "pose": "standing",
+        "coat": "3c4b50",
+        "vest": "77705e",
+        "height": 1.8,
+        "labelHeight": 1.86,
+        "yaw": 0
+      }
+    ]
+  },
+  "manufactory": {
+    "asset": "manufactory-characters",
+    "room": "manufactory-room",
+    "label": "Workshop worker",
+    "hotspot": "manufactory-worker",
+    "actors": [
+      {
+        "id": "factory-worker",
+        "source": "seamstress",
+        "position": [
+          -0.9,
+          0,
+          -0.4
+        ],
+        "pose": "standing",
+        "dress": true,
+        "coat": "716354",
+        "vest": "716354",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": 0.1
+      },
+      {
+        "id": "factory-assistant",
+        "source": "porter",
+        "position": [
+          2.1,
+          0,
+          -2.65
+        ],
+        "pose": "standing",
+        "coat": "494b48",
+        "vest": "73705e",
+        "height": 1.8,
+        "labelHeight": 1.96,
+        "yaw": -0.7
       }
     ]
   }

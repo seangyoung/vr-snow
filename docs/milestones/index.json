@@ -46,5 +46,13 @@
     "commit": "f7016949c777dc6eaf1f625ea4fc5b9fa1bf68c6",
     "commitDate": "2026-10-15",
     "description": "Working pump, returning inspectable props and subtle character idle movement."
+  },
+  {
+    "slug": "07-three-day-inquiry",
+    "title": "Three-day inquiry",
+    "tag": "milestone/07-three-day-inquiry",
+    "commit": "4fcd81016f9fb632f3fa9fadca781a30f19b6ef8",
+    "commitDate": "2026-10-21",
+    "description": "September 5\u20137 campaign with daily assignments, branching conversations, map comparison, manufactory, Board hearing, local saves and contextual street encounters. Approved for main on October 22."
   }
 ]

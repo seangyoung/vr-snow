@@ -6,6 +6,12 @@ The main app is a walkable WebXR inquiry with desktop keyboard and mouse support
 
 - [docs/game-design.md](docs/game-design.md)
 
+## Three-day inquiry
+
+The main experience spans September 5–7: daily assignments and recaps, conversations with residents and Whitehead, three households, the manufactory, a map-table pump-access comparison, and a walkable Board hearing. Browser-local saves offer Continue and New Inquiry. See [implementation, historical sources and validation notes](docs/inquiry-next.md).
+
+The former [inquiry preview](https://seangyoung.github.io/vr-snow/preview/inquiry/) redirects to the main app. Visiting that address copies its saved inquiry only if no main-app save exists, retaining the original preview save. The app validates saves before offering Continue.
+
 ## Run the App
 
 ```bash
@@ -18,13 +24,13 @@ Open the local Vite URL, usually `http://127.0.0.1:5173/`.
 ## Published App and Development History
 
 The current app is published from `main` at <https://seangyoung.github.io/vr-snow/>.
-The former `/vr-snow/walkable/` address redirects there. Pushes to `main` run the interaction tests, production build and web app checks before deployment. Pull requests run the same checks without publishing.
+The former `/vr-snow/walkable/` and `/vr-snow/preview/inquiry/` addresses redirect there. Pushes to `main` run the interaction tests, production build and web app checks before deployment. Pull requests run the same checks without publishing.
 
 Earlier experiences are frozen milestones, not maintained branches. See the [development milestone record](docs/development-milestones.md) for named source tags, downloadable runnable snapshots, presentation screenshots and reproduction instructions.
 
 ## Walkable street and interiors
 
-Broad Street is a textured, source-informed reconstruction of the pump junction, with an editable Blender environment and a selectable pump. Snow’s office is a compact furnished 3D room with desk interaction and a doorway to Broad Street; see [office scope and headset checks](docs/walkable-office.md). The [registrar’s records room](docs/walkable-registrar.md) also supports walking, ledger interaction and doorway return to Snow. The [household interior](docs/walkable-household.md) adds a compact domestic room, a marked interview chair and a return doorway to Broad Street. The [workhouse courtyard](docs/walkable-workhouse.md) adds an open-air yard, steward interview and a Poland Street exit back to Broad Street. The [brewery interior](docs/walkable-brewery.md) supports walking around copper vessels, the owners’ interview and a doorway back to Broad Street. The Board scene retains its panorama. See [the reconstruction sources and asset workflow](docs/broad-street-reconstruction.md) and [the headset test card](docs/walkable-pump-test.md) for controls, scope, and acceptance checks.
+Broad Street is a textured, source-informed reconstruction of the pump junction, with an editable Blender environment and a selectable pump. Snow’s office is a compact furnished 3D room with desk interaction and a doorway to Broad Street; see [office scope and headset checks](docs/walkable-office.md). The [registrar’s records room](docs/walkable-registrar.md) also supports walking, ledger interaction and doorway return to Snow. The [household interior](docs/walkable-household.md) adds a compact domestic room, a marked interview chair and a return doorway to Broad Street. The [workhouse courtyard](docs/walkable-workhouse.md) adds an open-air yard, steward interview and a Poland Street exit back to Broad Street. The [brewery interior](docs/walkable-brewery.md) supports walking around copper vessels, the owners’ interview and a doorway back to Broad Street. The Board meeting takes place in a walkable room with Snow and three members, a map on the table, and a staged hearing. See [the reconstruction sources and asset workflow](docs/broad-street-reconstruction.md) and [the headset test card](docs/walkable-pump-test.md) for controls, scope, and acceptance checks.
 
 Desktop keyboard controls: WASD moves, all four arrows look, and Space/Enter selects the centered target. M opens the map; N opens the notebook. Panels use Tab/Shift+Tab or arrows to choose, Enter/Space to activate, Escape to close, and Page Up/Down to scroll. See [keyboard controls and test card](docs/desktop-keyboard.md).
 
@@ -40,7 +46,7 @@ The app includes a web app manifest, install icons, maskable icon and Apple touc
 
 ## Concept
 
-Players are an apprentice to John Snow during the 1854 Broad Street outbreak. In walkable 3D scenes and the final Board panorama, they interview residents, collect case records, compare hypotheses, build a map, and present evidence to the parish authorities. The goal is to teach field epidemiology, historical uncertainty, public health decision-making, and the power of visualizing data.
+Players are an apprentice to John Snow during the 1854 Broad Street outbreak. Across walkable 3D scenes and the final Board hearing, they interview residents, collect case records, compare hypotheses, build a map, and present evidence to the parish authorities. The goal is to teach field epidemiology, historical uncertainty, public health decision-making, and the power of visualizing data.
 
 ## Design Direction
 

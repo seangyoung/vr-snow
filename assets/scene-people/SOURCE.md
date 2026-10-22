@@ -1,6 +1,6 @@
 # Authored MakeHuman scene figures
 
-The seven `.blend` files in this folder are the authoritative, editable sources.
+The `.blend` files in this folder are the authoritative, editable sources.
 They contain MakeHuman anatomy, individual facial shape keys, fitted clothing,
 packed textures, and an editable FK rig. They open in Blender without MPFB.
 Normal exports do not regenerate or overwrite them.
@@ -48,8 +48,8 @@ geometry or reference-room geometry is exported.
 Generated outputs live under `assets/<scene>-characters/` and `public/models/`.
 Build reports record a SHA-256 for each authored source so stale exports can be
 detected. The per-person limits are 30,000 triangles, 12 mesh batches, and 3 MiB
-of GLB data. Each scene retains a 1024-square lighting atlas and small reflection
-capture. Embedded skin/hair textures add memory compared with the former
+of GLB data. The seven-person street cast uses a 2048-square lighting atlas; smaller casts
+retain 1024-square atlases. Each has a small reflection capture. Embedded skin/hair textures add memory compared with the former
 procedural figures; headset frame rate and scene-entry stalls need device review.
 
 ## Optional initial authoring
@@ -86,3 +86,62 @@ desk in the center of the brewhouse. `pose_brewery_owners.py` resets the saved r
 to a settled standing stance, with relaxed wrists and hands beside the thighs.
 Their distinct faces, hair, clothing and packed textures are preserved. Normal
 exports read these saved sources rather than recreating the earlier seated pose.
+
+## Inquiry prototype: Whitehead and the Board
+
+`whitehead.blend` adds a younger, dark-haired local curate with a distinct face;
+this is an interpretive figure, not a claimed portrait reconstruction. The three
+`board-chair`, `board-tradesman` and `board-guardian` sources are unnamed
+representative officials with distinct profiles and lap-resting seated poses.
+Their individual wrist heights are recorded in `refine_character_poses.py`.
+Whitehead uses the relaxed standing pose from `pose_brewery_owners.py`.
+His corrected profile uses the adult part of MakeHuman's age slider (.54): .30
+blended child and young-adult targets, shortening the anatomy beneath adult-sized
+clothing and invalidating the standing wrist targets. The figure represents a
+29-year-old adult; the slider is not a fraction of a century. Adult head, collar
+and shoulder alignment are checked in the exported GLB, alongside front/side
+portrait and runtime idle review.
+
+`board-snow.blend` derives from the approved `assets/snow-character/snow-source.blend`,
+reposed to stand with relaxed hands using `pose_brewery_owners.py`; it preserves
+Snow's portrait-derived anatomy and textures. Hair has an explicit neutral .95
+multiplicative export tint. It is not generated from another person's profile.
+
+Export with `build_scene_characters.py -- board` or `-- street`. Board lighting
+comes from the interpretive `assets/board-room/board-room.blend`, generated with
+`build_board_room.py`. The saved sources, including packed textures, remain the
+editable authority; one-time authoring scripts are not rerun for routine exports.
+See `docs/inquiry-next.md` for historical boundaries and the pending Quest review.
+
+## Inquiry household composites
+
+`water-householder.blend` and `away-householder.blend` are fictional adults,
+created with the existing MakeHuman anatomical and clothing pipeline. The
+appearance profiles use adult age targets (.60 and .68), distinct facial
+proportions and coat colors, and relaxed standing poses. Neither claims a likeness
+to a documented household member. Their rooms, possessions and testimony are
+explicit teaching composites. Export with `build_scene_characters.py --
+household-routines` or `-- household-away`; room source files and lightmap reports
+are in the corresponding `assets/household-*-room` folders.
+
+### Clerical appearance refinement, 16 October 2026
+
+Whitehead's added beard, moustache, white neckcloth/bands and frock-coat skirts are
+original authored geometry (`scripts/assets/refine_whitehead_clerical.py`). The
+beard strand image is generated deterministically and packed into the source.
+The full-beard reference is the [1884 Scott and Sons photograph](https://commons.wikimedia.org/wiki/File:Whitehead_henry1884.jpg),
+not a photograph from the outbreak; this remains an interpretive younger figure.
+The four former background clones now have independent authored sources: an adult
+seamstress, an older laundress, a stockier porter, and a slimmer messenger. Their
+profiles vary face shape, nose, cheeks, eyes, hair and clothing. The women have
+continuous standing dresses, fitted opaque buns, and a plain plum bodice or linen apron;
+the men wear work caps. These are composite residents, not portrait likenesses.
+`refine_street_wardrobe.py` records the initial wardrobe authoring, followed by
+`fit_street_accessories.py` for fitting. Normal exports read the saved sources.
+
+`refit_whitehead_face.py` replaces the detached beard forms with a continuous,
+face-fitted beard and moustache. Dense facial hair shares nearby cheek lighting
+to avoid black bake artifacts. Whitehead retains his skeptical conversations.
+All seven street figures use the same daily placement and interaction manifest;
+there are no extra runtime clones. Their optional conversations vary by day and
+never grant evidence cards or advance required objectives.

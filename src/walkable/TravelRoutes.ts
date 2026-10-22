@@ -17,15 +17,20 @@ export interface WorldTravelRoute {
 
 /** These are route entrances, not straight-line bearings or measured destination positions. */
 export const streetTravelRoutes: WorldTravelRoute[] = [
+ {id:'street-manufactory',from:'broad-street',to:'manufactory',title:'37 Broad Street',direction:'Percussion-cap manufactory',position:[10.2,1.65,1.6],yaw:-Math.PI/2,labelWidth:1.7,zone:{x:10.1,z:1.6,radius:.55}},
+ {id:'street-routines',from:'broad-street',to:'household-routines',title:'Household 2',direction:'WEST · Household 2',position:[-13.4,1.65,-1.5],yaw:Math.PI/2,zone:{x:-12.3,z:-1.5,radius:.65}},
+ {id:'street-away',from:'broad-street',to:'household-away',title:'Household 3',direction:'WEST, THEN SOUTH · Household 3',position:[-13.4,1.65,2.0],yaw:Math.PI/2,zone:{x:-12.3,z:2,radius:.65}},
   { id: "street-brewery", from: "broad-street", to: "brewery", title: "Lion Brewery", direction: "EAST · Along Broad Street", position: [13.4, 1.65, -1.5], yaw: -Math.PI/2, zone: {x:12.3,z:-1.5,radius:.75} },
   { id: "street-workhouse", from: "broad-street", to: "workhouse", title: "St. James Workhouse", direction: "EAST, THEN NORTH · Poland St", position: [13.4, 1.65, -6.2], yaw: -Math.PI/2, zone: {x:12.3,z:-6.2,radius:.75} },
   { id: "street-snow", from: "broad-street", to: "snow-desk", title: "Snow's Desk", direction: "SOUTH · Continue via Cambridge St", position: [2.3, 1.65, 11.7], yaw: Math.PI, zone: {x:2.3,z:10.6,radius:.75} },
   { id: "street-registrar", from: "broad-street", to: "registrar", title: "Registrar's Ledger", direction: "SOUTH · Onward to the records office", position: [6.1, 1.65, 11.7], yaw: Math.PI, zone: {x:6.1,z:10.6,radius:.75} },
   // The right-hand door in the northern shop frontage is an illustrative household entrance.
-  { id: "street-household", from: "broad-street", to: "household", title: "Broad Street Household", direction: "Household interview · This door", position: [-11, 2.85, -8.72], labelOffset: [0, 0, .22], yaw: 0, zone: {x:-11,z:-7.15,radius:.65}, door: true },
+  { id: "street-household", from: "broad-street", to: "household", title: "Household 1", direction: "Household interview · This door", position: [-11, 2.85, -8.72], labelOffset: [0, 0, .22], yaw: 0, zone: {x:-11,z:-7.15,radius:.65}, door: true },
 ];
 
 export const returnTravelRoutes: WorldTravelRoute[] = [
+ {id:'manufactory-return',from:'manufactory',to:'broad-street',title:'Return to Broad Street',direction:'Leave the workshop',position:[0,2.8,3.8],yaw:Math.PI,labelWidth:1.45,zone:{x:0,z:3.25,radius:.4},door:true},
+ ...(['household-routines','household-away'] as const).map(from=>({id:from+'-return',from,to:'broad-street' as const,title:'Return to Broad Street',direction:'Leave the household',position:[1.25,2.8,3.2] as [number,number,number],labelWidth:1.45,yaw:Math.PI,zone:{x:1.25,z:2.8,radius:.32},door:true})),
   // Fixed exits in panorama scenes; the modeled interiors also have walk-in doorway zones.
   { id:"household-return", from:"household", to:"broad-street", title:"Return to Broad Street", direction:"Leave the household", position:[1.25,2.8,2.8],labelWidth:1.45,yaw:Math.PI, zone:{x:1.25,z:2.4,radius:.32}, door:true },
   { id:"brewery-return", from:"brewery", to:"broad-street", title:"Return to Broad Street", direction:"Leave the brewery", position:[1.8,2.8,5.8],labelWidth:1.45,yaw:Math.PI, zone:{x:1.8,z:5.25,radius:.4}, door:true },

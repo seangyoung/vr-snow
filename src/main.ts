@@ -12,9 +12,18 @@ if (!canvas || !app) {
 }
 
 const gameState = new GameState();
+// Explicit review link bypasses fieldwork only for visual inspection, never awards evidence.
+if (new URLSearchParams(location.search).get("review") === "board") gameState.previewBoardRoom();
+if(new URLSearchParams(location.search).get('review') !== 'board') {
+  let storage: Storage | undefined;
+  try { storage=window.localStorage; } catch { /* Storage may be disabled. */ }
+  gameState.configurePersistence(storage,import.meta.env.BASE_URL || '/');
+}
 const ui = createUi(app, gameState);
 const scene = new BroadStreetScene(canvas, gameState);
 const sound = new Soundscape();
+ui.onEndDay=()=>scene.endDay();
+scene.onDayTransitionComplete=()=>ui.render();
 scene.setSoundscape(sound);
 ui.setSoundControls(sound);
 let evidenceCount=gameState.getCollectedEvidence().length;
@@ -29,6 +38,7 @@ app.addEventListener("click",(event)=>{
   if(button&&!button.disabled)sound.effect(["map","notebook","close"].includes(button.dataset.action??"")?"paper":"select");
 },{capture:true});
 let lastLocationId = gameState.getCurrentLocation().id;
+let lastFieldworkTravel = gameState.fieldworkTravelRevision;
 
 ui.setMotionLookControls({
   isAvailable: () => scene.isMotionLookAvailable(),
@@ -63,7 +73,8 @@ gameState.onChange(() => {
   evidenceCount=nextCount;
   ui.render();
   const currentLocationId = gameState.getCurrentLocation().id;
-  if (currentLocationId !== lastLocationId) {
+  if (currentLocationId !== lastLocationId || lastFieldworkTravel !== gameState.fieldworkTravelRevision) {
+    lastFieldworkTravel = gameState.fieldworkTravelRevision;
     lastLocationId = currentLocationId;
     scene.applyCurrentLocation();
   } else {

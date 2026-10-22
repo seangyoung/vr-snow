@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>The Broad Street Inquiry has moved</title>
+  <script>
+    const destination = new URL('../../', window.location.href);
+    destination.search = window.location.search;
+    destination.hash = window.location.hash;
+    // Keep the original preview save. Never replace an existing main-app save.
+    // The app validates the copied save before offering Continue.
+    try {
+      const previewPath = new URL('./', window.location.href).pathname;
+      const from = 'broad-street-inquiry:v1:' + previewPath;
+      const to = 'broad-street-inquiry:v1:' + destination.pathname;
+      const saved = window.localStorage.getItem(from);
+      if (saved && window.localStorage.getItem(to) === null) window.localStorage.setItem(to, saved);
+    } catch { /* Unavailable storage must not prevent the redirect. */ }
+    window.location.replace(destination.href);
+  </script>
+</head>
+<body>
+  <p>The three-day inquiry is now the main app. <a href="../../">Open The Broad Street Inquiry</a>.</p>
+</body>
+</html>

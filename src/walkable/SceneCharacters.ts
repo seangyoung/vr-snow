@@ -1,5 +1,8 @@
+import { streetPlacement } from '../simulation/streetPopulation';
+import type { InquiryDay } from '../simulation/campaign';
 import * as THREE from "three";
 import { CharacterIdle } from "./CharacterIdle";
+import { createStreetNewspaper } from "./StreetNewspaper";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import definitions from "./scene-characters.json" with { type: "json" };
 import { loadBakedRoomLighting } from "./BakedRoomLighting";
@@ -14,6 +17,9 @@ export class SceneCharacters {
   readonly targets: THREE.Mesh[] = [];
   readonly labelPosition = new THREE.Vector3();
   private loading?: Promise<void>;
+  private day: InquiryDay = 1;
+  private model?: THREE.Group;
+  private newspaper?: THREE.Group;
   private idles: CharacterIdle[] = [];
   private readonly footprints: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }> = [];
   constructor(readonly key: CharacterScene) {
@@ -37,6 +43,12 @@ export class SceneCharacters {
       const {asset,actors} = definitions[this.key];
       model=(await new GLTFLoader().loadAsync(`${basePath}models/${asset}.glb`)).scene;
       await loadBakedRoomLighting(model,basePath,{lightMap:`${asset}-lightmap.png`,environment:`${asset}-environment.png`,preserveVertexColors:true});
+      this.model=model;
+      if(this.key==='street') {
+        const reader=model.getObjectByName('resident-west_root');
+        if(reader) { this.newspaper=createStreetNewspaper();reader.add(this.newspaper); }
+      }
+      this.setDay(this.day);
       for (const [index, actor] of actors.entries()) {
         const root=model.getObjectByName(`${actor.id}_root`);
         if(root)this.idles.push(new CharacterIdle(root,index*2.17+actor.id.length*.7,actor.pose!=="standing"));
@@ -50,13 +62,28 @@ export class SceneCharacters {
       console.warn(`${this.key} figures could not load; existing scene interactions remain available.`,error);
     }
   }
-  pick(raycaster: THREE.Raycaster): THREE.Intersection | undefined {
-    return this.ready ? raycaster.intersectObjects(this.targets,false)[0] : undefined;
+  setDay(day: InquiryDay): void {
+    this.day=day;
+    if(this.key!=="street")return;
+    if(this.newspaper)this.newspaper.visible=day===3;
+    this.footprints.length=0;
+    const footprint=(x:number,z:number)=>this.footprints.push({minX:x-.46,maxX:x+.46,minZ:z-.40,maxZ:z+.57});
+    for(const actor of definitions.street.actors) {
+      const placement=streetPlacement(day,actor.id)!;const [x,y,z]=placement.position;
+      const target=this.targets.find(t=>t.name===actor.id)!;
+      target.position.set(x,y+actor.height/2,z+.08);footprint(x,z);
+      const root=this.model?.getObjectByName(`${actor.id}_root`);
+      if(root) { root.position.set(x,y,z);root.rotation.set(0,placement.yaw,0); }
+    }
+    this.group.updateMatrixWorld(true);
   }
-  owns(object: THREE.Object3D): boolean { return this.ready && this.targets.includes(object as THREE.Mesh); }
-  blocks(point: THREE.Vector3): boolean { return this.ready && this.footprints.some(rect=>inRectangle(point,rect)); }
+  pick(raycaster: THREE.Raycaster): THREE.Intersection | undefined {
+    return this.group.visible && this.ready ? raycaster.intersectObjects(this.targets,false)[0] : undefined;
+  }
+  owns(object: THREE.Object3D): boolean { return this.group.visible && this.ready && this.targets.includes(object as THREE.Mesh); }
+  blocks(point: THREE.Vector3): boolean { return this.group.visible && this.ready && this.footprints.some(rect=>inRectangle(point,rect)); }
   blocksPath(from: THREE.Vector3,to: THREE.Vector3): boolean {
-    return this.ready && this.footprints.some(rect=>{
+    return this.group.visible && this.ready && this.footprints.some(rect=>{
       if(inRectangle(from,rect)) {
         // A figure finishing its load must not trap a visitor already at its feet.
         const cx=(rect.minX+rect.maxX)/2,cz=(rect.minZ+rect.maxZ)/2;

@@ -1,0 +1,54 @@
+{
+  "scene": "manufactory",
+  "actors": [
+    {
+      "id": "factory-worker",
+      "source": "seamstress",
+      "position": [
+        -0.9,
+        0,
+        -0.4
+      ],
+      "pose": "standing",
+      "dress": true,
+      "coat": "716354",
+      "vest": "716354",
+      "height": 1.8,
+      "labelHeight": 1.96,
+      "yaw": 0.1
+    },
+    {
+      "id": "factory-assistant",
+      "source": "porter",
+      "position": [
+        2.1,
+        0,
+        -2.65
+      ],
+      "pose": "standing",
+      "coat": "494b48",
+      "vest": "73705e",
+      "height": 1.8,
+      "labelHeight": 1.96,
+      "yaw": -0.7
+    }
+  ],
+  "anatomicalBase": "MakeHuman hm08 / MPFB",
+  "sources": {
+    "factory-worker": "8c38fa9efafdfed3b7a8a5433fcd8e935525cf7dbdfa177c7d85bbfa27ea8952",
+    "factory-assistant": "ac9b337c621f5c418abdda1b5e4208566be2618073370cd20846b5e31626ee29"
+  },
+  "runtimeSkeleton": false,
+  "triangles": 51522,
+  "materialBatches": 23,
+  "bakedLighting": {
+    "size": 1024,
+    "normalization": 4,
+    "diffusePeak999": 5.7499,
+    "environmentSize": [
+      256,
+      128
+    ]
+  },
+  "interpretive": true
+}

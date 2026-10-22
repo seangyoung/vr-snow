@@ -1,4 +1,4 @@
-"""Rebuild curated mono WAVs. Requires numpy + soundfile; no runtime dependency.
+"""Rebuild curated mono WAVs. Requires numpy, soundfile, imageio-ffmpeg; no runtime dependency.
 Usage: python prepare_ambience.py [download-cache-directory]
 Original files are cached outside the repository; source hashes and licenses ship.
 """
@@ -50,3 +50,5 @@ for key,(url,page,author,license) in SOURCES.items():
     changes='Mono, low-pass/downsampled to 22050 Hz, peak normalized, edge fades; wagon excerpt 1-13 seconds' if key=='wagon' else 'Mono, low-pass/downsampled to 22050 Hz, peak normalized, edge fades'))
 (OUT/'sources.json').write_text(json.dumps(manifest,indent=2)+'\n')
 print(f'{len(manifest)} clips; {sum(x["bytes"] for x in manifest):,} download bytes; {sum(x["seconds"] for x in manifest):.2f} seconds')
+from prepare_pump_water import prepare
+prepare(CACHE, OUT)

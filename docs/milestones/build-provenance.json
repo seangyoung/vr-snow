@@ -94,5 +94,21 @@
     "zip": "06-tactile-interactions.zip",
     "bytes": 60999832,
     "sha256": "472bf8ce435914d41d4b549e82a2940f4c624dda7bc95c707bf7aab853a006bf"
+  },
+  {
+    "slug": "07-three-day-inquiry",
+    "title": "Three-day inquiry",
+    "tag": "milestone/07-three-day-inquiry",
+    "commit": "4fcd81016f9fb632f3fa9fadca781a30f19b6ef8",
+    "commitDate": "2026-10-21",
+    "description": "September 5\u20137 campaign with daily assignments, branching conversations, map comparison, manufactory, Board hearing, local saves and contextual street encounters. Approved for main on October 22.",
+    "archiveDate": "2026-10-22",
+    "node": "v22.17.0",
+    "npm": "10.9.2",
+    "buildBase": "./",
+    "sourceModified": false,
+    "zip": "07-three-day-inquiry.zip",
+    "bytes": 162434772,
+    "sha256": "e13e681257f55175c34aa861c70b6764d3410b670f4a7fa5b18f7cf0868fc401"
   }
 ]

@@ -1,8 +1,10 @@
+import { inquiryOpening } from '../simulation/campaign';
+import { surveyRoutes } from "../simulation/fieldwork";
 import type { SoundControls } from "../audio/Soundscape";
 import { DesktopKeyboard } from "./DesktopKeyboard";
 import { OutsidePanelDismiss } from "./OutsidePanelDismiss";
 import { createIcons, icons } from "lucide";
-import { boardThreshold, fieldStudyGoal, locationEvidenceIds, noDialogueActionsText } from "../simulation/content";
+import { fieldStudyGoal, locationEvidenceIds, noDialogueActionsText } from "../simulation/content";
 import type { GameState } from "../simulation/gameState";
 import type {
   ChapterScene,
@@ -65,8 +67,8 @@ const mapAnnotations: Array<{
   },
   {
     evidenceId: "household-water-pattern",
-    title: "Interview tally",
-    body: "Most early deaths with known histories connect back to Broad Street pump use.",
+    title: "Water preferences",
+    body: "A household chooses Broad Street water for its taste and collects it during errands.",
     x: 43,
     y: 67,
     kind: "household",
@@ -107,6 +109,7 @@ const mapAnnotations: Array<{
 
 export interface PrototypeUi {
   onReset?: () => void;
+  onEndDay?: () => void;
   openSnowReview: () => void;
   beginTravel: (locationId: LocationId) => void;
   render: () => void;
@@ -125,10 +128,13 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   let previousStage = gameState.getStage();
   let soundControls: SoundControls | undefined;
   let motionLookControls: MotionLookControls | undefined;
-  const keyboard = new DesktopKeyboard(root, document.getElementById("scene"), () => isTransitioning);
-  new OutsidePanelDismiss(root, () => !isTransitioning && document.body.dataset.xrPresenting !== "true", dismissPanels);
+  const keyboard = new DesktopKeyboard(root, document.getElementById("scene"), () => isTransitioning || document.body.dataset.dayTransition==='true');
+  new OutsidePanelDismiss(root, () => !isTransitioning && document.body.dataset.dayTransition!=='true' && document.body.dataset.xrPresenting !== "true", dismissPanels,
+    event => document.body.dataset.conversationOpen==='true' && event.target===document.getElementById('scene'));
 
   function dismissPanels(): void {
+    if(gameState.startupOpen)return;
+    if(gameState.dayIntroOpen)gameState.dismissDayIntroduction();
     overlayMode = "none";
     snowReviewOpen = false;
     dismissedChapter = gameState.getStage();
@@ -164,6 +170,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   };
 
   root.addEventListener("click", (event) => {
+    if(document.body.dataset.dayTransition==='true')return;
     const target = event.target as HTMLElement;
     const actionTarget = target.closest<HTMLElement>("[data-action]");
     const action = actionTarget?.dataset.action;
@@ -171,6 +178,17 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       return;
     }
 
+    if(gameState.startupOpen && !['continue-inquiry','new-inquiry'].includes(action))return;
+    if(gameState.dayIntroOpen && !gameState.startupOpen && !['dismiss-day','new-inquiry'].includes(action))return;
+    if((action==='map' || action==='map-primary') && !gameState.canUseMap())return;
+    if(action==='resume-survey'){overlayMode='none';gameState.resumePumpComparison();render();return;}
+    if(action==='guided-survey'){gameState.advancePumpComparison(actionTarget.dataset.step!,actionTarget.dataset.surveyKey);render();return;}
+    if(action==='continue-inquiry'){gameState.continueInquiry();render();return;}
+    if(action==='new-inquiry'){ui.onReset?.();render();return;}
+    if(action==='dismiss-day'){gameState.dismissDayIntroduction();render();return;}
+    if(action==='end-day'){if(ui.onEndDay)ui.onEndDay();else gameState.endDay();render();return;}
+    if(action==='board-decision'){gameState.closeDialogue();dismissedChapter=undefined;overlayMode='none';render();return;}
+    if(action==='review-theory'){gameState.closeDialogue();ui.openSnowReview();return;}
     const stage = gameState.getStage();
     const toolsAvailable = stage !== "briefing" && stage !== "board";
 
@@ -233,7 +251,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           gameState.clearActiveDialogueAnswer();
           snowReviewOpen = true;
           overlayMode = "none";
-          message = "Compare the strongest evidence, choose a theory, then prepare the Board argument.";
+          message = "Compare the strongest evidence, choose a theory, then attend the meeting.";
           render();
           return;
         }
@@ -242,11 +260,19 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         return;
       }
 
-      message = `Gather ${boardThreshold} evidence cards before preparing a Board argument.`;
+      if(gameState.isDayFieldworkComplete() || !gameState.hasCurrentAssignment()) {
+        if(gameState.getCurrentLocation().id==='snow-desk'){overlayMode='none';gameState.inspectHotspot('john-snow');render();}
+        else beginTravel('snow-desk');
+        return;
+      }
+      message = gameState.getObjective();
       render();
       return;
     }
 
+    if (action === "conversation-choice") {
+      gameState.chooseConversation(actionTarget.dataset.beatId ?? "", actionTarget.dataset.choiceId ?? "");
+    }
     if (action === "ask") {
       const questionId = actionTarget.dataset.questionId;
       if (!questionId) {
@@ -262,11 +288,6 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         return;
       }
       const result = gameState.selectHypothesis(hypothesisId);
-      message = result.message;
-    }
-
-    if (action === "prepare-board") {
-      const result = gameState.prepareBoardArgument();
       message = result.message;
     }
 
@@ -291,7 +312,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       snowReviewOpen = false;
       overlayMode = overlayMode === "notebook" ? "none" : "notebook";
     }
-    if (action === "map" && toolsAvailable) {
+    if (action === "map" && toolsAvailable && gameState.canUseMap()) {
       gameState.closeDialogue();
       snowReviewOpen = false;
       overlayMode = overlayMode === "map" ? "none" : "map";
@@ -308,20 +329,22 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       ui.onReset?.();
     }
     if (action === "present") {
-      const result = gameState.presentToBoard();
+      const result = gameState.attendBoardMeeting();
       overlayMode = "none";
       message = result.message;
     }
+    if (action === "begin-hearing") gameState.beginHearing();
     if (action === "finish-board") {
       gameState.finishBoard();
       overlayMode = "none";
-      message = "Late September records are open. Review the notebook or replay the inquiry.";
+      message = gameState.isPumpClosed() ? "September 8: the handle has been removed. Close this panel to see the notice on the pump." : "The Board leaves the pump open, against Snow’s advice.";
     }
     render();
   });
 
   function render(): void {
     keyboard.beforeRender();
+    if(overlayMode==='map' && !gameState.canUseMap())overlayMode='none';
     const collected = gameState.getCollectedEvidence();
     const allEvidence = gameState.getAllEvidence();
     const activeDialogue = gameState.getActiveDialogue();
@@ -329,7 +352,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     if (stage !== previousStage) { dismissedChapter = undefined; previousStage = stage; }
     const currentLocation = gameState.getCurrentLocation();
     const hasChapterPanel = stage === "briefing" || stage === "board" || stage === "complete";
-    const showChapterPanel = hasChapterPanel && dismissedChapter !== stage && overlayMode === "none" && !activeDialogue;
+    const showChapterPanel = !gameState.startupOpen && !gameState.dayIntroOpen && hasChapterPanel && dismissedChapter !== stage && overlayMode === "none" && !activeDialogue;
     const showSynthesisPanel =
       stage === "synthesis" &&
       currentLocation.id === "snow-desk" &&
@@ -338,30 +361,33 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       !activeDialogue &&
       !isTransitioning;
     document.body.dataset.overlayOpen =
-      overlayMode === "none" && !showChapterPanel && !isTransitioning && !activeDialogue && !showSynthesisPanel
+      !gameState.startupOpen && !gameState.dayIntroOpen && overlayMode === "none" && !showChapterPanel && !isTransitioning && !activeDialogue && !showSynthesisPanel
         ? "false"
         : "true";
     document.body.dataset.audioReading = document.body.dataset.overlayOpen === "true" && overlayMode !== "sound" ? "true" : "false";
+    document.body.dataset.conversationOpen = !gameState.startupOpen && !gameState.dayIntroOpen && !isTransitioning
+      && overlayMode==='none' && !!gameState.getConversationView() ? 'true' : 'false';
     document.body.dataset.stage = stage;
 
     root.innerHTML = `
       <div class="hud" data-overlay="${overlayMode}" data-stage="${stage}" data-synthesis-panel="${showSynthesisPanel}">
         <section class="objective-chip" aria-label="Current objective">
-          <span class="objective-kicker">Broad Street Inquiry</span>
+          <span class="objective-kicker">The Broad Street Inquiry · ${escapeHtml(gameState.getDisplayDate())}</span>
           <strong>${escapeHtml(gameState.getObjective())}</strong>
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
           <span class="location-line">${escapeHtml(gameState.getInteractionHint())}</span>
-          ${currentLocation.id !== "board-room" ? '<span class="location-line">WASD to move · Arrow keys to look<br>Select clear ground to teleport · Marked exits or map to travel</span>' : ""}
-          <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Objects: click / Space to inspect or return · Q / E: rotate<br>Panels: Tab / arrows, Enter to choose<br>Click outside / Esc: close · Page Up / Down: read more</span>
+          <span class="location-line">WASD to move · Arrow keys to look<br>Select clear ground to teleport · Marked exits or map to travel</span>
+          <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Objects: click / Space to inspect or return · Q / E: spin · R / F: tilt<br>Panels: Tab / arrows, Enter to choose<br>Click outside / Esc: close · Page Up / Down: read more</span>
         </section>
 
         <nav class="tool-rail" aria-label="Investigation tools">
+          ${gameState.canResumePumpComparison()?`<button class="icon-button" data-action="resume-survey"><i data-lucide="footprints"></i><span>${escapeHtml(gameState.getPumpComparisonLabel())}</span></button>`:''}
           ${hasChapterPanel ? '<button class="icon-button" data-action="chapter" aria-label="Open chapter instructions" title="Chapter instructions"><i data-lucide="book-open"></i></button>' : ""}
           <button class="icon-button ${overlayMode === "notebook" ? "is-active" : ""}" data-action="notebook" aria-label="Notebook" aria-keyshortcuts="N" title="Notebook (N)">
             <i data-lucide="notebook-tabs"></i>
             <span>${gameState.getProgressText()}</span>
           </button>
-          <button class="icon-button ${overlayMode === "map" ? "is-active" : ""}" data-action="map" aria-label="Map" aria-keyshortcuts="M" title="Map (M)">
+          <button class="icon-button ${overlayMode === "map" ? "is-active" : ""}" data-action="map" aria-label="Map" aria-keyshortcuts="M" title="${gameState.canUseMap()?'Map (M)':'Receive today’s assignments from Snow first'}" ${gameState.canUseMap()?'':'disabled'}>
             <i data-lucide="map"></i>
           </button>
           <button class="icon-button" data-action="reset" aria-label="Reset inquiry">
@@ -374,9 +400,10 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 
         <div class="reticle" aria-hidden="true"></div>
 
+        ${gameState.startupOpen ? renderStartPanel(gameState) : gameState.dayIntroOpen ? renderDayPanel(gameState) : ""}
         ${showChapterPanel ? renderChapterPanel(gameState.getCurrentScene(), stage, gameState) : ""}
         ${showSynthesisPanel ? renderSynthesisPanel(gameState) : ""}
-        ${activeDialogue && overlayMode === "none" ? renderDialoguePanel(activeDialogue, gameState) : ""}
+        ${activeDialogue && !gameState.startupOpen && !gameState.dayIntroOpen && overlayMode === "none" ? renderDialoguePanel(activeDialogue, gameState) : ""}
         ${overlayMode === "notebook" ? renderNotebook(collected, allEvidence, gameState) : ""}
         ${overlayMode === "map" ? renderMap(collected, gameState) : ""}
         ${overlayMode === "sound" ? renderSoundPanel(soundControls) : ""}
@@ -432,6 +459,26 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
 }
 
 function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): string {
+  const survey=gameState.getFieldworkView();
+  if(survey?.guided) {
+    const guide=survey.guided;
+    const point=guide.mapPoint, scale=broadStreetMapViewBoxSize/100;
+    const marker=`<circle cx="${point.x*scale}" cy="${point.y*scale}" r="250" fill="#a32c20" stroke="#fff4d4" stroke-width="85"/><text x="${point.x*scale}" y="${point.y*scale+900}" text-anchor="middle" font-size="590" font-weight="bold" fill="#812018" stroke="#fff4d4" stroke-width="130" paint-order="stroke">${escapeHtml(point.label)}</text>`;
+    return `<aside class="overlay-panel map-panel pump-comparison-panel" aria-label="Snow’s map comparison"><div class="panel-header"><strong>${escapeHtml(guide.progress)}</strong><button class="icon-button" data-action="close-dialogue" aria-label="Close map comparison"><i data-lucide="x"></i></button></div><div class="map-exercise-layout"><div><svg class="map-exercise-map" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="${escapeHtml(point.label)} marked on Snow’s map${gameState.hasWalkingBoundary()?' outside the Broad Street pump service area':''}">${renderCustomMapBase(new Set(gameState.getCollectedEvidence().map(c=>c.id)),gameState)}${guide.mapPumps.map(p=>`<text x="${p.x*scale}" y="${p.y*scale-440}" text-anchor="${p.x>85?'end':p.x<20?'start':'middle'}" font-size="590" font-weight="bold" fill="#075d55" stroke="#fff4d4" stroke-width="130" paint-order="stroke">${escapeHtml(p.label)}</text>`).join('')}${marker}</svg><p class="map-exercise-caption">Red marker: ${escapeHtml(point.label)}${gameState.hasWalkingBoundary()?' · Green line: pump service area':''}</p></div><div><span>John Snow</span><h3>${escapeHtml(guide.title)}</h3><p aria-live="polite">${escapeHtml(guide.text)}</p>${guide.results.length?`<dl class="pump-comparison-results">${guide.results.map(result=>`<div><dt>${escapeHtml(result.label)}</dt><dd>${escapeHtml(result.time)}</dd></div>`).join('')}</dl>`:''}<div class="conversation-choices">${guide.actions.map(action=>`<button class="question-button" data-action="guided-survey" data-step="${action.id}" data-survey-key="${guide.key}">${escapeHtml(action.label)}</button>`).join('')}</div></div></div></aside>`;
+  }
+  const view = gameState.getConversationView();
+  if (view) return `
+    <aside class="dialogue-panel conversation-panel${view.map ? ' conversation-map-panel' : ''}" aria-label="${escapeHtml(view.speaker)} conversation">
+      <div class="dialogue-header"><strong>${escapeHtml(view.speaker)}</strong>
+        <button class="icon-button" data-action="close-dialogue" aria-label="Close conversation"><i data-lucide="x"></i></button></div>
+      <div class="conversation-content">
+      ${view.map ? `<figure class="recap-map"><svg class="map-exercise-map" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="${view.map==='deaths'?'Deaths plotted around the Broad Street pump':'Streets and pumps around Broad Street, before plotting deaths'}">${renderCustomMapBase(new Set(gameState.getCollectedEvidence().map(c=>c.id)),gameState,view.map==='deaths')}</svg><figcaption>${view.map==='deaths'?'Bars: deaths · ':''}Teal circles: pumps</figcaption></figure>` : ''}
+      <div><p class="conversation-beat" aria-live="polite">${escapeHtml(view.text)}</p>
+      <div class="conversation-choices">${view.choices.map(choice => `<button class="question-button" data-action="conversation-choice" data-beat-id="${escapeHtml(view.beatId)}" data-choice-id="${escapeHtml(choice.id)}">${escapeHtml(choice.label)}</button>`).join("")}
+      ${view.terminalAction ? `<button class="question-button" data-action="${view.terminalAction}">${view.terminalAction==='resume-survey'?'Join Snow at the map table':view.terminalAction==='end-day'?'End day':view.terminalAction==='board-decision'?'Read the Board decision':'Review the theories'}</button>` : ''}
+      ${view.complete ? '<button class="question-button" data-action="close-dialogue">Return to the scene</button>' : ""}</div></div></div>
+    </aside>`;
+
   const activeAnswer = gameState.getActiveDialogueAnswer();
   const availableQuestions = gameState
     .getAvailableDialogueQuestions(dialogue)
@@ -527,7 +574,7 @@ function renderMotionLookToggle(controls?: MotionLookControls): string {
 export function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gameState: GameState): string {
   const body = gameState.getCurrentSceneBody().map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
   const boardFindings =
-    stage === "board"
+    stage === "board" && gameState.boardPresented
       ? `<ol class="findings-list">${gameState
           .getBoardFindings()
           .map((finding) => `<li>${escapeHtml(finding)}</li>`)
@@ -541,9 +588,9 @@ export function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gam
           Begin field inquiry
         </button>`
       : stage === "board"
-        ? `<button class="primary-action wide-action" data-action="finish-board">
+        ? `<button class="primary-action wide-action" data-action="${gameState.boardPresented ? "finish-board" : "begin-hearing"}" ${!gameState.preparedForBoard ? "disabled" : ""}>
             <i data-lucide="check-circle-2"></i>
-            Continue after meeting
+            ${gameState.boardPresented ? "Continue after meeting" : "Begin hearing"}
           </button>`
         : `<button class="primary-action wide-action" data-action="reset">
             <i data-lucide="rotate-ccw"></i>
@@ -551,7 +598,7 @@ export function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gam
           </button>`;
 
   return `
-    <aside class="chapter-panel" aria-label="${escapeHtml(scene.title)}">
+    <aside class="chapter-panel ${stage==='complete'?'epilogue-panel':''}" aria-label="${escapeHtml(scene.title)}">
       <div class="chapter-heading">
         <span>${escapeHtml(scene.subtitle)}</span>
         <h2>${escapeHtml(scene.title)}</h2>
@@ -562,15 +609,15 @@ export function renderChapterPanel(scene: ChapterScene, stage: ChapterStage, gam
       </div>
       <div class="chapter-actions">
         <button class="secondary-action" data-action="close-chapter">Close</button>
-        <button class="secondary-action" data-action="sound">Sound settings</button>
-        ${action}
+        ${stage==='complete'?'<button class="primary-action" data-action="travel" data-location-id="snow-desk">Return to Snow’s desk</button>':'<button class="secondary-action" data-action="sound">Sound settings</button>'}
+        ${stage==='complete'?'':action}
       </div>
     </aside>
   `;
 }
 
 function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[], gameState: GameState): string {
-  const readiness = evidenceReadinessText(collected.length);
+  const readiness = gameState.getObjective();
   const collectedIds = new Set(collected.map((card) => card.id));
   const studyGoalCompleted = gameState.hasFieldAssignment();
   const evidenceRows = allEvidence
@@ -604,11 +651,12 @@ function renderNotebook(collected: EvidenceCard[], allEvidence: EvidenceCard[], 
         <div>
           <span>Field notebook</span>
           <strong>${collected.length}/${allEvidence.length} evidence ${collected.length === 1 ? "card" : "cards"} collected</strong>
-          <small class="readiness-line ${collected.length >= boardThreshold ? "is-ready" : ""}">${escapeHtml(readiness)}</small>
+          <small class="readiness-line ${gameState.hasEnoughEvidenceForSynthesis() ? "is-ready" : ""}">${escapeHtml(readiness)}</small>
         </div>
         <button class="icon-button" data-action="close" aria-label="Close notebook"><i data-lucide="x"></i></button>
       </div>
       <div class="panel-body evidence-list">
+        ${renderAssignments(gameState)}
         ${renderStudyGoal(studyGoalCompleted)}
         ${evidenceRows}
       </div>
@@ -633,23 +681,6 @@ function renderStudyGoal(completed: boolean): string {
       </div>
     </article>
   `;
-}
-
-function evidenceReadinessText(collectedCount: number): string {
-  const remaining = Math.max(boardThreshold - collectedCount, 0);
-  if (remaining === 0) {
-    return "Ready for Snow review";
-  }
-
-  return `${remaining} more ${remaining === 1 ? "card" : "cards"} needed for Snow review`;
-}
-
-function mapEvidenceReadinessText(collectedCount: number): string {
-  if (collectedCount >= boardThreshold) {
-    return `${collectedCount} collected; ready`;
-  }
-
-  return `${collectedCount}/${boardThreshold} for review`;
 }
 
 function sourceIcon(sourceType: EvidenceCard["sourceType"]): string {
@@ -703,11 +734,11 @@ export function renderSynthesisPanel(gameState: GameState): string {
         <div class="synthesis-actions">
           <button
             class="primary-action wide-action"
-            data-action="${boardPrepared ? "present" : "prepare-board"}"
+            data-action="present"
             ${canPrepare || boardPrepared ? "" : "disabled"}
           >
-            <i data-lucide="${boardPrepared ? "send" : "clipboard-check"}"></i>
-            ${boardPrepared ? "Present Findings" : "Prepare Board argument"}
+            <i data-lucide="send"></i>
+            Attend the meeting
           </button>
         </div>
       </div>
@@ -742,7 +773,7 @@ function renderHypothesisCard(
 }
 
 function renderEvidenceFit(label: string, text: string | undefined, kind: "supports" | "complicates"): string {
-  const empty = kind === "supports" ? "No supporting evidence recorded yet." : "No challenge recorded yet; this is not proof.";
+  const empty = kind === "supports" ? "No supporting evidence recorded yet." : "No challenge recorded yet.";
   return `
     <div class="fit-list is-${kind}">
       <span>${escapeHtml(label)}</span>
@@ -753,7 +784,7 @@ function renderEvidenceFit(label: string, text: string | undefined, kind: "suppo
 
 function renderMap(collected: EvidenceCard[], gameState: GameState): string {
   const collectedIds = new Set(collected.map((card) => card.id));
-  const deathsVisible = shouldShowDeathLayer(collectedIds);
+  const deathsVisible = gameState.hasMappedDeaths();
 
   const stage = gameState.getStage();
   const evidenceReady = gameState.hasEnoughEvidenceForSynthesis();
@@ -761,24 +792,27 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
   const boardPrepared = gameState.preparedForBoard && stage === "synthesis";
   const needsSnowReview = evidenceReady && !gameState.preparedForBoard && stage === "synthesis";
   const currentLocation = gameState.getCurrentLocation();
-  const canUseMapPrimary = fieldAssigned && (boardPrepared || needsSnowReview);
-  let actionText = "Need more support";
-  let primaryLabel = "Gather more evidence";
+  const dailyReview = gameState.isDayFieldworkComplete() && stage === "field";
+  const canUseMapPrimary = fieldAssigned && (boardPrepared || needsSnowReview || dailyReview || !gameState.hasCurrentAssignment());
+  let actionText = "Current assignments";
+  let primaryLabel = "Complete today’s fieldwork";
   let primaryIcon = "circle-dot";
-  let primaryCopy = "Collect more evidence before preparing a Board argument.";
+  let primaryCopy = gameState.getObjective();
 
   if (!fieldAssigned) {
     actionText = "Assignment needed";
     primaryLabel = "Talk to Snow first";
     primaryIcon = "message-circle";
     primaryCopy = "Snow has not sent us into the streets yet.";
+  } else if(dailyReview || !gameState.hasCurrentAssignment()) {
+    actionText="Speak with Snow";primaryLabel=currentLocation.id==="snow-desk"?"Speak with Snow":"Return to Snow";primaryIcon="message-circle";primaryCopy=gameState.getObjective();
   } else if (boardPrepared) {
     actionText = "Ready for Board";
     primaryLabel = currentLocation.id === "snow-desk" ? "Open Snow review" : "Return to Snow's Desk";
     primaryIcon = "clipboard-check";
     primaryCopy =
       currentLocation.id === "snow-desk"
-        ? "Use Present Findings on Snow's review panel."
+        ? "Choose Attend the meeting on Snow's review panel."
         : "Return to Snow's desk to present the prepared findings.";
   } else if (stage === "complete") {
     actionText = "Presented";
@@ -795,15 +829,14 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
     actionText = "Review needed";
   }
   const locationNodes = gameState
-    .getLocations()
-    .filter((location) => !location.boardOnly)
+    .getMapLocations()
     .map((location) => renderLocationNode(location, gameState, currentLocation.id))
     .join("");
   const evidenceDocket = renderMapEvidenceDocket(gameState);
   const mappedFindings = gameState.getMappedEvidenceFindings();
   const mapFindings = mappedFindings.length
     ? mappedFindings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")
-    : `<li class="is-empty">No mapped evidence yet. Start with the pump observation.</li>`;
+    : `<li class="is-empty">No mapped evidence yet. Begin with today’s records and household assignments.</li>`;
 
   return `
     <aside class="overlay-panel map-panel" aria-label="Snow map table">
@@ -828,26 +861,27 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
         <div class="map-canvas">
           <div class="map-frame">
             <svg class="snow-map snow-map--custom" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="Broad Street evidence map">
-              ${renderCustomMapBase(collectedIds)}
+              ${renderCustomMapBase(collectedIds,gameState)}
             </svg>
-            ${renderMapLegend(deathsVisible)}
+            ${renderMapLegend(deathsVisible,gameState.hasWalkingBoundary())}
             ${locationNodes}
           </div>
         </div>
         <div class="map-brief">
           <div class="layer-summary">
             <span>Map evidence</span>
-            <p>Use the Broad Street map to travel between sources.</p>
+            <p>${escapeHtml(gameState.getObjective())}</p>${renderAssignments(gameState)}
           </div>
           <ul class="map-findings">
             ${mapFindings}
           </ul>
           <dl>
             <div><dt>Current place</dt><dd>${escapeHtml(currentLocation.shortTitle)}</dd></div>
-            <div><dt>Evidence</dt><dd>${escapeHtml(mapEvidenceReadinessText(collected.length))}</dd></div>
+            <div><dt>Evidence</dt><dd>${escapeHtml(gameState.getProgressText())}</dd></div>
             <div><dt>Snow review</dt><dd>${gameState.preparedForBoard ? "Prepared" : evidenceReady ? "Needed" : "Locked"}</dd></div>
             <div><dt>Action</dt><dd>${escapeHtml(actionText)}</dd></div>
           </dl>
+          ${gameState.hasWalkingBoundary()?`<div class="layer-summary"><strong>Snow’s walking measurements</strong>${gameState.getRouteObservations().map(o=>`<p>${escapeHtml(surveyRoutes.find(r=>r.id===o.routeId)!.title)}: ${Math.floor(o.seconds/60)} min ${o.seconds%60} sec</p>`).join('')}<p>Green boundary: Broad Street pump service area.</p></div>`:''}
           ${evidenceDocket}
         </div>
       </div>
@@ -855,10 +889,9 @@ function renderMap(collected: EvidenceCard[], gameState: GameState): string {
   `;
 }
 
-function renderCustomMapBase(collectedIds: Set<string>): string {
+function renderCustomMapBase(collectedIds: Set<string>, gameState:GameState, showDeaths = gameState.hasMappedDeaths()): string {
   const mapSource = publicAssetPath(broadStreetMapSvgPath);
   const href = (id: string) => escapeHtml(`${mapSource}#${id}`);
-  const showDeaths = shouldShowDeathLayer(collectedIds);
 
   return `
     <rect class="map-paper" x="0" y="0" width="${broadStreetMapViewBoxSize}" height="${broadStreetMapViewBoxSize}" />
@@ -878,23 +911,22 @@ function renderCustomMapBase(collectedIds: Set<string>): string {
     <g class="imported-map-layer imported-map-layer--pumps" aria-hidden="true">
       <use href="${href("Pumps")}" />
     </g>
+    ${gameState.hasWalkingBoundary()?`<image href="${import.meta.env?.BASE_URL??'/'}maps/pump-service-area.svg" x="0" y="0" width="20020" height="20020" />`:''}
     <g class="map-pump-highlights" aria-hidden="true">
       ${renderPumpHighlights()}
     </g>
   `;
 }
 
-function shouldShowDeathLayer(collectedIds: Set<string>): boolean {
-  return collectedIds.has("attack-timeline") && collectedIds.has("pump-cluster");
-}
-
-function renderMapLegend(deathsVisible: boolean): string {
+function renderMapLegend(deathsVisible: boolean, accessVisible=false): string {
   return `
     <div class="map-legend" aria-label="Map legend">
+      <span class="map-legend-item">✓ Earlier visit</span>
       <span class="map-legend-item">
         <span class="map-legend-swatch is-pump"></span>
         Pumps
       </span>
+      ${accessVisible?'<span class="map-legend-item" style="color:#47633b">Pump service area</span>':''}
       ${
         deathsVisible
           ? `<span class="map-legend-item">
@@ -1017,6 +1049,7 @@ function renderLocationNode(
   gameState: GameState,
   currentLocationId: LocationId,
 ): string {
+  if(gameState.isArchivedLocation(location))return `<span class="map-visited-mark" style="left:${location.mapPoint.x}%;top:${location.mapPoint.y}%" role="img" aria-label="${escapeHtml(location.title)} — visited" title="${escapeHtml(location.title)} — visited">✓</span>`;
   const unlocked = gameState.isLocationUnlocked(location);
   const active = location.id === currentLocationId;
   const canTravel = gameState.canTravelToLocation(location.id) && !active;
@@ -1120,4 +1153,14 @@ function renderSoundPanel(controls?: SoundControls): string {
       <p>All clues and actions remain available visually. Ambience softens while you read. Sound starts after you interact with the app.</p>
       <p><a href="${import.meta.env?.BASE_URL??"/"}audio/credits.html" target="_blank" rel="noopener">Audio sources and credits</a></p>
     </div></aside>`;
+}
+
+function renderAssignments(game: GameState): string {
+ return `<article class="study-goal assignment-summary"><div><h3>${escapeHtml(game.getDay().title)}</h3>${game.getAssignments().map(o=>`<p>${o.complete?'✓':'○'} ${escapeHtml(o.title)}</p>`).join('')}</div></article>`;
+}
+function renderStartPanel(game:GameState): string {
+ return `<aside class="chapter-panel" aria-label="Start inquiry"><div class="chapter-heading"><span>Soho, London · 1854</span><h2>The Broad Street Inquiry</h2></div><div class="chapter-copy"><p>${escapeHtml(inquiryOpening)}</p>${game.saveNotice?`<p>${escapeHtml(game.saveNotice)}</p>`:''}</div><div class="chapter-actions">${game.hasSavedInquiry?'<button class="primary-action" data-action="continue-inquiry">Continue</button>':''}<button class="secondary-action" data-action="new-inquiry">New Inquiry</button></div></aside>`;
+}
+function renderDayPanel(game:GameState): string {
+ return `<aside class="chapter-panel" aria-label="Day ${game.day} introduction"><div class="chapter-heading"><span>Day ${game.day}</span><h2>${escapeHtml(game.getDay().date)}</h2></div><div class="chapter-copy">${game.getDayIntroduction().slice(1).map(text=>`<p>${escapeHtml(text)}</p>`).join('')}</div><div class="chapter-actions"><button class="primary-action" data-action="dismiss-day">Enter the office</button></div></aside>`;
 }

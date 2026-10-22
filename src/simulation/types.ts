@@ -5,9 +5,14 @@ export type LocationId =
   | "snow-desk"
   | "broad-street"
   | "household"
+  | "household-routines"
+  | "household-away"
+  | "marlborough-pump"
+  | "rupert-pump"
   | "registrar"
   | "workhouse"
   | "brewery"
+  | "manufactory"
   | "board-room";
 export type EvidenceSourceType = "observation" | "interview" | "document" | "inference";
 

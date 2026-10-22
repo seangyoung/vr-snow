@@ -1,10 +1,13 @@
 """Illustrative Broad Street household, not a surveyed or identified family interior.
 Run with Blender --background --factory-startup --python scripts/assets/build_household_room.py.
 """
-import bpy, math, json, random
+import bpy, math, json, random, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
-layout=json.loads((ROOT/'src/walkable/household-layout.json').read_text())
+key=sys.argv[sys.argv.index('--')+1] if '--' in sys.argv else 'household'
+assert key in ['household','household-routines','household-away']
+asset_name='household-room' if key=='household' else key+'-room'
+layout=json.loads((ROOT/f'src/walkable/{key}-layout.json').read_text())
 random.seed(1854)
 bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
 M={}
@@ -20,6 +23,10 @@ def material(name,color,wood=False,emission=False):
     M[name]=m
 for name,color in [('Plaster','afa38b'),('Ceiling','b9ad95'),('Oak','685941'),('Walnut','574630'),('Paint','666650'),('Trim','9d917a'),('Recess','302d29'),('Linen','c4b89a'),('Blanket','827560'),('Brick','81634e'),('Pottery','a69270'),('Iron','393c39')]:material(name,color,wood=name=='Oak')
 material('Daylight','d3d6c8',emission=True)
+if key!='household':
+    for name,color in [('Paint','596d70' if key=='household-routines' else '716044'),('Blanket','65777a' if key=='household-routines' else '796044')]:
+        M[name].node_tree.nodes.get('Principled BSDF').inputs['Base Color'].default_value=(*[linear(int(color[i:i+2],16)/255) for i in (0,2,4)],1)
+
 def box(name,x,y,z,w,h,d,mat,bevel=0):
     bpy.ops.mesh.primitive_cube_add(size=1,location=(x,-z,y));o=bpy.context.object;o.name=name;o.dimensions=(w,d,h)
     bpy.ops.object.transform_apply(location=False,rotation=False,scale=True);o.data.materials.append(M[mat])
@@ -47,11 +54,11 @@ for y in [.6,1.8]:
     for x in [doorX-.26,doorX+.26]:box('Door panel',x,y,d/2-.12,.42,1.0,.04,'Walnut',.012)
 box('Door handle',doorX-.43,1.03,d/2-.2,.035,.18,.05,'Iron',.006)
 # A single sash window lights the modest room; opaque glazing avoids extra transparency passes.
-box('Window recess',2.67,1.97,-1.62,.025,1.6,1.25,'Recess')
-box('Daylight window',2.64,1.97,-1.62,.025,1.48,1.13,'Daylight')
-for dz in [-.61,0,.61]:box('Sash upright',2.60,1.97,-1.62+dz,.10,1.62,.05,'Trim')
-for y in [1.17,1.7,2.24,2.77]:box('Sash rail',2.60,y,-1.62,.10,.045,1.3,'Trim')
-box('Window sill',2.5,1.15,-1.62,.33,.08,1.4,'Walnut',.012)
+box('Window recess',w/2-.03,1.97,-1.62,.025,1.6,1.25,'Recess')
+box('Daylight window',w/2-.06,1.97,-1.62,.025,1.48,1.13,'Daylight')
+for dz in [-.61,0,.61]:box('Sash upright',w/2-.10,1.97,-1.62+dz,.10,1.62,.05,'Trim')
+for y in [1.17,1.7,2.24,2.77]:box('Sash rail',w/2-.10,y,-1.62,.10,.045,1.3,'Trim')
+box('Window sill',w/2-.20,1.15,-1.62,.33,.08,1.4,'Walnut',.012)
 # Household furniture. All footprints come from the same layout used for navigation.
 def furniture(id):return next(f for f in layout['furniture'] if f['id']==id)
 f=furniture('bed');x,z=f['x'],f['z']
@@ -120,6 +127,15 @@ vessel('Wash basin',x,.86,z,[(0,0),(.12,0),(.23,.13),(.21,.145),(.105,.025),(0,.
 box('Mourning ribbon',doorX+.28,2.04,d/2-.18,.055,.38,.008,'Recess')
 for angle in [-.55,.55]:
     o=box('Ribbon loop',doorX+.28,2.18,d/2-.19,.065,.18,.012,'Recess');o.rotation_euler.y=angle
+if key!='household':
+    table=furniture('table');tx,tz=table['x'],table['z']
+    if key=='household-routines':
+        for i in range(3):box('Folded work cloth',tx-.18,.82+i*.035,tz+.12,.56,.032,.35,'Blanket',.008)
+        for i in range(3):cylinder('Thread spool',tx+.35,.84,tz-.25+i*.09,.025,.1,'Linen')
+    else:
+        box('Work parcel',tx-.20,.91,tz,.42,.25,.36,'Linen',.02)
+        box('Parcel string',tx-.20,1.04,tz,.018,.008,.36,'Walnut')
+        vessel('Carrying jug',tx+.35,.785,tz,[(0,0),(.12,0),(.16,.12),(.1,.34),(.08,.4),(.065,.4),(.1,.03),(0,.03)],'Pottery')
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from interior_finish import finish_room
@@ -127,17 +143,17 @@ finish_room(M,layout)
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from bake_scene_lighting import bake_lighting
-lighting_report=bake_lighting(M,ROOT,asset='household-room',size=1024, lights=[('Household window',(2.48,1.97,-1.62),(-1,.8,0),150,1.1,(.95,.97,1)),('Household bounce',(0,2.7,.5),(0,0,0),35,3,(1,.88,.72))])
-asset=ROOT/'assets/household-room';asset.mkdir(exist_ok=True)
+lighting_report=bake_lighting(M,ROOT,asset=asset_name,size=1024, lights=[('Household window',(w/2-.22,1.97,-1.62),(-1,.8,0),150,1.1,(.95,.97,1)),('Household bounce',(0,2.7,.5),(0,0,0),35,3,(1,.88,.72))])
+asset=ROOT/f'assets/{asset_name}';asset.mkdir(exist_ok=True)
 bpy.context.scene.unit_settings.system='METRIC';bpy.context.preferences.filepaths.save_version=0
-bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(asset/'household-room.blend'))
+bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(asset/(asset_name+'.blend')))
 for name,mat in M.items():
     obs=[o for o in bpy.context.scene.objects if o.type=='MESH' and o.data.materials and o.data.materials[0]==mat]
     if not obs:continue
     bpy.ops.object.select_all(action='DESELECT')
     for o in obs:o.select_set(True)
     bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=name
-bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/household-room.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False,export_vertex_color='ACTIVE')
+bpy.ops.export_scene.gltf(filepath=str(ROOT/f'public/models/{asset_name}.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False,export_vertex_color='ACTIVE')
 triangles=sum(len(p.vertices)-2 for o in bpy.context.scene.objects if o.type=='MESH' for p in o.data.polygons)
 report={'bakedLighting':lighting_report,'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
 (asset/'build-report.json').write_text(json.dumps(report,indent=2)+'\n')

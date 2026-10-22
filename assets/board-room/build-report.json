@@ -1,0 +1,13 @@
+{
+  "triangles": 8604,
+  "bakedLighting": {
+    "size": 2048,
+    "normalization": 4,
+    "diffusePeak999": 3.7093,
+    "environmentSize": [
+      512,
+      256
+    ]
+  },
+  "interpretive": true
+}

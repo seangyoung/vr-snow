@@ -1,0 +1,36 @@
+{
+  "scene": "household-routines",
+  "actors": [
+    {
+      "id": "water-householder",
+      "position": [
+        -0.65,
+        0,
+        -0.2
+      ],
+      "pose": "standing",
+      "coat": "5a5145",
+      "vest": "8b7861",
+      "height": 1.8,
+      "labelHeight": 1.86,
+      "yaw": 0
+    }
+  ],
+  "anatomicalBase": "MakeHuman hm08 / MPFB",
+  "sources": {
+    "water-householder": "ac57e14b0e63dda3ff0627b34f984424812f3d5944307c64f28f2e439a663724"
+  },
+  "runtimeSkeleton": false,
+  "triangles": 27136,
+  "materialBatches": 12,
+  "bakedLighting": {
+    "size": 1024,
+    "normalization": 4,
+    "diffusePeak999": 1.2621,
+    "environmentSize": [
+      256,
+      128
+    ]
+  },
+  "interpretive": true
+}
