@@ -18,15 +18,15 @@
   ],
   "anatomicalBase": "MakeHuman hm08 / MPFB",
   "sources": {
-    "water-householder": "ac57e14b0e63dda3ff0627b34f984424812f3d5944307c64f28f2e439a663724"
+    "water-householder": "4dcb46b339c4c583da55de34ee30fdd7695c9f87d9b38bf46f7c7420b8b27149"
   },
   "runtimeSkeleton": false,
-  "triangles": 27136,
+  "triangles": 27135,
   "materialBatches": 12,
   "bakedLighting": {
     "size": 1024,
     "normalization": 4,
-    "diffusePeak999": 1.2621,
+    "diffusePeak999": 2.1003,
     "environmentSize": [
       256,
       128

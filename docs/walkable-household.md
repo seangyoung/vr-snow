@@ -1,4 +1,6 @@
-# Household: walkable interior prototype
+# Household: original walkable interior prototype
+
+**Archived prototype description.** For the current three-day households, occupied sickroom, artifact pickups, and material/lighting pass, see [Household environment pass](household-environment-pass.md). The controls, counts, and dialogue below describe the earlier implementation.
 
 The household panorama is replaced on `walkable-prototype` by an illustrative 5.4 × 6 m domestic room with a 3.15 m ceiling. These are design dimensions, not historical measurements. It contains a timber bed, wool coverlet, cold hearth, small table with a water jug and cup, clothes chest, washstand and a marked interview chair. The mourning ribbon echoes the existing dialogue. This remains a composite household, not a reconstruction of an identified family's interior. A shared [interior finish pass](interior-visual-pass.md) adds timber, cloth and plaster detail with offline vertex shading.
 

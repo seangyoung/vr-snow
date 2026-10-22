@@ -145,3 +145,20 @@ to avoid black bake artifacts. Whitehead retains his skeptical conversations.
 All seven street figures use the same daily placement and interaction manifest;
 there are no extra runtime clones. Their optional conversations vary by day and
 never grant evidence cards or advance required objectives.
+
+### Household variety and resting relative, October 2026
+
+`refine_household_people.py` adjusts the saved sources without replacing their
+approved poses: the second householder is broader and slightly shorter with a
+muted green coat and auburn hair; the third is narrower with a blue coat and
+greying hair; the first householder wears plum. Small lower-jaw differences remain
+below the eye/nose fittings. The saved source rig records the refinement profile.
+The original `appearance.json` describes the initial generation, before these
+manual authoring refinements. Hair colour now uses the strand image rather than
+the older constant-colour override; alpha still follows the original hair cutout.
+
+The supplemental ill father uses the registrar source's anatomical face, eyes,
+and hair, reoriented onto the household bed. His nightshirt and body-shaped
+coverlet are original geometry. `build_household_patient.py` records this export;
+its provenance and source hash are in `assets/household-patient/`. This is a
+composite family and testimony, not an identified historical patient.

@@ -1,15 +1,16 @@
 {
+  "identity": "sewing and mending workspace",
   "bakedLighting": {
-    "size": 1024,
+    "size": 2048,
     "normalization": 4,
-    "diffusePeak999": 3.3056,
+    "diffusePeak999": 5.4064,
     "environmentSize": [
       512,
       256
     ]
   },
-  "triangles": 5636,
-  "materialBatches": 13,
+  "triangles": 10972,
+  "materialBatches": 12,
   "layout": {
     "width": 6.4,
     "depth": 6.8,

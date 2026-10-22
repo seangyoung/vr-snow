@@ -23,9 +23,16 @@ def material(name,color,wood=False,emission=False):
     M[name]=m
 for name,color in [('Plaster','afa38b'),('Ceiling','b9ad95'),('Oak','685941'),('Walnut','574630'),('Paint','666650'),('Trim','9d917a'),('Recess','302d29'),('Linen','c4b89a'),('Blanket','827560'),('Brick','81634e'),('Pottery','a69270'),('Iron','393c39')]:material(name,color,wood=name=='Oak')
 material('Daylight','d3d6c8',emission=True)
+if key=='household-away':material('Copper','9c6948')
 if key!='household':
     for name,color in [('Paint','596d70' if key=='household-routines' else '716044'),('Blanket','65777a' if key=='household-routines' else '796044')]:
         M[name].node_tree.nodes.get('Principled BSDF').inputs['Base Color'].default_value=(*[linear(int(color[i:i+2],16)/255) for i in (0,2,4)],1)
+
+palettes={
+ 'household':{'Plaster':'a7a496','Blanket':'766455','Paint':'73786c'},
+ 'household-routines':{'Plaster':'c1b99f','Blanket':'5d7371','Paint':'687d79'},
+ 'household-away':{'Plaster':'c6b28e','Blanket':'7a514b','Paint':'6f5b43'}}
+for name,color in palettes[key].items():M[name].node_tree.nodes.get('Principled BSDF').inputs['Base Color'].default_value=(*[linear(int(color[i:i+2],16)/255) for i in (0,2,4)],1)
 
 def box(name,x,y,z,w,h,d,mat,bevel=0):
     bpy.ops.mesh.primitive_cube_add(size=1,location=(x,-z,y));o=bpy.context.object;o.name=name;o.dimensions=(w,d,h)
@@ -40,7 +47,12 @@ for i in range(20):
     for j in range(5):box('Floorboard',-w/2+(i+.5)*w/20,-.035,-d/2+(j+.5)*d/5,w/20-.008,.06,d/5-.006,'Oak')
 box('Ceiling',0,h+.05,0,w+.2,.1,d+.2,'Ceiling')
 for z in [-d/2-.05,d/2+.05]:box('Wall',0,h/2,z,w+.2,h,.1,'Plaster')
-for x in [-w/2-.05,w/2+.05]:box('Wall',x,h/2,0,.1,h,d,'Plaster')
+box('Wall',-w/2-.05,h/2,0,.1,h,d,'Plaster')
+# Split the right wall around a real window opening, so the view has parallax.
+wx=w/2+.05;za,zb=-2.245,-.995;bottom,top=1.17,2.77
+box('Window wall lower',wx,bottom/2,0,.1,bottom,d,'Plaster')
+box('Window wall upper',wx,(top+h)/2,0,.1,h-top,d,'Plaster')
+for a,b in [(-d/2,za),(zb,d/2)]:box('Window wall side',wx,(bottom+top)/2,(a+b)/2,.1,top-bottom,b-a,'Plaster')
 for x in [-w/2+.03,w/2-.03]:
     box('Skirting',x,.10,0,.08,.20,d,'Walnut');box('Cornice',x,h-.12,0,.12,.1,d,'Trim')
 for z in [-d/2+.03,d/2-.03]:
@@ -54,8 +66,7 @@ for y in [.6,1.8]:
     for x in [doorX-.26,doorX+.26]:box('Door panel',x,y,d/2-.12,.42,1.0,.04,'Walnut',.012)
 box('Door handle',doorX-.43,1.03,d/2-.2,.035,.18,.05,'Iron',.006)
 # A single sash window lights the modest room; opaque glazing avoids extra transparency passes.
-box('Window recess',w/2-.03,1.97,-1.62,.025,1.6,1.25,'Recess')
-box('Daylight window',w/2-.06,1.97,-1.62,.025,1.48,1.13,'Daylight')
+# No opaque luminous pane: the neighboring wall is modeled beyond the opening.
 for dz in [-.61,0,.61]:box('Sash upright',w/2-.10,1.97,-1.62+dz,.10,1.62,.05,'Trim')
 for y in [1.17,1.7,2.24,2.77]:box('Sash rail',w/2-.10,y,-1.62,.10,.045,1.3,'Trim')
 box('Window sill',w/2-.20,1.15,-1.62,.33,.08,1.4,'Walnut',.012)
@@ -138,12 +149,15 @@ if key!='household':
         vessel('Carrying jug',tx+.35,.785,tz,[(0,0),(.12,0),(.16,.12),(.1,.34),(.08,.4),(.065,.4),(.1,.03),(0,.03)],'Pottery')
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
+from household_details import add_details, finish_surfaces
+add_details(key,layout,M,box,cylinder,vessel)
 from interior_finish import finish_room
 finish_room(M,layout)
+finish_surfaces(key,M,ROOT)
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from bake_scene_lighting import bake_lighting
-lighting_report=bake_lighting(M,ROOT,asset=asset_name,size=1024, lights=[('Household window',(w/2-.22,1.97,-1.62),(-1,.8,0),150,1.1,(.95,.97,1)),('Household bounce',(0,2.7,.5),(0,0,0),35,3,(1,.88,.72))])
+lighting_report=bake_lighting(M,ROOT,asset=asset_name,size=2048, lights=[('Household window',(w/2-.22,2.10,-1.62),(-1,.65,0),{'household':190,'household-routines':270,'household-away':230}[key],1.2,(.86,.92,1)),('Household bounce',(0,2.7,.5),(0,0,0),{'household':25,'household-routines':45,'household-away':38}[key],3,(1,.86,.68))])
 asset=ROOT/f'assets/{asset_name}';asset.mkdir(exist_ok=True)
 bpy.context.scene.unit_settings.system='METRIC';bpy.context.preferences.filepaths.save_version=0
 bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(asset/(asset_name+'.blend')))
@@ -155,6 +169,6 @@ for name,mat in M.items():
     bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=name
 bpy.ops.export_scene.gltf(filepath=str(ROOT/f'public/models/{asset_name}.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False,export_vertex_color='ACTIVE')
 triangles=sum(len(p.vertices)-2 for o in bpy.context.scene.objects if o.type=='MESH' for p in o.data.polygons)
-report={'bakedLighting':lighting_report,'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
+report={'identity':{'household':'occupied sickroom','household-routines':'sewing and mending workspace','household-away':'settled room with travel belongings'}[key],'bakedLighting':lighting_report,'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
 (asset/'build-report.json').write_text(json.dumps(report,indent=2)+'\n')
 print('HOUSEHOLD BUILD',triangles,'triangles;',report['materialBatches'],'material batches')

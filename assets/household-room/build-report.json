@@ -1,15 +1,16 @@
 {
+  "identity": "occupied sickroom",
   "bakedLighting": {
-    "size": 1024,
+    "size": 2048,
     "normalization": 4,
-    "diffusePeak999": 4.183,
+    "diffusePeak999": 5.8453,
     "environmentSize": [
       512,
       256
     ]
   },
-  "triangles": 5324,
-  "materialBatches": 13,
+  "triangles": 6920,
+  "materialBatches": 12,
   "layout": {
     "width": 5.4,
     "depth": 6,

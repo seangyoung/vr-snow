@@ -47,8 +47,20 @@ def build(inventory):
                 each('Inkwell',prefix+'inkwell' if prefix else 'Inkwell');each('Pen',prefix+'pen' if prefix else 'Pen')
         elif asset.startswith('household'):
             one('Water jug','Water jug','Jug handle')
-            for label,name in [('Drinking cup','Drinking cup'),('Folded cloth','Folded cloth'),('Storage jar','Mantel jar'),('Wash basin','Wash basin'),('Pillow','Pillow'),('Work cloth','Folded work cloth'),('Thread spool','Thread spool'),('Carrying jug','Carrying jug')]: each(label,name)
+            for label,name in [('Drinking cup','Drinking cup'),('Folded cloth','Folded cloth'),('Storage jar','Mantel jar'),('Wash basin','Wash basin'),('Pillow','Pillow'),('Work cloth','Folded work cloth'),('Thread spool','Thread spool'),('Carrying jug','Carrying jug')]:
+                if asset=='household-room' and label=='Pillow':continue
+                each(label,name)
             one('Work parcel','Work parcel','Parcel string')
+            one('Chamber candlestick','Chamber candle dish','Candle stub','Candle wick')
+            one('Feeding boat','Feeding boat')
+            each('Nursing linen','Nursing linen');each('Spare blanket','Folded spare blanket')
+            each('Cloth remnant','Rolled cloth')
+            one('Flat iron','Flat iron','Iron handle support','Iron grip')
+            one('Sewing scissors','Scissors loop','Scissors blade')
+            one('Pin cushion','Pin cushion','Pin')
+            one('Tea caddy','Tea caddy','Caddy lid')
+            one('Travel case','Travel case','Case strap','Case handle')
+            one('Warming pan','Warming pan','Warming pan handle','Pan lid vent')
         elif asset == 'workhouse-courtyard':
             each('Water bucket','Bucket base','Bucket stave','Bucket hoop','Bucket handle')
         elif asset == 'brewery-room':

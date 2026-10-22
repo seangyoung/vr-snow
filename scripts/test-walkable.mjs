@@ -954,7 +954,7 @@ test('invalid baked UVs cannot partially replace original room materials',async(
   assert.equal(material.lightMap,null);assert.equal(material.vertexColors,true);
 });
 
-for (const [asset, size] of [['registrar-room',2048],['household-room',1024],['brewery-room',2048],['workhouse-courtyard',2048],['broad-street',2048]]) {
+for (const [asset, size] of [['registrar-room',2048],['household-room',2048],['brewery-room',2048],['workhouse-courtyard',2048],['broad-street',2048]]) {
   test(`${asset} exports a complete lightmap UV set and bounded lighting textures`, async () => {
     const bytes=await readFile(`public/models/${asset}.glb`);
     const gltf=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
@@ -1654,6 +1654,7 @@ test('scene guidance names selectable figures and current-day street activities'
 
 test('MakeHuman scene figures embed masked textures and match their editable sources',async()=>{
   const {createHash}=await import('node:crypto');
+  const householdHair=new Set();
   for(const definition of Object.values(characterDefinitions)) {
     const bytes=await readFile(`public/models/${definition.asset}.glb`);
     const gltf=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
@@ -1675,10 +1676,19 @@ test('MakeHuman scene figures embed masked textures and match their editable sou
         const material=gltf.materials[gltf.meshes[node.mesh].primitives[0].material];
         assert.ok(material.pbrMetallicRoughness.baseColorTexture,`${actor.id} preserves ${role} detail`);
         if(role!=='Skin')assert.equal(material.alphaMode,'MASK','no sorted transparent hair cards');
-        if(role==='Hair')assert.ok(material.pbrMetallicRoughness.baseColorFactor,'individual hair tint survives glTF export');
+        if(role==='Hair') {
+          if(['survivor','water-householder','away-householder'].includes(actor.id)) {
+            // These figures now carry their colour in the strand image itself.
+            const texture=gltf.textures[material.pbrMetallicRoughness.baseColorTexture.index];
+            const view=gltf.bufferViews[gltf.images[texture.source].bufferView];
+            const start=28+bytes.readUInt32LE(12)+(view.byteOffset??0);
+            householdHair.add(createHash('sha256').update(bytes.subarray(start,start+view.byteLength)).digest('hex'));
+          } else assert.ok(material.pbrMetallicRoughness.baseColorFactor,'individual hair tint survives glTF export');
+        }
       }
     }
   }
+  assert.equal(householdHair.size,3,'household figures preserve three distinct embedded hair palettes');
 });
 
 const {ambienceProfiles,clipGroups}=await load('audio/ambience');
@@ -3423,4 +3433,36 @@ test('manufactory workshop has clear entry, interview and water-tub approaches a
  const props=extractProps(model,room.group,'manufactory-room.glb');assert.equal(props.length,15);
  for(const prop of props)assert.ok(triangles(prop.group)>0);
  const report=JSON.parse(await readFile('assets/manufactory-room/build-report.json'));assert.equal(report.bakedLighting.size,1024);
+});
+
+
+test('resting household member stays inside the bed, has baked surfaces and respects reduced motion',async()=>{
+ const patient=await exportedRoom('household-patient.glb');patient.updateMatrixWorld(true);
+ const bounds=new THREE.Box3().setFromObject(patient),bed=householdLayout.furniture.find(f=>f.id==='bed');
+ assert.ok(bounds.min.x>=bed.x-bed.width/2-.02 && bounds.max.x<=bed.x+bed.width/2+.02,'body and coverlet stay inside the bed footprint');
+ assert.ok(bounds.min.z>=bed.z-bed.depth/2-.02 && bounds.max.z<=bed.z+bed.depth/2+.02);
+ assert.ok(bounds.min.y>.4 && bounds.max.y<1.1,'patient rests on the mattress, not the floor or above the bed');
+ assert.ok(triangles(patient)<22000);
+ patient.traverse(o=>{if(o.isMesh)assert.ok(o.geometry.attributes.uv1,'all patient surfaces support the baked lightmap');});
+ const cover=patient.getObjectByName('patient_breathing_coverlet');assert.ok(cover);
+ const people=new SceneCharacters('household');people.patientCoverlet=cover;people.patientCoverletY=cover.position.y;
+ people.update(1,false);assert.ok(Math.abs(cover.position.y-people.patientCoverletY)<=.0015);
+ people.update(1,true);assert.equal(cover.position.y,people.patientCoverletY);
+ assert.equal(people.targets.length,1,'the relative remains the sole conversation target');
+ assert.ok(!propSpecs['household-room.glb'].some(p=>p.name==='Pillow'),'occupied pillow cannot be taken from under the patient');
+});
+
+test('new domestic artifacts are complete pickups with short inspection notes',async()=>{
+ const {objectNotes}=await load('walkable/ObjectInspection');
+ const expected={'household-room.glb':['Feeding boat','Chamber candlestick'],'household-routines-room.glb':['Flat iron','Sewing scissors'],'household-away-room.glb':['Warming pan','Tea caddy']};
+ for(const [asset,names] of Object.entries(expected)){
+  const model=await exportedRoom(asset),parent=new THREE.Group();parent.add(model);
+  const props=extractProps(model,parent,asset);
+  for(const name of names){
+   const prop=props.find(p=>p.name===name);assert.ok(prop,name);assert.ok(objectNotes[name]?.text.length<320,'caption fits the nonmodal panel');
+   const anchor=new THREE.Object3D(),hold=new PropHold();parent.add(anchor);
+   assert.ok(hold.begin(prop,anchor,true));hold.rotate(.3,.1);hold.update(.05);hold.release(true);
+   assert.ok(prop.group.position.distanceTo(prop.home)<1e-9);assert.ok(prop.group.quaternion.angleTo(prop.homeRotation)<1e-7);
+  }
+ }
 });

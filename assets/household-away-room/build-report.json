@@ -1,14 +1,15 @@
 {
+  "identity": "settled room with travel belongings",
   "bakedLighting": {
-    "size": 1024,
+    "size": 2048,
     "normalization": 4,
-    "diffusePeak999": 3.1088,
+    "diffusePeak999": 6.8648,
     "environmentSize": [
       512,
       256
     ]
   },
-  "triangles": 5660,
+  "triangles": 11188,
   "materialBatches": 13,
   "layout": {
     "width": 6.4,

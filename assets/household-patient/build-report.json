@@ -1,0 +1,17 @@
+{
+  "triangles": 16778,
+  "materialBatches": 6,
+  "source": "assets/scene-people/registrar.blend",
+  "sourceSHA256": "55994cd438a49115f3fb4789725591e3854c0fa1291868786fc1d4e64d420011",
+  "bakedLighting": {
+    "size": 1024,
+    "normalization": 4,
+    "diffusePeak999": 1.1589,
+    "environmentSize": [
+      256,
+      128
+    ]
+  },
+  "interpretive": true,
+  "patient": "An ill father, awake and resting; no claim about eventual recovery."
+}

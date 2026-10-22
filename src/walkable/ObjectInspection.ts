@@ -21,6 +21,33 @@ export const objectNotes: Record<string,ObjectNote> = {
   "Medical case book": { text: "A working case book for recording symptoms, treatments, and observations. Careful notes help a doctor compare one patient’s experience with another’s." },
   "Returns ledger": { text: "These registers bring individual deaths together as names, addresses, and recorded causes. Each entry represents a household affected by the outbreak." },
   "Water bucket": { text: "A wooden bucket carries water from the workhouse’s own supply. Where people obtain their drinking water matters more to the inquiry than how clear it looks." },
+  "Flat iron": {
+    text: "A solid smoothing iron is heated at the hearth or stove, then carried to the cloth. Its weight and retained heat press out creases; it has no electric element.",
+    source: "https://heritage.southwark.gov.uk/objects/21726/flatiron",
+    sourceLabel: "Southwark Heritage · example dated 1850–1900",
+  },
+  "Warming pan": {
+    text: "A long-handled metal pan held hot embers and was passed between the sheets to warm a bed before use. This pan is stored cold with the household belongings.",
+    source: "https://historicodessa.org/collections/museum/warming-pan-or-bed-warmer-1971-944",
+    sourceLabel: "Historic Odessa · English example, 1790–1850",
+  },
+  "Feeding boat": {
+    text: "A small open feeding vessel, sometimes called a pap boat, helps someone offer soft food to an infant or a person too weak to sit up. It belongs to the work of nursing at home.",
+    source: "https://wellcomecollection.org/works/v89pgj6q",
+    sourceLabel: "Wellcome Collection · pap boat and feeding cup, c.1850",
+  },
+  "Tea caddy": {
+    text: "A lidded container keeps loose tea together between uses. Wooden caddies could remain in a household for years, passing between generations.",
+    source: "https://collections.museumofthehome.org.uk/object18568",
+    sourceLabel: "Museum of the Home · wooden example, c.1750–1800",
+  },
+  "Inkwell": {
+    text: "An inkwell keeps a small supply of ink beside the writer. Pens must be dipped again as letters, accounts and registers are filled by hand.",
+    source: "https://www.londonmuseum.org.uk/collections/v/object-500513/inkwell/",
+    sourceLabel: "London Museum · nineteenth-century glass example",
+  },
+  "Sewing scissors": {text: "Small scissors and thread belong to work that could be done at home: mending garments, trimming seams and finishing a customer's order."},
+  "Chamber candlestick": {text: "A shallow dish catches wax beneath a candle. A portable light can be carried from the work table to the bedside."},
   "Thread spool": { text: "Thread and folded cloth belong to the household’s daily work. Paid work, domestic tasks, and errands continue around the illness." },
 };
 

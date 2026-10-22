@@ -20,6 +20,8 @@ export class SceneCharacters {
   private day: InquiryDay = 1;
   private model?: THREE.Group;
   private newspaper?: THREE.Group;
+  private patientCoverlet?: THREE.Object3D;
+  private patientCoverletY = 0;
   private idles: CharacterIdle[] = [];
   private readonly footprints: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }> = [];
   constructor(readonly key: CharacterScene) {
@@ -44,6 +46,17 @@ export class SceneCharacters {
       model=(await new GLTFLoader().loadAsync(`${basePath}models/${asset}.glb`)).scene;
       await loadBakedRoomLighting(model,basePath,{lightMap:`${asset}-lightmap.png`,environment:`${asset}-environment.png`,preserveVertexColors:true});
       this.model=model;
+      if(this.key==='household') {
+        // This family member rests in the bed; the seated relative remains the interview target.
+        // A missing supplemental asset must not disable the witness or the investigation.
+        try {
+          const patient=(await new GLTFLoader().loadAsync(`${basePath}models/household-patient.glb`)).scene;
+          await loadBakedRoomLighting(patient,basePath,{lightMap:'household-patient-lightmap.png',environment:'household-patient-environment.png'});
+          this.patientCoverlet=patient.getObjectByName('patient_breathing_coverlet');
+          this.patientCoverletY=this.patientCoverlet?.position.y ?? 0;
+          model.add(patient);
+        } catch(error) { console.warn('Resting household member could not load.',error); }
+      }
       if(this.key==='street') {
         const reader=model.getObjectByName('resident-west_root');
         if(reader) { this.newspaper=createStreetNewspaper();reader.add(this.newspaper); }
@@ -94,5 +107,6 @@ export class SceneCharacters {
   }
   update(time: number,reducedMotion: boolean): void {
     this.idles.forEach(idle=>idle.update(time,reducedMotion));
+    if(this.patientCoverlet)this.patientCoverlet.position.y=this.patientCoverletY+(reducedMotion?0:Math.sin(time*1.15)*.0015);
   }
 }
