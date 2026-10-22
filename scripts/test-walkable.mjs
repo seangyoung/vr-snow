@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["render/PanelDepthLayers", "render/DayTransition", "walkable/StreetBoundary", "walkable/ControllerVisuals", "walkable/ObjectInspection", "walkable/InteractionIdleHint", "simulation/streetPopulation", "walkable/WorkhousePump", "simulation/campaign", "simulation/campaignConversations", "simulation/fieldwork", "walkable/AdditionalHousehold", "walkable/PumpSurveyStop", "walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "walkable/StreetNewspaper", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/ManufactoryRoom", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["render/PanelDepthLayers", "render/DayTransition", "walkable/StreetBoundary", "walkable/ControllerVisuals", "walkable/ObjectInspection", "walkable/InteractionIdleHint", "simulation/streetPopulation", "walkable/WorkhousePump", "simulation/campaign", "simulation/campaignConversations", "simulation/fieldwork", "simulation/waterSamples", "walkable/AdditionalHousehold", "walkable/PumpSurveyStop", "walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "walkable/StreetNewspaper", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/ManufactoryRoom", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from (["'])(\.\.?\/[^"'.]+)\1/g, 'from "$2.js"');
@@ -23,7 +23,7 @@ const { teleportViewer, turnViewer, standardTurnAxis } = await load("walkable/lo
 const { DesktopMovement } = await load("walkable/DesktopMovement");
 const { PumpCourtyard, isValidDestination, canWalkBetween, pumpPosition, streetSpawn } = await load("walkable/PumpCourtyard");
 const { GameState } = await load("simulation/gameState");
-const {surveyRoutes}=await load("simulation/fieldwork");
+const {surveyRoutes,pumpJourneys,routePoint,nearestRouteFraction}=await load("simulation/fieldwork");
 const { BroadStreetScene } = await load("render/BroadStreetScene");
 
 test("VR street entry supports pump selection, squeeze panel access, and teleport", () => {
@@ -135,12 +135,12 @@ test("standard thumbstick and touchpad inputs work without vendor or hand assump
   assert.equal(standardTurnAxis(), 0);
 });
 
-test("pump inspection waits for day two and rewards once across revisits", () => {
+test("daily pump inspection reuses one evidence card across revisits", () => {
  const early=fieldGame();assert.equal(early.inspectHotspot('broad-street-pump').dialogue,undefined);
  const game=gameAtDay(2);game.travelToLocation('broad-street');game.recordPumpedWater('broad-street');game.inspectHotspot('broad-street-pump');
  const count=game.getCollectedEvidence().length;finishConversation(game);assert.ok(game.hasEvidence('pump-water-inspection'));
  talk(game,'snow-desk','john-snow');talk(game,'broad-street','broad-street-pump');
- assert.equal(game.getCollectedEvidence().length,count+1);game.reset();assert.equal(game.hasEvidence('pump-water-inspection'),false);
+ assert.equal(game.getCollectedEvidence().length,count);assert.equal(game.getWaterSampleObservations().length,2);game.reset();assert.equal(game.hasEvidence('pump-water-inspection'),false);
 });
 
 test("keyboard movement follows yaw, preserves height and normalizes diagonals", () => {
@@ -282,7 +282,7 @@ function beginDay(game) {game.dismissDayIntroduction();talk(game,'snow-desk','jo
 function finishDay(game) {talk(game,'snow-desk','john-snow');assert.ok(game.endDay());beginDay(game);}
 function gameAtDay(day, beforeMap=false) {
  const game=new GameState();beginDay(game);
- if(day>=2){talk(game,'registrar','registrar-ledger');talk(game,'household','broad-street-household');finishDay(game);}
+ if(day>=2){talk(game,'broad-street','broad-street-pump');talk(game,'registrar','registrar-ledger');talk(game,'household','broad-street-household');talk(game,'broad-street','broad-street-pump');finishDay(game);}
  if(day>=3){talk(game,'broad-street','broad-street-pump');talk(game,'household-routines','routines-household');talk(game,'workhouse','poland-workhouse');talk(game,'manufactory','manufactory-worker');finishDay(game);}
  if(day===3 && !beforeMap)completeSurvey(game);
  return game;
@@ -556,7 +556,7 @@ test('actual registrar controller and doorway preserve the ledger-to-Snow inquir
   teleportViewer(rig,camera,new THREE.Vector3(zone.x,0,zone.z));scene.updateWorldTravelZones();
   assert.equal(game.getCurrentLocation().id,'snow-desk');assert.ok(game.hasEvidence('attack-timeline'));
   assert.equal(game.hasEvidence('pump-cluster'),false,'recap requires both day-one assignments');
-  talk(game,'household','broad-street-household');talk(game,'snow-desk','john-snow');assert.ok(game.hasEvidence('pump-cluster'));
+  talk(game,'household','broad-street-household');talk(game,'broad-street','broad-street-pump');talk(game,'snow-desk','john-snow');assert.ok(game.hasEvidence('pump-cluster'));
 });
 
 test('registrar asset uses the runtime layout, embedded textures and a modest geometry budget',async()=>{
@@ -1516,17 +1516,18 @@ for(const [key,Room] of Object.entries(witnessRooms))test(`${key} witness namepl
 });
 
 const { renderSynthesisPanel, renderChapterPanel } = await load('ui/createUi');
+function surveyAction(guide) {return (guide.actions.find(a=>a.id==='mark')??guide.actions[0]).id;}
 function completeSurvey(game) {
  if(game.hasEvidence('walking-access'))return;
  assert.ok(game.resumePumpComparison());
- for(let i=0;i<10 && game.getFieldworkView();i++) {
-  const guide=game.getFieldworkView().guided;assert.ok(game.advancePumpComparison(guide.actions[0].id,guide.key));
+ for(let i=0;i<16 && game.getFieldworkView();i++) {
+  const guide=game.getFieldworkView().guided;if(!guide.actions.length){game.movePumpMarker(.5);continue;}assert.ok(game.advancePumpComparison(surveyAction(guide),guide.key));
  }
  assert.ok(game.hasWalkingBoundary());finishConversation(game);game.closeDialogue();
 }
 
 function reviewGame() {
- const game=gameAtDay(3);talk(game,'brewery','broad-street-brewery');talk(game,'household-away','away-household');completeSurvey(game);talk(game,'snow-desk','john-snow');return game;
+ const game=gameAtDay(3);talk(game,'broad-street','broad-street-pump');talk(game,'brewery','broad-street-brewery');talk(game,'household-away','away-household');completeSurvey(game);talk(game,'snow-desk','john-snow');return game;
 }
 
 test('each theory can be prepared and presented without a confidence step; other gates remain',()=>{
@@ -1647,7 +1648,7 @@ test('scene guidance names selectable figures and current-day street activities'
     assert.doesNotMatch(game.getInteractionHint(),/gold|marker|marked (table|chair)/i);
   }
   game.currentLocationId='broad-street';
-  assert.doesNotMatch(game.getInteractionHint(),/inspect|survey/);
+  assert.match(game.getInteractionHint(),/pump handle.*inspect/);
   game.day=2;assert.match(game.getInteractionHint(),/pump handle.*inspect/);
   game.day=3;assert.match(game.getInteractionHint(),/household and brewery/);
 });
@@ -2403,7 +2404,7 @@ test('conversation VR panel adapts to seated and standing eye heights and sits b
 const {days:inquiryDays}=await load('simulation/campaign');
 function permutations(xs){return xs.length?xs.flatMap((x,i)=>permutations(xs.filter((_,j)=>i!==j)).map(rest=>[x,...rest])):[[]];}
 test('all three days complete in every assignment visit order, with choice saves and interrupted recaps',()=>{
- const groups=[['registrar','household'],['broad-street','household-routines','workhouse','manufactory'],['brewery','household-away']];
+ const groups=[['registrar','household','broad-street'],['broad-street','household-routines','workhouse','manufactory'],['brewery','household-away','broad-street']];
  const targets={manufactory:'manufactory-worker','registrar':'registrar-ledger',household:'broad-street-household','broad-street':'broad-street-pump','household-routines':'routines-household',workhouse:'poland-workhouse',brewery:'broad-street-brewery','household-away':'away-household'};
  for(const a of permutations(groups[0]))for(const b of permutations(groups[1]))for(const c of permutations(groups[2])) {
   let game=new GameState();
@@ -2452,15 +2453,30 @@ test('future evidence and Board completion cannot bypass required objectives, re
  resumed.finishBoard();assert.equal(resumed.stage,'complete');assert.equal(resumed.getConversationView(),undefined);
 });
 
-test('paired routes share origins and use calibrated distances independent of travel speed or teleportation',()=>{
- for(const pair of ['marlborough','rupert']) {
-  const routes=surveyRoutes.filter(r=>r.pair===pair);assert.equal(routes.length,2);
-  assert.deepEqual(routes[0].polyline[0],routes[1].polyline[0]);assert.equal(routes[0].origin,routes[1].origin);
-  for(const route of routes){assert.ok(route.metres>20&&route.metres<800);assert.equal(route.seconds,Math.round(route.metres/1.2));}
+test('pump-to-pump journeys start at Broad Street and split by street distance, independently of locomotion',()=>{
+ const origin=pumpJourneys[0].polyline[0];
+ for(const journey of pumpJourneys) {
+  assert.deepEqual(journey.polyline[0],origin);
+  const legs=surveyRoutes.filter(r=>r.pair===journey.id);assert.equal(legs.length,2);
+  assert.deepEqual(legs[0].polyline.at(-1),legs[1].polyline[0]);
+  assert.deepEqual(legs[0].polyline.at(-1),routePoint(journey.id,.5));
+  assert.equal(legs[0].metres,legs[1].metres);assert.equal(legs[0].seconds,legs[1].seconds);
+  assert.equal(legs[0].metres+legs[1].metres,journey.metres);
+  assert.equal(journey.seconds,Math.round(journey.metres/1.2));
+  const chord=origin.map((x,i)=>(x+journey.polyline.at(-1)[i])/2),mid=routePoint(journey.id,.5);
+  assert.ok(Math.hypot(chord[0]-mid[0],chord[1]-mid[1])>1,'halfway follows street bends, not a straight-line midpoint');
  }
- const game=gameAtDay(3,true);const r=surveyRoutes[0];game.resumePumpComparison();
- assert.equal(game.advancePumpComparison('finish'),false,'cannot skip the comparison');
- assert.ok(game.advancePumpComparison(r.id));assert.equal(game.advancePumpComparison(r.id),false,'measurement records only once');
+ const east=pumpJourneys.find(j=>j.id==='rupert');assert.ok(east.landmark.point[0]>75);
+ assert.deepEqual(east.polyline[1],east.landmark.point,'eastern route reaches the end of Broad Street');
+ const game=gameAtDay(3,true),r=surveyRoutes[0];game.resumePumpComparison();
+ assert.equal(game.advancePumpComparison('finish'),false);assert.equal(game.advancePumpComparison('mark'),false);
+ game.advancePumpComparison('trace');assert.equal(game.getRouteObservations().length,0);
+ assert.equal(game.advancePumpComparison('mark'),false,'a quarter-route mark is not equal distance');
+ game.movePumpMarker(.75);
+ assert.equal(game.advancePumpComparison('mark'),false,'a three-quarter mark is not equal distance');
+ game.movePumpMarker(.5);const guide=game.getFieldworkView().guided;
+ assert.equal(guide.results[0].time,guide.results[1].time);
+ assert.ok(game.advancePumpComparison('mark',guide.key));assert.equal(game.advancePumpComparison('mark',guide.key),false);
  const saved=new GameState();assert.ok(saved.restoreSave(game.serializeSave()));saved.resumePumpComparison();
  assert.deepEqual(saved.getRouteObservations()[0],{routeId:r.id,metres:r.metres,seconds:r.seconds});
  assert.equal(saved.hasWalkingBoundary(),false);completeSurvey(game);assert.ok(game.hasWalkingBoundary());
@@ -2506,13 +2522,13 @@ test('hearing conclusions expose the explicit decision action and label historic
 });
 
 test('VR day, route and hearing buttons drive the shared campaign and expose each conversation',()=>{
- const game=gameAtDay(1);talk(game,'registrar','registrar-ledger');talk(game,'household','broad-street-household');talk(game,'snow-desk','john-snow');
+ const game=gameAtDay(1);talk(game,'registrar','registrar-ledger');talk(game,'household','broad-street-household');talk(game,'broad-street','broad-street-pump');talk(game,'snow-desk','john-snow');
  const scene=Object.create(BroadStreetScene.prototype);let placements=0;
  Object.assign(scene,{gameState:game,endDay:()=>game.endDay(),vrPanelMode:'home',showVrPanel:()=>{},hideVrPanel:()=>{},refreshHotspots:()=>{},markVrPanelDirty:()=>{},placeVrPanelInFront:()=>{placements++;assert.ok(scene.gameState.getConversationView());}});
  scene.handleVrButton({type:'end-day'});assert.equal(game.day,2);assert.ok(game.dayIntroOpen);
  scene.handleVrButton({type:'dismiss-day'});assert.equal(game.dayIntroOpen,false);
  const survey=gameAtDay(3,true);survey.resumePumpComparison();scene.gameState=survey;
- const route=surveyRoutes[0];const place=scene.placeVrPanelInFront;scene.placeVrPanelInFront=()=>{};scene.handleVrButton({type:'guided-survey',action:route.id});scene.placeVrPanelInFront=place;assert.deepEqual(survey.getRouteObservations()[0],{routeId:route.id,metres:route.metres,seconds:route.seconds});
+ const route=surveyRoutes[0];const place=scene.placeVrPanelInFront;scene.placeVrPanelInFront=()=>{};scene.handleVrButton({type:'guided-survey',action:'trace'});survey.movePumpMarker(.5);scene.handleVrButton({type:'guided-survey',action:'mark'});scene.placeVrPanelInFront=place;assert.deepEqual(survey.getRouteObservations()[0],{routeId:route.id,metres:route.metres,seconds:route.seconds});
  const hearing=reviewGame();hearing.selectHypothesis('waterborne');hearing.prepareBoardArgument();hearing.presentToBoard();scene.gameState=hearing;scene.vrPanelMode='synthesis';
  scene.handleVrButton({type:'begin-hearing'});assert.equal(scene.vrPanelMode,'home');assert.equal(placements,1);assert.equal(hearing.boardPresented,false);
  for(let i=0;i<30&&!hearing.getConversationView().complete;i++){const v=hearing.getConversationView();scene.handleVrButton({type:'conversation-choice',beatId:v.beatId,choiceId:v.choices[0].id});}
@@ -2614,7 +2630,7 @@ test('water inspection requires flow from the local handle, not a pump click or 
     for(let i=0;i<25;i++)scene.updatePumpInteractions(.05);
     assert.deepEqual(effects,['water'],'one sound per stroke');assert.equal(flowing,false);
     assert.equal(game.hasPumpedWater(location==='workhouse'?'broad-street':'workhouse'),false,'supplies remain separate');
-    assert.equal(game.hasEvidence('pump-water-inspection'),false,'drawing water alone never awards evidence');
+    assert.equal(game.getWaterSampleObservations().length,1,'drawing today’s water alone never records today’s inspection');
     assert.ok(game.inspectHotspot(hotspot).dialogue);finishConversation(game);
     assert.equal(location==='workhouse'?game.hasWorkhouseSample():game.hasEvidence('pump-water-inspection'),true);
   }
@@ -2630,8 +2646,8 @@ test('both sample orders yield the same inconclusive comparison without extra ob
       game.inspectHotspot(hotspot);const view=game.getConversationView();game.chooseConversation(view.beatId,view.choices[0].id);
       const resumed=new GameState();assert.ok(resumed.restoreSave(game.serializeSave()));game=resumed;game.inspectHotspot(hotspot);finishConversation(game);
     }
-    assert.match(game.getConversationView().text,/no notable difference/);
-    assert.match(game.getEvidence('pump-water-inspection').summary,/neither|either sample/);
+    assert.match(game.getConversationView().text,/Neither inspection gives a decisive/);
+    assert.match(game.getEvidence('pump-water-inspection').summary,/neither supply/);
     assert.match(game.getAllEvidence().find(c=>c.id==='pump-water-inspection').sourceLabel,/workhouse/);
     assert.equal(game.getAllEvidence().length,10);assert.equal(game.getCollectedEvidence().length,4);
     assert.equal(game.getAssignments().find(o=>o.id==='workhouse').complete,false,'sample cannot replace steward interview');
@@ -2639,18 +2655,38 @@ test('both sample orders yield the same inconclusive comparison without extra ob
   }
 });
 
-test('sample save validation preserves old inspections but rejects invalid or prematurely drawn water',()=>{
-  const early=gameAtDay(1);early.travelToLocation('broad-street');assert.equal(early.recordPumpedWater('broad-street'),false);
-  const game=gameAtDay(2);game.travelToLocation('broad-street');assert.equal(game.recordPumpedWater('workhouse'),false);
-  game.recordPumpedWater('broad-street');game.inspectHotspot('broad-street-pump');
-  const old=JSON.parse(game.serializeSave());delete old.pumpedWater;
-  const restored=new GameState();assert.ok(restored.restoreSave(JSON.stringify(old)));assert.ok(restored.hasPumpedWater('broad-street'));
-  for(const water of [[],['workhouse'],['brewery'],['broad-street','broad-street'],null]) {
-    const invalid={...old,pumpedWater:water};
-    assert.equal(new GameState().restoreSave(JSON.stringify(invalid)),false);
-  }
-  const invalid=JSON.parse(early.serializeSave());invalid.pumpedWater=['broad-street'];
-  assert.equal(new GameState().restoreSave(JSON.stringify(invalid)),false);
+test('daily water requires a fresh local stroke and completed inspection on every day, with one cumulative card',()=>{
+ for(const day of [1,2,3]) {
+  const game=gameAtDay(day);game.travelToLocation('broad-street');
+  assert.equal(game.hasPumpedWater('broad-street'),false,'yesterday’s water cannot satisfy today');
+  assert.equal(game.inspectHotspot('broad-street-pump').dialogue,undefined);
+  assert.equal(game.recordPumpedWater('workhouse'),false);
+  assert.ok(game.recordPumpedWater('broad-street'));assert.equal(game.recordPumpedWater('broad-street'),false);
+  assert.equal(game.getAssignments().find(o=>o.id===({1:'sample-1',2:'sample',3:'sample-3'}[day])).complete,false);
+  game.inspectHotspot('broad-street-pump');const view=game.getConversationView();game.chooseConversation(view.beatId,view.choices[0].id);
+  const restored=new GameState();assert.ok(restored.restoreSave(game.serializeSave()));assert.ok(restored.hasPumpedWater('broad-street'));
+  restored.inspectHotspot('broad-street-pump');finishConversation(restored);
+  assert.equal(restored.getCollectedEvidence().filter(e=>e.id==='pump-water-inspection').length,1);
+  assert.ok(restored.getWaterSampleObservations().some(s=>s.day===day));
+  const before=restored.getWaterSampleObservations();talk(restored,'broad-street','broad-street-pump');assert.deepEqual(restored.getWaterSampleObservations(),before);
+ }
+ const ready=reviewGame();assert.equal(ready.getWaterSampleObservations().length,3);
+ assert.equal(new Set(ready.getWaterSampleObservations().map(s=>s.text)).size,3);assert.match(ready.getEvidence('pump-water-inspection').summary,/Sept 5:.*Sept 6:.*Sept 7:/);
+ ready.reset();assert.deepEqual(ready.getWaterSampleObservations(),[]);assert.equal(ready.hasPumpedWater('broad-street'),false);
+});
+
+test('water save migration retains completed old days without inventing dated observations',()=>{
+ const game=gameAtDay(2);talk(game,'broad-street','broad-street-pump');const old=JSON.parse(game.serializeSave());
+ delete old.sampleRevision;delete old.dailyPumpedWater;delete old.legacySampleWaivers;
+ delete old.conversation.cursors['pump-sample-1'];old.conversation.concluded=old.conversation.concluded.filter(id=>id!=='pump-sample-1');
+ delete old.pumpedWater;const restored=new GameState();assert.ok(restored.restoreSave(JSON.stringify(old)));
+ assert.ok(restored.hasPumpedWater('broad-street'));assert.deepEqual(restored.getWaterSampleObservations().map(s=>s.day),[2]);
+ assert.ok(new GameState().restoreSave(restored.serializeSave()));
+ const early=new GameState();early.dismissDayIntroduction();assert.equal(early.recordPumpedWater('broad-street'),false);
+ const valid=JSON.parse(restored.serializeSave());
+ for(const mutate of [v=>v.dailyPumpedWater=[],v=>v.dailyPumpedWater=[3],v=>v.dailyPumpedWater=[2,2],v=>v.legacySampleWaivers=[3],v=>v.pumpedWater=['workhouse'],v=>v.sampleRevision=99]) {
+  const invalid=structuredClone(valid);mutate(invalid);const before=restored.serializeSave();assert.equal(restored.restoreSave(JSON.stringify(invalid)),false);assert.equal(restored.serializeSave(),before);
+ }
 });
 
 test('workhouse pump replaces static geometry without moving the well, buckets or collision envelope',async()=>{
@@ -2822,7 +2858,7 @@ test('Snow welcomes unfinished visits each day without advancing evidence, recap
  const game=gameAtDay(1);game.inspectHotspot('john-snow');finishConversation(game);game.closeDialogue();
  talk(game,'registrar','registrar-ledger');game.travelToLocation('snow-desk');game.inspectHotspot('john-snow');
  assert.match(game.getConversationView().text,/household 1/);assert.doesNotMatch(game.getConversationView().text,/registrar/);
- game.closeDialogue();talk(game,'household','broad-street-household');game.travelToLocation('snow-desk');game.inspectHotspot('john-snow');
+ game.closeDialogue();talk(game,'household','broad-street-household');talk(game,'broad-street','broad-street-pump');game.travelToLocation('snow-desk');game.inspectHotspot('john-snow');
  assert.equal(game.getConversationView().id,'snow-recap-1');assert.equal(game.canEndDay(),false);
  finishConversation(game);assert.equal(game.canEndDay(),true);
 });
@@ -2882,19 +2918,20 @@ test('morning map comparisons gate fieldwork, resume every choice, and reveal th
   game.resumePumpComparison();const points=new Map();let count=0;
   while(game.getFieldworkView()) {
    const view=game.getFieldworkView().guided;
+   if(!view.actions.length){game.movePumpMarker(.5);continue;}
    assert.equal(game.currentLocationId,'snow-desk');assert.equal(game.hasEvidence('walking-access'),false);
    for(const id of ['broad-street','brewery','household-away'])assert.equal(game.travelToLocation(id).traveled,false);
    const state=JSON.parse(game.serializeSave()).surveyProgress;
    if(state.phase==='origin') {assert.equal(view.results.length,0);points.set(state.routeId,view.mapPoint);assert.match(view.text,/I measured/);}
    if(state.phase==='done') {assert.ok(game.hasWalkingBoundary());assert.equal(view.mapPoint.label,'Household 3');assert.match(view.text,/outside/);}
-   const action=view.actions[Math.min(answerIndex,view.actions.length-1)].id;
+   const action=surveyAction(view);
    assert.ok(game.advancePumpComparison(action,view.key));assert.equal(game.advancePumpComparison(action,view.key),false);
    if(game.getFieldworkView()) {
     const next=game.getFieldworkView().guided,restored=new GameState();assert.ok(restored.restoreSave(game.serializeSave()));game=restored;
     assert.equal(game.getFieldworkView(),undefined);game.inspectHotspot('john-snow');
     assert.deepEqual(game.getFieldworkView().guided,next,'selecting Snow after reload resumes the exact map beat');
    }
-   assert.ok(++count<10);
+   assert.ok(++count<16);
   }
   assert.equal(points.size,2);assert.equal(game.getRouteObservations().length,4);
   assert.equal(game.getConversationView().id,'walking-review');assert.equal(game.canUseMap(),false);
@@ -2927,9 +2964,10 @@ test('VR table uses the shared map points and choices without changing rooms',()
  Object.assign(scene,{gameState:game,vrMapImages:new Map(),vrPanelMode:'home',vrPanelVisible:true,vrPanelDrawCommands:[],clearVrPanel:()=>{},addVrText:()=>{},addVrIconButton:()=>{},addVrPanelSurface:()=>{},addVrPanelButton:(label,x,y,w,h,action)=>buttons.push({label,action}),
   showVrPanel:()=>{},placeVrPanelInFront:()=>{},refreshHotspots:()=>{},markVrPanelDirty:()=>{}});
  while(game.getFieldworkView()) {
+  if(!game.getFieldworkView().guided.actions.length)game.movePumpMarker(.5);
   buttons.length=0;scene.rebuildVrPanel();const guide=game.getFieldworkView().guided;
   const map=scene.vrPanelDrawCommands.find(c=>c.kind==='map');assert.deepEqual(map.exercisePoint,guide.mapPoint);assert.equal(map.locations.length,0);
-  assert.deepEqual(buttons.map(b=>b.label),guide.actions.map(a=>a.label));scene.handleVrButton(buttons[0].action);
+  assert.deepEqual(buttons.map(b=>b.label),guide.actions.map(a=>a.label));scene.handleVrButton(buttons.find(b=>b.action.action===surveyAction(guide)).action);
   assert.equal(game.currentLocationId,'snow-desk');
  }
  assert.equal(scene.vrPanelMode,'home');assert.ok(game.hasWalkingBoundary());assert.equal(game.getConversationView().speaker,'John Snow');
@@ -2938,7 +2976,7 @@ test('VR table uses the shared map points and choices without changing rooms',()
 test('Continue permits exploration before resuming the table or Snow assignment, with travel still gated',()=>{
  const source=gameAtDay(3,true);source.resumePumpComparison();
  const states=[source.serializeSave()];
- while(source.getFieldworkView()){const guide=source.getFieldworkView().guided;source.advancePumpComparison(guide.actions[0].id,guide.key);states.push(source.serializeSave());}
+ while(source.getFieldworkView()){if(!source.getFieldworkView().guided.actions.length)source.movePumpMarker(.5);const guide=source.getFieldworkView().guided;source.advancePumpComparison(surveyAction(guide),guide.key);states.push(source.serializeSave());}
  for(const saved of states){
   const storage={getItem:()=>saved,setItem:()=>{},removeItem:()=>{}},game=new GameState();
   game.configurePersistence(storage,'/vr-snow/preview/inquiry/');assert.ok(game.startupOpen);assert.ok(game.hasSavedInquiry);assert.ok(game.continueInquiry());
@@ -3155,7 +3193,7 @@ test('desktop and left-stick collisions show the same street cue without alterin
 test('day-one recap starts with an unmarked map then plots deaths, retaining each stage through close and reload',()=>{
  let game=gameAtDay(1);assert.equal(game.hasMappedDeaths(),false);
  talk(game,'registrar','registrar-ledger');assert.equal(game.hasMappedDeaths(),false);
- talk(game,'household','broad-street-household');game.travelToLocation('snow-desk');game.inspectHotspot('john-snow');
+ talk(game,'household','broad-street-household');talk(game,'broad-street','broad-street-pump');game.travelToLocation('snow-desk');game.inspectHotspot('john-snow');
  assert.equal(game.getConversationView().map,'base');assert.equal(game.hasMappedDeaths(),false);
  assert.deepEqual(game.getConversationView().choices.map(c=>c.id),['pattern'],'the comparison cannot be skipped');
  game.closeDialogue();
@@ -3171,7 +3209,7 @@ test('day-one recap starts with an unmarked map then plots deaths, retaining eac
  game.endDay();assert.equal(game.hasMappedDeaths(),true);
 });
 test('VR day-one recap changes the map and legend together without travel controls',()=>{
- const game=gameAtDay(1);talk(game,'registrar','registrar-ledger');talk(game,'household','broad-street-household');game.travelToLocation('snow-desk');game.inspectHotspot('john-snow');
+ const game=gameAtDay(1);talk(game,'registrar','registrar-ledger');talk(game,'household','broad-street-household');talk(game,'broad-street','broad-street-pump');game.travelToLocation('snow-desk');game.inspectHotspot('john-snow');
  const scene=Object.create(BroadStreetScene.prototype),buttons=[];
  Object.assign(scene,{gameState:game,vrMapImages:new Map([['base','base-image'],['deaths','death-image']]),vrPanelMode:'home',vrPanelVisible:true,vrPanelDrawCommands:[],clearVrPanel:()=>{},addVrIconButton:()=>{},addVrPanelSurface:()=>{},addVrPanelButton:(label,x,y,w,h,action)=>buttons.push({label,action,y,h})});
  for(let i=0;i<10;i++) {
@@ -3223,7 +3261,7 @@ test('day fade changes state only after a fully black frame and finishes exactly
 test('both End day transitions retain the recap until black and prepare VR introduction before fading in',()=>{
  for(const day of [1,2]) {
   const ready=gameAtDay(day);
-  if(day===1){talk(ready,'registrar','registrar-ledger');talk(ready,'household','broad-street-household');}
+  if(day===1){talk(ready,'registrar','registrar-ledger');talk(ready,'household','broad-street-household');talk(ready,'broad-street','broad-street-pump');}
   else {talk(ready,'broad-street','broad-street-pump');talk(ready,'household-routines','routines-household');talk(ready,'workhouse','poland-workhouse');talk(ready,'manufactory','manufactory-worker');}
   talk(ready,'snow-desk','john-snow');assert.ok(ready.canEndDay());
   const camera=new THREE.PerspectiveCamera(),fade=new DayTransition(camera),scene=Object.create(BroadStreetScene.prototype);let rebuilt=0,finished=0;
@@ -3401,7 +3439,7 @@ test('old saves retain completed days without fabricating manufactory evidence, 
  assert.ok(game.restoreSave(JSON.stringify(unfinished)));assert.ok(game.getAssignments().some(o=>o.id==='manufactory'&&!o.complete));
  const ended=JSON.parse(gameAtDay(2).serializeSave());
  for(const [key,value] of Object.entries(saved.conversation.cursors))if(key==='snow-recap-2'||['pump-sample','household-routines','workhouse-supply'].includes(key))ended.conversation.cursors[key]=value;
- ended.conversation.concluded.push('pump-sample','household-routines','workhouse-supply','snow-recap-2');ended.pumpedWater=['broad-street'];ended.location='snow-desk';delete ended.campaignRevision;delete ended.legacyManufactoryWaiver;
+ ended.conversation.concluded.push('pump-sample','household-routines','workhouse-supply','snow-recap-2');ended.pumpedWater=['broad-street'];ended.dailyPumpedWater=[1,2];ended.location='snow-desk';delete ended.campaignRevision;delete ended.legacyManufactoryWaiver;
  assert.ok(game.restoreSave(JSON.stringify(ended)));assert.ok(game.isDayFieldworkComplete());assert.ok(game.canEndDay());assert.equal(game.getAssignments().length,3);
  assert.equal(game.hasEvidence('manufactory-exposure'),false);assert.ok(game.endDay());
  resumed=new GameState();assert.ok(resumed.restoreSave(game.serializeSave()));game.reset();beginDay(game);assert.equal(game.hasEvidence('manufactory-exposure'),false);
@@ -3464,5 +3502,71 @@ test('new domestic artifacts are complete pickups with short inspection notes',a
    assert.ok(hold.begin(prop,anchor,true));hold.rotate(.3,.1);hold.update(.05);hold.release(true);
    assert.ok(prop.group.position.distanceTo(prop.home)<1e-9);assert.ok(prop.group.quaternion.angleTo(prop.homeRotation)<1e-7);
   }
+ }
+});
+
+test('completed legacy campaigns survive both migrations without invented samples or replaying the map',()=>{
+ const original=reviewGame(),old=JSON.parse(original.serializeSave());
+ delete old.sampleRevision;delete old.dailyPumpedWater;delete old.legacySampleWaivers;
+ for(const id of ['pump-sample-1','pump-sample-3']) {delete old.conversation.cursors[id];old.conversation.concluded=old.conversation.concluded.filter(x=>x!==id);}
+ old.mapExercise=2;delete old.surveyProgress.marker;
+ const game=new GameState();assert.ok(game.restoreSave(JSON.stringify(old)));
+ assert.ok(game.hasEnoughEvidenceForSynthesis());assert.ok(game.hasWalkingBoundary());assert.equal(game.canResumePumpComparison(),false);
+ assert.deepEqual(game.getWaterSampleObservations().map(s=>s.day),[2]);
+ assert.ok(new GameState().restoreSave(game.serializeSave()));
+});
+
+test('new survey saves cannot invent a halfway mark, skip a journey or accept stale marker clicks',()=>{
+ const game=gameAtDay(3,true);game.resumePumpComparison();game.advancePumpComparison('trace');
+ const first=game.getFieldworkView().guided;assert.equal(game.advancePumpComparison('mark',first.key),false);
+ game.movePumpMarker(.5);assert.equal(game.advancePumpComparison('mark',first.key),false);
+ const valid=JSON.parse(game.serializeSave());
+ for(const mutate of [v=>v.surveyProgress.marker=-1,v=>v.surveyProgress.marker=5,v=>v.surveyProgress.phase='feedback',v=>v.surveyProgress.routeId='rupert-broad',v=>v.routes=['marlborough-broad'],v=>v.surveyProgress.answer='marlborough-broad']) {
+  const bad=structuredClone(valid);mutate(bad);const before=game.serializeSave();assert.equal(game.restoreSave(JSON.stringify(bad)),false);assert.equal(game.serializeSave(),before);
+ }
+ assert.ok(game.advancePumpComparison('mark'));assert.equal(game.getRouteObservations().length,2);
+ game.advancePumpComparison('next');assert.equal(game.hasWalkingBoundary(),false);
+ assert.ok(new GameState().restoreSave(game.serializeSave()));
+});
+
+
+test('route dragging follows bends, updates continuously, snaps near equality and saves fractional progress',()=>{
+ for(const journey of pumpJourneys)for(const fraction of [0,.1,.34,.5,.76,1]) {
+  const p=routePoint(journey.id,fraction);
+  assert.ok(Math.abs(nearestRouteFraction(journey.id,...p)-fraction)<1e-8);
+ }
+ const game=gameAtDay(3,true);assert.equal(game.movePumpMarker(.5),false);
+ game.resumePumpComparison();game.advancePumpComparison('trace');
+ const initial=game.getFieldworkView().guided;
+ assert.equal(initial.mapLandmark,undefined);assert.equal(initial.actions.length,0);
+ game.dragPumpMarker(...routePoint('marlborough',.34));
+ assert.equal(game.getFieldworkView().guided.markerFraction,.34);
+ assert.notDeepEqual(game.getFieldworkView().guided.results,initial.results);
+ assert.equal(game.advancePumpComparison('mark'),false);
+ const restored=new GameState();assert.ok(restored.restoreSave(game.serializeSave()));restored.resumePumpComparison();
+ assert.equal(restored.getFieldworkView().guided.markerFraction,.34);
+ assert.equal(restored.movePumpMarker(NaN),false);assert.equal(restored.dragPumpMarker(Infinity,20),false);
+ restored.movePumpMarker(.491);assert.equal(restored.getFieldworkView().guided.markerFraction,.5);
+ assert.ok(restored.advancePumpComparison('mark'));assert.equal(restored.movePumpMarker(.7),false);
+ const old=JSON.parse(game.serializeSave());old.mapExercise=3;old.surveyProgress.marker=3;
+ assert.ok(new GameState().restoreSave(JSON.stringify(old)));
+ game.movePumpMarker(-.2);assert.equal(game.getFieldworkView().guided.markerFraction,0);
+ game.movePumpMarker(1.2);assert.equal(game.getFieldworkView().guided.markerFraction,1);
+});
+
+test('VR controller rays grab and slide the same marker with trigger or grip without a release click',()=>{
+ for(const input of ['trigger','grip']) {
+  const game=gameAtDay(3,true);game.resumePumpComparison();game.advancePumpComparison('trace');
+  const scene=Object.create(BroadStreetScene.prototype),panel=new THREE.Group(),controller=new THREE.Group();
+  panel.position.set(.3,1.2,-2);panel.rotation.y=.35;panel.updateMatrixWorld(true);
+  Object.assign(scene,{gameState:game,vrPanel:panel,vrPanelMode:'home',vrPanelVisible:true,vrSelectionStarts:new Map(),controllerRaycaster:new THREE.Raycaster(),pickVrPanel:()=>true});
+  scene.setRaycasterFromController=()=>{scene.controllerRaycaster.ray.set(controller.position,new THREE.Vector3(0,0,-1).applyQuaternion(controller.quaternion));};
+  const aim=fraction=>{const p=routePoint('marlborough',fraction),local=new THREE.Vector3(.06+p[0]*.012,.62-p[1]*.012,0),target=panel.localToWorld(local);controller.position.copy(panel.localToWorld(new THREE.Vector3(0,0,1)));controller.lookAt(target);controller.rotateY(Math.PI);};
+  aim(.8);assert.equal(scene.beginVrMarkerDrag(controller,input),false,'must grab the marker, not arbitrary map ground');
+  aim(.25);assert.ok(scene.beginVrMarkerDrag(controller,input));
+  aim(.37);scene.updateVrMarkerDrag(true);assert.ok(Math.abs(game.getFieldworkView().guided.markerFraction-.37)<.001);
+  scene.endVrMarkerDrag(controller,input==='grip'?'trigger':'grip');assert.ok(scene.vrMarkerDrag,'other button release cannot drop this drag');
+  aim(.5);scene.endVrMarkerDrag(controller,input);assert.equal(scene.vrMarkerDrag,undefined);assert.equal(game.getFieldworkView().guided.markerFraction,.5);
+  assert.equal(game.getRouteObservations().length,0,'release does not confirm the result');
  }
 });

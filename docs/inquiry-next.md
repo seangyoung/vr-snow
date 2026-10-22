@@ -58,39 +58,53 @@ acceptance; automated or desktop results do not establish headset readiness.
 
 ## Pump-access exercise and reproducibility
 
-Day three begins at Snow’s map table. He explains that he measured walking times
-from two shared starting points. The player predicts the nearer pump in each pair;
-Snow reveals the measurements and explains the street arrangement. Both choices
-continue. The table shows the map, named pumps, and the same marked origin for each
-pair, without colored route lines or travel controls.
+Day three begins at Snow’s map table. He says he measured journeys to all the
+nearby public pumps. The player explores two examples beginning at Broad Street:
+Marlborough Street and Rupert Street. The eastern journey runs to the end of Broad
+Street before turning south; it no longer starts beside the pump.
 
-The final map reveals the source `PumpServiceArea` boundary and marks Household 3
-at map percentages (26, 61), outside it. Snow asks whether the ill person there had
-a connection to Broad Street water, then assigns that interview and the brewery.
-He does not reveal the household’s answer. The concluding conversation records
-walking access once and unlocks travel. Marlborough and Rupert remain historical
-pump symbols on the map, with no visitable scenes or street portals.
+Trace a street route, then grab the red marker and slide it directly along the
+route. Mouse/touch dragging and VR trigger or grip rays use the same calibrated
+nearest-route projection, with live distance/time readouts. The focused marker
+also accepts arrow keys (Shift for larger steps) and Home/End. A small magnetic
+capture within 1.5% of halfway makes exact equality attainable. There are no
+directional movement buttons or east-end landmark point. At equal walking distance, record the halfway mark.
+Both examples must be marked before revealing the full source `PumpServiceArea`
+boundary. Only the active exercise has a route highlight; the normal map and final
+boundary view remain free of accumulated route lines. Deaths are hidden while
+manipulating the route and return with the boundary.
 
-Desktop and VR consume the same comparison, points, results and choices. Reloads
-resume the exact table beat or concluding Snow exchange; travel remains gated.
-The version-one save envelope adds `mapExercise: 2`. Valid legacy unfinished visits
-restart the comparison at Snow’s office; already completed findings and other
-fieldwork survive. Saves located at either retired pump restore at the office.
+Snow explains that he also compared the surrounding pumps and nearest streets;
+the two example marks do not generate the full historical boundary. Household 3
+remains at (26, 61), outside it, prompting the interview without revealing its
+answer. The final conversation assigns that household, the brewery and a fresh
+pump sample. No pump destination scenes or portals are restored.
+
+Desktop and VR consume the same path, marker, readouts and actions. The save
+envelope uses `mapExercise: 4`; version 3 marker positions migrate directly to
+the continuous marker. Partial exercises older than version 3 restart at the
+table, while completed findings survive. Current saves resume the exact route and marker.
+Stale UI actions cannot apply to a different step. Travel remains gated until
+Snow's briefing and concluding comparison conversation are complete.
 
 `src/simulation/route-data.json` stores polylines separately from scene geometry.
 Six pump anchors register SVG percentages to EPSG:27700 British National Grid metres.
 The affine fit has 1.096 m anchor RMS, describing registration rather than route
-accuracy. Manually traced distances, rounded to 5 m, and a 1.2 m/s teaching assumption
-supply the specific dialogue timings. **These are reconstructed measurements for
-the dramatization, not surviving recorded timings by Snow.** The opening disclosure
-covers reconstructed walking times once. Characters and evidence stay in-world.
-Snow’s account supports walking convenience, circuitous routes to Rupert Street,
-water preferences and cases away from the pump; it does not supply these timings.
+accuracy. Halfway is interpolated by cumulative projected street length, not the
+coordinate midpoint. Manually traced route totals rounded to 5 m and a 1.2 m/s
+teaching conversion supply displayed timings. These are reconstructed numbers,
+not surviving stopwatch readings. Snow described equal distance by the nearest
+road to surrounding pumps in his parish report, reproduced in
+[UCLA Stream 2](https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_a.html).
+That supports the exploratory idea, not a claim that he constructed the whole
+boundary simply by connecting pump-to-pump midpoints. The established compressed
+chronology includes this later cartographic work.
+
 Run `python3 scripts/calibrate-inquiry-routes.py` to reproduce the coefficients and
 timings without a download. Input coordinates and source URLs remain in the data.
 
 The boundary is the separate historical source layer, **not calculated from the
-four routes**. Desktop uses `public/maps/pump-service-area.svg`, omitting scanned
+two example journeys**. Desktop uses `public/maps/pump-service-area.svg`, omitting scanned
 page-frame subpaths and thickening the line; VR applies the same treatment to the
 original SVG. The concluding exchange distinguishes convenience from consumption
 and sends the player to investigate the exception rather than explaining it away.
@@ -521,3 +535,34 @@ conclusion. The shared graphs supply both desktop and VR. All 271 automated chec
 pass, including exhaustive graph paths, interruption/resume and once-only conclusions;
 the production build passes. Desktop testing additionally checks the new Snow branch,
 save/reload and subsequent assignment/map travel. No new headset validation is claimed.
+
+## Repeated water samples — October 2026 revision
+
+Broad Street sampling is required on all three days. Each day needs a new handle
+stroke that actually produces water, followed by a completed inspection. The
+observations are deterministic: almost clear; a few white flocculent particles;
+then clearer again with an occasional fleck. They stay inconclusive and update
+one dated evidence card. The optional workhouse sample remains separate and
+cannot satisfy a Broad Street assignment. Snow mentions fresh sampling in each
+briefing and the changing appearance in the recaps.
+
+[Snow's Broad Street account](https://www.academia.dk/MedHist/Biblioteket/Print/snow_1855.html)
+describes little visible impurity on September 3 and varying white particles over
+the next two days. The game's September 5–7 observations relocate and dramatize
+that sequence; they are not claims about recorded findings on those exact dates,
+identification of the cholera organism, or water safety. This provenance remains
+in development/source documentation rather than repeated character caveats.
+
+`sampleRevision: 1` adds day-specific drawn-water state. Conversation conclusions
+remain authoritative for inspected samples. Existing saves retain completed days
+without inventing new dated observations: earlier completed days are explicitly
+waived, while the current unfinished day gains its new sample assignment. The
+existing day-two `pump-sample` conversation identifier remains stable.
+
+Validation: 280 automated checks pass, including daily sampling, all fieldwork
+visit orders, interrupted/reloaded conversations, halfway-marker controls and
+legacy-save migration. Browser checks cover direct mouse dragging, live readings, keyboard marker movement, both routes,
+reload/resume, boundary reveal and a fresh Day 3 physical pump stroke followed
+by inspection. Desktop layout and the rendered VR map-panel texture were visually
+reviewed. Production build, installation checks, preview-redirect checks and
+route calibration pass. Seated/standing Quest acceptance remains pending.

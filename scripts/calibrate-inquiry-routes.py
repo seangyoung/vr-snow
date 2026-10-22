@@ -29,7 +29,7 @@ errors = [math.hypot(*(sum(c*v for c,v in zip(coeff[k], row))-p[k] for k in coef
 rms = math.sqrt(sum(e*e for e in errors)/len(errors))
 assert abs(rms-data['anchorRmsMetres'])<1e-6
 print(f'Pump-anchor registration RMS: {rms:.3f} metres (not route uncertainty).')
-for route in data['routes']:
+for route in data['journeys']:
     pts = [[sum(c*v for c,v in zip(coeff[k], [*p,1])) for k in coeff] for p in route['polyline']]
     length = sum(math.dist(a,b) for a,b in zip(pts,pts[1:]))
     metres = math.floor(length/5+.5)*5

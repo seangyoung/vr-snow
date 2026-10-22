@@ -62,9 +62,9 @@ export const hypothesisDefinitions: HypothesisDefinition[] = [
       { evidenceIds: ["pump-cluster"], text: "Deaths cluster around the pump, consistent with a shared local water source." },
     ],
     complicatingEvidence: [
-      { evidenceIds: ["household-water-pattern", "pump-water-inspection"], text: "The water looked clear, and the interviews do not explain why some pump users remained well." },
+      { evidenceIds: ["household-water-pattern", "pump-water-inspection"], text: "The samples do not identify the cause, and the interviews do not explain why some pump users remained well." },
       { evidenceIds: ["household-water-pattern"], text: "The interviews do not explain why some pump users remained well." },
-      { evidenceIds: ["pump-water-inspection"], text: "The pump sample showed no obvious contamination." },
+      { evidenceIds: ["pump-water-inspection"], text: "Ordinary water inspection has not identified the cause of illness." },
     ],
   },
   {
@@ -180,7 +180,7 @@ export const evidenceCards: EvidenceCard[] = [
     id: "pump-water-inspection",
     title: "Pump water gives no decisive visible proof",
     summary:
-      "The sample looks clear. Ordinary inspection reveals no decisive sign of contamination.",
+      "Repeated inspections track changes in visible material without identifying the cause of illness.",
     confidence: "observed",
     sourceType: "observation",
     sourceLabel: "Broad Street pump inspection",
@@ -210,7 +210,7 @@ export const evidenceCards: EvidenceCard[] = [
     complicates: ["Street-level miasma"],
   },
   { id: "nonlocal-exposure", title: "Residence is not necessarily exposure", summary: "A man who fell ill at home farther away drank Broad Street water while working nearby and sometimes carried a jug home.", confidence: "reported", sourceType: "interview", sourceLabel: "Household 3 interview", supports: ["Exposure history"], complicates: ["Distance alone"] },
-  { id: "walking-access", title: "Walking access describes convenience, not consumption", summary: "Snow’s walking measurements compare Broad Street with the Marlborough and Rupert Street pumps from two starting points. Street turns affect the journey; taste, errands and work also influence which water people use.", confidence: "inferred", sourceType: "inference", sourceLabel: "Snow’s map-table comparison", supports: ["Access as an exposure clue"], complicates: ["Nearest pump equals actual consumption"] },
+  { id: "walking-access", title: "Walking access describes convenience, not consumption", summary: "Starting at Broad Street, the map exercise marks equal-distance points along two street routes. Snow’s wider comparisons define the pump service area; taste, errands and work can carry its water beyond that boundary.", confidence: "inferred", sourceType: "inference", sourceLabel: "Snow’s map-table comparison", supports: ["Access as an exposure clue"], complicates: ["Nearest pump equals actual consumption"] },
 ];
 
 export const fieldStudyGoal: StudyGoal = {

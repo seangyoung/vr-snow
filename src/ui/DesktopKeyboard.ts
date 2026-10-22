@@ -50,7 +50,7 @@ export class DesktopKeyboard {
       const buttons = this.buttons(panel);
       const preserved = panelKey === this.previousPanel && this.focusedKey
         ? buttons.find(button => this.key(button) === this.focusedKey) : undefined;
-      const primary = buttons.find(button => ["guided-survey", "resume-survey", "conversation-choice", "ask", "travel", "begin", "begin-hearing", "finish-board", "select-hypothesis"].includes(button.dataset.action ?? ""));
+      const primary = buttons.find(button => ["route-marker", "guided-survey", "resume-survey", "conversation-choice", "ask", "travel", "begin", "begin-hearing", "finish-board", "select-hypothesis"].includes(button.dataset.action ?? ""));
       // A redraw resets scrolling; keep the selected control visible as well as focused.
       if(!conversation || this.focusedInUi || panelKey!==this.previousPanel)
         (preserved ?? primary ?? buttons[0] ?? panel).focus();
@@ -77,6 +77,11 @@ export class DesktopKeyboard {
     const conversation=panel?.classList.contains('conversation-panel') ?? false;
     if(conversation && ['w','a','s','d','q','e','r','f'].includes(event.key.toLowerCase())) {
       this.scene?.focus({preventScroll:true});return;
+    }
+    if(target instanceof HTMLElement && target.dataset.action==='route-marker' && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)) {
+      event.preventDefault();event.stopPropagation();
+      const delta=event.key==='Home'?-1:event.key==='End'?1:(['ArrowLeft','ArrowDown'].includes(event.key)?-1:1)*(event.shiftKey?.05:.01);
+      target.dispatchEvent(new CustomEvent('route-marker-adjust',{bubbles:true,detail:delta}));return;
     }
     if (event.repeat && [" ", "enter", "escape", "m", "n"].includes(event.key.toLowerCase())) {
       event.preventDefault();

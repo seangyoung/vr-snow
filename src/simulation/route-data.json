@@ -3,7 +3,7 @@
   "documentation": "https://geodacenter.github.io/data-and-lab/data/snow_documentation.pdf",
   "historicalSource": "https://www.academia.dk/MedHist/Biblioteket/Print/snow_1855.html",
   "crs": "OSGB 1936 / British National Grid (EPSG:27700), metres",
-  "method": "Six digitized pump anchors fit an affine transform from existing SVG percentages to projected metres. Routes are manually traced teaching approximations, not surveyed historical paths. Distances rounded to 5 metres and a 1.2 m/s teaching assumption supply the dramatized measurements attributed to Snow in dialogue; these are not surviving recorded timings. The historical service-area boundary is a separate source layer, not calculated from these four routes.",
+  "method": "Six digitized pump anchors calibrate SVG coordinates to projected metres. Two manually traced teaching routes start at Broad Street pump; their halfway points are interpolated by cumulative street distance, never by straight-line coordinates. Route lengths and times are illustrative, not surviving measurements by Snow. A 1.2 m/s teaching conversion supplies the displayed times. Snow described equal distance by the nearest road to surrounding pumps; checking two paths does not construct his full boundary, which remains a separate historical layer.",
   "anchors": [
     {
       "name": "Broad St Pump",
@@ -74,40 +74,20 @@
   },
   "anchorRmsMetres": 1.095703397651358,
   "walkingMetresPerSecond": 1.2,
-  "routes": [
+  "historicalMapSource": "https://epi-snow.ph.ucla.edu/Stream2_BSPoutbreak_a.html",
+  "journeys": [
     {
-      "id": "marlborough-broad",
-      "pair": "marlborough",
-      "title": "Western starting point \u2192 Broad Street",
-      "origin": "survey-marlborough",
-      "destination": "broad-street",
-      "stop": "survey-broad-pump",
+      "id": "marlborough",
+      "title": "Broad Street to Marlborough Street",
+      "destination": "marlborough-pump",
       "polyline": [
         [
-          44,
-          50
+          56.1413586,
+          45.7177822
         ],
         [
           47,
           49.8
-        ],
-        [
-          56.1413586,
-          45.7177822
-        ]
-      ]
-    },
-    {
-      "id": "marlborough-alternative",
-      "pair": "marlborough",
-      "title": "Western starting point \u2192 Marlborough Street",
-      "origin": "survey-marlborough",
-      "destination": "marlborough-pump",
-      "stop": "survey-marlborough-pump",
-      "polyline": [
-        [
-          44,
-          50
         ],
         [
           40.5,
@@ -128,50 +108,32 @@
       ]
     },
     {
-      "id": "rupert-broad",
-      "pair": "rupert",
-      "title": "Eastern starting point \u2192 Broad Street",
-      "origin": "survey-rupert",
-      "destination": "broad-street",
-      "stop": "survey-broad-pump",
+      "id": "rupert",
+      "title": "Broad Street to Rupert Street",
+      "destination": "rupert-pump",
+      "landmark": {
+        "label": "Eastern end of Broad Street",
+        "point": [
+          77,
+          34
+        ]
+      },
       "polyline": [
-        [
-          64,
-          42
-        ],
         [
           56.1413586,
           45.7177822
-        ]
-      ]
-    },
-    {
-      "id": "rupert-alternative",
-      "pair": "rupert",
-      "title": "Eastern starting point \u2192 Rupert Street",
-      "origin": "survey-rupert",
-      "destination": "rupert-pump",
-      "stop": "survey-rupert-pump",
-      "polyline": [
-        [
-          64,
-          42
         ],
         [
-          57.7,
-          45.4
+          77,
+          34
         ],
         [
-          61.2,
-          54.5
+          84.6,
+          48.6
         ],
         [
-          66.4,
-          62.2
-        ],
-        [
-          78.2,
-          78.4
+          88.1,
+          55
         ],
         [
           93.9,

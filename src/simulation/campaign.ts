@@ -1,6 +1,6 @@
 import type { LocationId } from './types';
 export type InquiryDay = 1 | 2 | 3;
-export type ObjectiveId = 'records' | 'first-household' | 'sample' | 'water-routines' | 'workhouse' | 'brewery' | 'nonlocal' | 'walking-access' | 'manufactory';
+export type ObjectiveId = 'records' | 'first-household' | 'sample' | 'sample-1' | 'sample-3' | 'water-routines' | 'workhouse' | 'brewery' | 'nonlocal' | 'walking-access' | 'manufactory';
 export interface DayDefinition {
   day: InquiryDay; date: string; title: string; previousDate: string; previousDeaths: number;
   objectives: readonly { id: ObjectiveId; title: string; location: LocationId; evidence: string }[];
@@ -10,15 +10,17 @@ export const inquiryOpening = 'Cholera is spreading through Soho. Help Dr. John 
 export const chronologyNote = 'This dramatization condenses the investigation into three days, with reconstructed dialogue, households and settings.';
 export const days: readonly DayDefinition[] = [
  {day:1,date:'September 5, 1854',title:'Establish the pattern',previousDate:'September 4',previousDeaths:71,objectives:[
+  {id:'sample-1',title:'Draw and inspect today’s Broad Street water sample',location:'broad-street',evidence:'pump-water-inspection'},
   {id:'records',title:'Copy the registrar’s records',location:'registrar',evidence:'attack-timeline'},
   {id:'first-household',title:'Interview Household 1',location:'household',evidence:'household-exposure'}]},
  {day:2,date:'September 6, 1854',title:'Test the explanation',previousDate:'September 5',previousDeaths:45,objectives:[
-  {id:'sample',title:'Inspect the pump water',location:'broad-street',evidence:'pump-water-inspection'},
+  {id:'sample',title:'Draw and inspect a fresh Broad Street water sample',location:'broad-street',evidence:'pump-water-inspection'},
   {id:'water-routines',title:'Interview Household 2',location:'household-routines',evidence:'household-water-pattern'},
   {id:'manufactory',title:'Visit the manufactory at 37 Broad Street',location:'manufactory',evidence:'manufactory-exposure'},
   {id:'workhouse',title:'Investigate the workhouse exception',location:'workhouse',evidence:'workhouse-exception'}]},
  {day:3,date:'September 7, 1854',title:'Explain the exceptions',previousDate:'September 6',previousDeaths:37,objectives:[
   {id:'walking-access',title:'Compare Snow’s walking measurements at the map table',location:'snow-desk',evidence:'walking-access'},
+  {id:'sample-3',title:'Draw and compare today’s Broad Street water sample',location:'broad-street',evidence:'pump-water-inspection'},
   {id:'brewery',title:'Interview the brewery owners',location:'brewery',evidence:'brewery-exception'},
   {id:'nonlocal',title:'Interview Household 3',location:'household-away',evidence:'nonlocal-exposure'}]},
 ];

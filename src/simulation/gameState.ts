@@ -1,6 +1,7 @@
 import { streetPlacement, streetExtras } from './streetPopulation';
-import { surveyRoutes, observation, pumpName, walkingTime, pairName, type SurveyProgress, type GuidedSurveyView, type RouteId, type FieldworkView } from "./fieldwork";
+import { surveyRoutes, observation, pumpJourneys, routePoint, nearestRouteFraction, walkingTime, type SurveyProgress, type GuidedSurveyView, type RouteId, type FieldworkView } from "./fieldwork";
 import { days, dayDefinition, locationDay, chronologyNote, type InquiryDay, type ObjectiveId } from "./campaign";
+import { waterSamples, sampleConversation } from './waterSamples';
 import { conversations } from "./conversations";
 import { ConversationProgress, type ConversationView } from "./conversations";
 import {
@@ -47,7 +48,9 @@ export class GameState {
     const placement=view && streetPlacement(this.day,view.actorId);
     if(view && placement)view={...view,anchor:[placement.position[0],1.45,placement.position[2]]};
     if(view?.complete && ((view.id==='workhouse-sample' && this.hasEvidence('pump-water-inspection')) || (view.id==='pump-sample' && this.hasWorkhouseSample())))
-      return {...view,text:'Both samples look clear, with no notable difference between them. Neither inspection explains the difference in illness; you record the comparison in your notebook.'};
+      return {...view,text:this.getWaterSampleObservations().length>1
+        ? 'The workhouse sample looks clear; Broad Street has shown small changes in visible material. Neither inspection gives a decisive explanation for the difference in illness. You record both observations.'
+        : 'The workhouse sample looks clear. Neither it nor the Broad Street sample gives a decisive explanation for the difference in illness. You record both observations.'};
     return view;
   }
   private legacyManufactoryWaiver=false;
@@ -74,32 +77,53 @@ export class GameState {
   }
   private guidedSurveyView(): GuidedSurveyView | undefined {
     const progress=this.surveyProgress;if(!progress)return undefined;
-    const route=surveyRoutes.find(r=>r.id===progress.routeId)!;
-    const pair=surveyRoutes.filter(r=>r.pair===route.pair),shortest=pair.reduce((a,b)=>a.seconds<b.seconds?a:b);
-    const revealed=progress.phase!=='origin';
-    const base={key:`${progress.routeId}:${progress.phase}`,title:'Which pump is easier to reach?',progress:`Snow’s map table · Comparison ${route.pair==='marlborough'?1:2} of 2`,
-      mapPumps:(progress.phase==='done'?[surveyRoutes[0],surveyRoutes[1],surveyRoutes[3]]:pair).map(r=>({x:r.polyline.at(-1)![0],y:r.polyline.at(-1)![1],label:r.destination==='broad-street'?'Broad St pump':r.pair==='marlborough'?'Marlborough pump':'Rupert pump'})),
-      mapPoint:{x:route.polyline[0][0],y:route.polyline[0][1],label:pairName(route.pair)},
-      results:revealed?pair.map(r=>({label:pumpName(r),time:walkingTime(r.seconds)})):[]};
-    if(progress.phase==='done')return {...base,title:'Beyond the pump service area',progress:'Snow’s map table · A new question',results:[],
-      mapPoint:{...this.getLocation('household-away')!.mapPoint,label:'Household 3'},
-      text:'The green line marks where Broad Street is the nearest pump by the streets. Household 3 lies outside it, yet someone there has fallen ill. Could they have a connection to this water?',actions:[{id:'discuss',label:'Ask Snow about the household'}]};
-    if(!revealed)return {...base,text:`I measured the walking times from this marked point to both pumps. Follow the streets on the map: which looks easier to reach?`,actions:pair.map(r=>({id:r.id,label:pumpName(r)}))};
-    return {...base,text:`${progress.answer===shortest.id?'Yes.':'My measurements show a different result.'} ${pumpName(shortest)} is the shorter walk from this point. ${route.pair==='rupert'?'The turns through the streets make the journey to Rupert Street longer.':'A straight line on the map does not always follow the streets.'}`,actions:[{id:route.pair==='marlborough'?'next':'finish',label:route.pair==='marlborough'?'Compare the eastern starting point':'Show the pump service area'}]};
+    const route=surveyRoutes.find(r=>r.id===progress.routeId)!,journey=pumpJourneys.find(j=>j.id===route.pair)!;
+    const alternative=route.pair==='marlborough'?'Marlborough Street':'Rupert Street';
+    const fraction=(progress.marker??1)/4,point=routePoint(route.pair,progress.phase==='origin'?0:fraction);
+    const base: GuidedSurveyView={key:`${progress.routeId}:${progress.phase}:${progress.marker??0}`,title:'Find an equal-distance point',progress:`Snow’s map table · Journey ${route.pair==='marlborough'?1:2} of 2`,
+      mapPumps:[{x:journey.polyline[0][0],y:journey.polyline[0][1],label:'Broad St pump'},{x:journey.polyline.at(-1)![0],y:journey.polyline.at(-1)![1],label:alternative+' pump'}],
+      mapPoint:{x:point[0],y:point[1],label:progress.phase==='origin'?'Start here':progress.phase==='feedback'?'Halfway':'Your marker'},
+      results:[],text:'',actions:[]};
+    if(progress.phase==='done')return {...base,title:'Beyond the pump service area',progress:'Snow’s map table · A new question',
+      mapPumps:[],mapPoint:{...this.getLocation('household-away')!.mapPoint,label:'Household 3'},
+      text:'These are two examples. I checked the surrounding pumps and the nearest streets to each point; the green line brings those comparisons together. Household 3 lies outside it, yet someone there has fallen ill. Could they have used Broad Street water?',actions:[{id:'discuss',label:'Ask Snow about Household 3'}]};
+    if(progress.phase==='origin')return {...base,title:`Broad Street to ${alternative}`,
+      text:`I measured to all the nearby public pumps. For this example, start at Broad Street and follow the streets to ${alternative}.${route.pair==='rupert'?' This journey passes the eastern end of Broad Street.':''}`,
+      actions:[{id:'trace',label:'Trace the street route'}]};
+    base.mapPolyline=journey.polyline;
+    base.results=[{label:'Back to Broad Street',time:`${Math.round(journey.metres*fraction)} m · ${walkingTime(Math.round(journey.seconds*fraction))}`},
+      {label:`On to ${alternative}`,time:`${Math.round(journey.metres*(1-fraction))} m · ${walkingTime(Math.round(journey.seconds*(1-fraction)))}`}];
+    if(progress.phase==='compare')return {...base,markerFraction:fraction,
+      text:`The whole journey is ${journey.metres} metres (${walkingTime(journey.seconds)}). Grab the red marker and slide it along the route until the two walks balance.`,
+      actions:progress.marker===2?[{id:'mark',label:'Mark this equal-distance point'}]:[]};
+    return {...base,text:'Here the distance is equal in either direction along this route. To draw a boundary, I must also check the nearest streets and the other pumps—not merely join two marks.',
+      actions:[{id:route.pair==='marlborough'?'next':'finish',label:route.pair==='marlborough'?'Explore the eastern journey':'Show Snow’s full pump service area'}]};
+  }
+  movePumpMarker(fraction:number): boolean {
+    const progress=this.surveyProgress;
+    if(!Number.isFinite(fraction) || !this.canResumePumpComparison() || this.activeSurvey!=='guided' || progress?.phase!=='compare')return false;
+    // A small magnetic capture makes equality attainable with a controller ray.
+    const clamped=Math.max(0,Math.min(1,fraction));
+    const marker=Math.abs(clamped-.5)<=.015?2:Math.round(clamped*4000)/1000;
+    if(progress.marker===marker)return false;
+    progress.marker=marker;this.emitChange();return true;
+  }
+  dragPumpMarker(x:number,y:number): boolean {
+    if(!Number.isFinite(x)||!Number.isFinite(y)||!this.surveyProgress)return false;
+    const route=surveyRoutes.find(r=>r.id===this.surveyProgress!.routeId)!;
+    return this.movePumpMarker(nearestRouteFraction(route.pair,x,y));
   }
   advancePumpComparison(action: string, expectedStep?: string): boolean {
     if(!this.canResumePumpComparison() || !this.activeSurvey || !this.surveyProgress)return false;
     const progress=this.surveyProgress,route=surveyRoutes.find(r=>r.id===progress.routeId)!;
     if(expectedStep!==undefined && expectedStep!==this.guidedSurveyView()?.key)return false;
     if(!this.guidedSurveyView()?.actions.some(a=>a.id===action))return false;
-    if(action==='next')this.surveyProgress={routeId:'rupert-broad',phase:'origin'};
+    if(action==='trace'){progress.phase='compare';progress.marker=1;}
+    else if(action==='mark') {
+      progress.phase='feedback';surveyRoutes.filter(r=>r.pair===route.pair).forEach(r=>this.recordedRoutes.add(r.id));
+    } else if(action==='next')this.surveyProgress={routeId:'rupert-broad',phase:'origin'};
     else if(action==='finish')progress.phase='done';
-    else if(action==='discuss') {
-      this.activeSurvey=undefined;this.conversations.open('walking-review');this.activeDialogueId='walking-review';
-    } else {
-      progress.answer=action as RouteId;progress.phase='feedback';
-      surveyRoutes.filter(r=>r.pair===route.pair).forEach(r=>this.recordedRoutes.add(r.id));
-    }
+    else if(action==='discuss') {this.activeSurvey=undefined;this.conversations.open('walking-review');this.activeDialogueId='walking-review';}
     this.emitChange();return true;
   }
   private selectedRoute?: RouteId;
@@ -120,7 +144,7 @@ export class GameState {
   isPumpClosed(): boolean { return this.stage==='complete' && this.boardPresented && this.selectedHypothesisId==='waterborne'; }
   getDisplayDate(): string { return this.isPumpClosed()?'September 8, 1854':this.getDay().date; }
   getDay() { return dayDefinition(this.day); }
-  getAssignments() { return this.getDay().objectives.filter(item=>!(this.legacyManufactoryWaiver && item.id==='manufactory')).map(item=>({...item,complete:this.objectives.has(item.id)})); }
+  getAssignments() { return this.getDay().objectives.filter(item=>!this.objectiveWaived(item.id,this.day)).map(item=>({...item,complete:this.objectives.has(item.id)})); }
   hasCurrentAssignment(): boolean { return this.assignedDays.has(this.day) && (this.day!==3 || this.objectives.has('walking-access')); }
   needsDailyBriefing(): boolean { return this.stage==='field' && !this.hasCurrentAssignment(); }
   canUseMap(): boolean { return !this.startupOpen && !this.dayIntroOpen && this.hasCurrentAssignment() && !['briefing','board'].includes(this.stage); }
@@ -135,7 +159,7 @@ export class GameState {
     const id=this.day===1?'snow-introduction':`snow-day-${this.day}`;
     this.conversations.open(id);this.activeDialogueId=id;this.activeDialogueQuestionId=undefined;
   }
-  isDayFieldworkComplete(): boolean { return this.getDay().objectives.every(o=>this.objectives.has(o.id) || (this.legacyManufactoryWaiver && o.id==='manufactory')); }
+  isDayFieldworkComplete(): boolean { return this.getDay().objectives.every(o=>this.objectives.has(o.id) || this.objectiveWaived(o.id,this.day)); }
   canEndDay(): boolean { return this.day<3 && this.recaps.has(this.day) && this.currentLocationId==='snow-desk'; }
   /** Reveal deaths after the recap’s unmarked map; the finding still requires finishing it. */
   hasMappedDeaths(): boolean {
@@ -166,20 +190,30 @@ export class GameState {
     this.emitChange();
   }
 
+  private dailyPumpedWater = new Set<InquiryDay>();
+  private legacySampleWaivers = new Set<InquiryDay>();
   private pumpedWater = new Set<'broad-street'|'workhouse'>();
-  hasPumpedWater(location: 'broad-street'|'workhouse'): boolean { return this.pumpedWater.has(location); }
+  hasPumpedWater(location: 'broad-street'|'workhouse'): boolean { return location==='broad-street'?this.dailyPumpedWater.has(this.day):this.pumpedWater.has(location); }
   /** Called by the physical pump only when its stroke actually produces water. */
   recordPumpedWater(location: 'broad-street'|'workhouse'): boolean {
-    if(this.currentLocationId!==location || this.day<2 || !this.assignedDays.has(2) || !['field','synthesis'].includes(this.stage))return false;
-    if(this.pumpedWater.has(location))return false;
+    if(this.currentLocationId!==location || !this.hasCurrentAssignment() || (location==='workhouse' && this.day!==2) || !['field','synthesis'].includes(this.stage))return false;
+    if(this.hasPumpedWater(location))return false;
+    if(location==='broad-street')this.dailyPumpedWater.add(this.day);
     this.pumpedWater.add(location);this.emitChange();return true;
   }
   hasWorkhouseSample(): boolean { return this.conversations.hasCompleted('workhouse-sample'); }
+  getWaterSampleObservations() {
+    return ([1,2,3] as const).filter(day=>this.conversations.hasCompleted(sampleConversation(day))).map(day=>({day,date:dayDefinition(day).date,text:waterSamples[day].observation}));
+  }
   private sampleCard(card: EvidenceCard): EvidenceCard {
-    if(card.id!=='pump-water-inspection' || !this.hasWorkhouseSample())return card;
-    return {...card,title:'Both water samples look unremarkable',
-      summary:'Broad Street and workhouse water both look clear. Ordinary inspection reveals no notable difference or decisive sign of contamination in either sample.',
-      sourceLabel:'Broad Street and workhouse pump inspections'};
+    if(card.id!=='pump-water-inspection')return card;
+    const samples=this.getWaterSampleObservations();if(!samples.length)return card;
+    return {...card,title:samples.length>1?'Pump water varies between samples':'First Broad Street water sample',
+      summary:samples.map(s=>`Sept ${s.day+4}: ${s.text}`).join(' ')+' No inspection identifies the cause of illness.'+(this.hasWorkhouseSample()?' The workhouse water looks clear; neither supply gives decisive visible proof.':''),
+      sourceLabel:'Dated Broad Street pump inspections'+(this.hasWorkhouseSample()?' · workhouse comparison':'')};
+  }
+  private objectiveWaived(id:ObjectiveId,day:InquiryDay):boolean {
+    return (id==='manufactory' && this.legacyManufactoryWaiver) || (id===waterSamples[day].objective && this.legacySampleWaivers.has(day));
   }
 
   private inspectedHotspots = new Set<string>();
@@ -215,7 +249,7 @@ export class GameState {
     else if(hotspotId==='board-hearing') { this.beginHearing();return {dialogue:this.getActiveDialogue(),message:'The Board awaits your response.'}; }
     else {
       const source: Record<string,string>={'registrar-ledger':'registrar-records','broad-street-household':'household-first',
-        'broad-street-pump':'pump-sample','workhouse-pump':'workhouse-sample','routines-household':'household-routines','away-household':'household-away',
+        'broad-street-pump':sampleConversation(this.day),'workhouse-pump':'workhouse-sample','routines-household':'household-routines','away-household':'household-away',
         'manufactory-worker':'manufactory-supply','poland-workhouse':'workhouse-supply','broad-street-brewery':'brewery-supply'};
       id=source[hotspotId];
       const graph=conversations.find(c=>c.id===id),objective=graph?.beats.find(b=>b.conclusion?.objective)?.conclusion?.objective;
@@ -223,7 +257,7 @@ export class GameState {
       if(assigned && (assigned.day>this.day || !this.hasCurrentAssignment()))return {message:'This inquiry belongs to a later assignment. Speak with Snow about today’s work.'};
     }
     if(hotspotId==='broad-street-pump' || hotspotId==='workhouse-pump') {
-      if(this.day<2 || !this.assignedDays.has(2))return {message:'Speak with Snow about the water inquiries on September 6.'};
+      if(!this.hasCurrentAssignment())return {message:'Speak with Snow about today’s water sample first.'};
       const pump=hotspotId==='workhouse-pump'?'workhouse':'broad-street';
       if(!this.hasPumpedWater(pump))return {message:'Use the pump handle to draw some water first, then select the pump to inspect the sample.'};
     }
@@ -241,7 +275,7 @@ export class GameState {
     if(this.stage==='complete')return 'Read the epilogue or revisit your evidence in the Field Notebook.';
     if(this.stage==='board')return this.boardPresented?'Presentation complete. Read the Board’s decision.':'Explore the room, then begin or resume the hearing.';
     if(this.surveyProgress?.phase==='done' && this.canResumePumpComparison())return 'The pump service area is on the map. Discuss the comparison with Snow.';
-    if(this.surveyProgress && this.canResumePumpComparison())return 'Compare two pumps from the same starting point. Resume the pump comparison whenever you are ready.';
+    if(this.surveyProgress && this.canResumePumpComparison())return 'Trace the pump-to-pump journeys and mark equal walking distances at Snow’s map table.';
     if(this.selectedRoute)return 'Resume the pump comparison to continue your earlier route notes.';
     if(this.preparedForBoard)return 'Attend the meeting from Snow’s review panel.';
     if(this.hasEnoughEvidenceForSynthesis())return 'Choose a theory with Snow, then attend the meeting.';
@@ -507,7 +541,7 @@ export class GameState {
     }
 
     if (this.hasEvidence("pump-water-inspection")) {
-      findings.push(this.hasWorkhouseSample()?"Broad Street and workhouse water look alike; neither inspection is conclusive.":"The pump-water sample gives no decisive visible proof of danger.");
+      findings.push(this.hasWorkhouseSample()?"Broad Street water varies; the workhouse comparison is also inconclusive.":"The pump-water sample gives no decisive visible proof of danger.");
     }
 
     if (this.hasEvidence("attack-timeline")) {
@@ -524,7 +558,7 @@ export class GameState {
 
     if(this.hasEvidence("manufactory-exposure"))findings.push("At 37 Broad Street, workers who died at different homes shared a workplace supplied with Broad Street pump water.");
     if(this.hasEvidence("nonlocal-exposure"))findings.push("A distant residence can be connected to exposure near Broad Street.");
-    if(this.hasEvidence("walking-access"))findings.push("The paired routes compare access to Broad Street, Marlborough and Rupert Street pumps.");
+    if(this.hasEvidence("walking-access"))findings.push("The street-route halfway points help explain Snow’s wider pump service-area comparison.");
     return findings;
   }
 
@@ -616,10 +650,9 @@ export class GameState {
   getInteractionHint(): string {
     if(this.stage==='complete')return 'The inquiry is complete. Open the chapter panel for the epilogue or the notebook to review your evidence.';
     if (this.currentLocationId === "board-room" && !this.boardPresented) return "Walk around the table. Open the chapter panel when ready to begin.";
-    if(this.currentLocationId==='broad-street')return this.day===1
-      ? 'Speak with Whitehead and the street residents. Follow the marked exits or map to today’s interviews.'
-      : this.day===2 ? 'Use the pump handle to draw water, then select the pump to inspect it. Speak with Whitehead and the street residents.'
-      : 'Speak with Whitehead and the street residents. Follow today’s household and brewery inquiries.';
+    if(this.currentLocationId==='broad-street')return (this.getAssignments().some(o=>o.id===waterSamples[this.day].objective && !o.complete)
+      ? 'Use the pump handle to draw today’s water, then select the pump to inspect it. ' : '')+
+      (this.day===3?'Speak with Whitehead and the street residents. Follow today’s household and brewery inquiries.':'Speak with Whitehead and the street residents. Follow the marked exits or map to today’s interviews.');
     return locationInteractionHints[this.currentLocationId];
   }
 
@@ -729,7 +762,7 @@ export class GameState {
   }
 
   hasEnoughEvidenceForSynthesis(): boolean {
-    return this.day===3 && this.recaps.has(3) && days.every(d=>d.objectives.every(o=>this.objectives.has(o.id)));
+    return this.day===3 && this.recaps.has(3) && days.every(d=>d.objectives.every(o=>this.objectives.has(o.id) || this.objectiveWaived(o.id,d.day)));
   }
 
   hasInspected(hotspotId: string): boolean {
@@ -758,7 +791,7 @@ export class GameState {
   }
 
   reset(): void {
-    this.startupOpen=false;this.pendingSave=undefined;this.recordedRoutes.clear();this.surveyProgress=undefined;this.pumpedWater.clear();this.selectedRoute=undefined;this.activeSurvey=undefined;
+    this.startupOpen=false;this.pendingSave=undefined;this.recordedRoutes.clear();this.surveyProgress=undefined;this.pumpedWater.clear();this.dailyPumpedWater.clear();this.legacySampleWaivers.clear();this.selectedRoute=undefined;this.activeSurvey=undefined;
     this.legacyManufactoryWaiver=false;this.conversations.reset();this.day=1;this.assignedDays.clear();this.objectives.clear();this.recaps.clear();this.dayIntroOpen=true;
     this.inspectedHotspots.clear();
     this.collectedEvidence.clear();
@@ -796,7 +829,7 @@ export class GameState {
     this.pendingSave=undefined;this.startupOpen=false;this.emitChange();return true;
   }
   serializeSave(): string {
-    return JSON.stringify({version:1,campaignRevision:2,legacyManufactoryWaiver:this.legacyManufactoryWaiver,mapExercise:2,day:this.day,location:this.currentLocationId,stage:this.stage,
+    return JSON.stringify({version:1,campaignRevision:2,legacyManufactoryWaiver:this.legacyManufactoryWaiver,mapExercise:4,sampleRevision:1,dailyPumpedWater:[...this.dailyPumpedWater],legacySampleWaivers:[...this.legacySampleWaivers],day:this.day,location:this.currentLocationId,stage:this.stage,
       conversation:this.conversations.serialize(),hypothesis:this.selectedHypothesisId,
       pumpedWater:[...this.pumpedWater],prepared:this.preparedForBoard,dayIntro:this.dayIntroOpen,routes:[...this.recordedRoutes],selectedRoute:this.selectedRoute,surveyProgress:this.surveyProgress});
   }
@@ -805,13 +838,24 @@ export class GameState {
       const value=JSON.parse(json);
       if(value && ['marlborough-pump','rupert-pump'].includes(value.location))value.location='snow-desk';
       if((value?.campaignRevision!==undefined && value.campaignRevision!==2) || (value?.legacyManufactoryWaiver!==undefined && typeof value.legacyManufactoryWaiver!=='boolean'))return false;
-      if(value?.version!==1 || (value.mapExercise!==undefined && value.mapExercise!==2) || ![1,2,3].includes(value.day) || !this.getLocation(value.location)
+      if(value?.version!==1 || (value.mapExercise!==undefined && ![2,3,4].includes(value.mapExercise)) || ![1,2,3].includes(value.day) || !this.getLocation(value.location)
         || !['field','synthesis','board','complete'].includes(value.stage) || typeof value.prepared!=='boolean'
         || typeof value.dayIntro!=='boolean' || (value.hypothesis!==undefined && !this.getHypothesis(value.hypothesis)))return false;
       if(!Array.isArray(value.routes) || new Set(value.routes).size!==value.routes.length || !value.routes.every((id:unknown)=>surveyRoutes.some(r=>r.id===id)) || (value.selectedRoute!==undefined && !surveyRoutes.some(r=>r.id===value.selectedRoute)))return false;
       if(value.day!==3 && (value.routes.length || value.selectedRoute))return false;
-      const guided=value.surveyProgress;
-      if(guided!==undefined) {
+      let guided=value.surveyProgress;
+      if(value.mapExercise===3 || value.mapExercise===4) {
+        if(value.selectedRoute!==undefined)return false;
+        if(guided!==undefined) {
+          const route=surveyRoutes.find(r=>r.id===guided?.routeId);
+          if(!route || !guided.routeId.endsWith('-broad') || value.day!==3 || !['origin','compare','feedback','done'].includes(guided.phase) || guided.answer!==undefined)return false;
+          if(guided.phase==='origin' ? guided.marker!==undefined : (value.mapExercise===3 ? ![1,2,3].includes(guided.marker) : !Number.isFinite(guided.marker) || guided.marker<0 || guided.marker>4))return false;
+          if(['feedback','done'].includes(guided.phase) && guided.marker!==2)return false;
+          if(guided.phase==='done' && route.pair!=='rupert')return false;
+          const expected=surveyRoutes.filter(r=>(route.pair==='rupert' && r.pair==='marlborough') || (['feedback','done'].includes(guided.phase) && r.pair===route.pair)).map(r=>r.id);
+          if(value.routes.length!==expected.length || !expected.every(id=>value.routes.includes(id)))return false;
+        }
+      } else if(guided!==undefined) {
         const route=surveyRoutes.find(r=>r.id===guided?.routeId);
         if(value.mapExercise===2 && ['arrival','compare'].includes(guided.phase))return false;
         if(!route || value.day!==3 || !['origin','arrival','compare','feedback','done'].includes(guided.phase))return false;
@@ -840,15 +884,22 @@ export class GameState {
       }
       const waived=(value.campaignRevision===undefined || value.legacyManufactoryWaiver===true) && recaps.has(2);
       if(value.legacyManufactoryWaiver===true && !recaps.has(2))return false;
+      if(value.sampleRevision!==undefined && value.sampleRevision!==1)return false;
+      const daily=value.sampleRevision===1?value.dailyPumpedWater:(water.includes('broad-street')?[2]:[]);
+      const sampleWaivers=value.sampleRevision===1?value.legacySampleWaivers:[1,3].filter(d=>recaps.has(d as InquiryDay));
+      if(!Array.isArray(daily) || new Set(daily).size!==daily.length || !daily.every(d=>[1,2,3].includes(d) && d<=value.day && assigned.has(d)))return false;
+      if(!Array.isArray(sampleWaivers) || new Set(sampleWaivers).size!==sampleWaivers.length || !sampleWaivers.every(d=>[1,3].includes(d) && recaps.has(d) && !objectives.has(waterSamples[d as InquiryDay].objective)))return false;
+      if(water.includes('broad-street')!==(daily.length>0))return false;
+      if(water.includes('workhouse') && (value.day<2 || !assigned.has(2)))return false;
+      for(const day of [1,2,3] as const)if(value.conversation.cursors[sampleConversation(day)] && !daily.includes(day))return false;
       for(const day of days) {
         if(day.day>value.day && (assigned.has(day.day)||recaps.has(day.day)||day.objectives.some(o=>objectives.has(o.id))))return false;
         if(day.day<value.day && !recaps.has(day.day))return false;
-        if(recaps.has(day.day) && (!assigned.has(day.day)||!day.objectives.every(o=>objectives.has(o.id) || (o.id==='manufactory' && waived))))return false;
+        if(recaps.has(day.day) && (!assigned.has(day.day)||!day.objectives.every(o=>objectives.has(o.id) || (o.id==='manufactory' && waived) || (o.id===waterSamples[day.day].objective && sampleWaivers.includes(day.day)))))return false;
         if(day.objectives.some(o=>objectives.has(o.id)) && !assigned.has(day.day))return false;
       }
-      if(value.mapExercise===2 && value.routes.length && !guided && !objectives.has('walking-access'))return false;
+      if([2,3,4].includes(value.mapExercise) && value.routes.length && !guided && !objectives.has('walking-access'))return false;
       if(objectives.has("walking-access") && (value.routes.length!==surveyRoutes.length || (guided && guided.phase!=="done")))return false;
-      if(water.length && (value.day<2 || !assigned.has(2)))return false;
       const ready=recaps.has(3);
       if(value.prepared && (!ready||!value.hypothesis))return false;
       if(['board','complete'].includes(value.stage) && !value.prepared)return false;
@@ -866,11 +917,12 @@ export class GameState {
       this.selectedHypothesisId=value.hypothesis;this.preparedForBoard=value.prepared;this.boardPresented=hearing;
       // Move legacy water-outcome saves from the meeting room to the closed pump.
       if(this.isPumpClosed() && this.currentLocationId==="board-room")this.currentLocationId="broad-street";
-      this.pumpedWater=new Set(water);this.recordedRoutes=new Set(value.routes);this.selectedRoute=value.selectedRoute;this.surveyProgress=guided;this.activeSurvey=undefined;
-      if(value.mapExercise!==2 && !objectives.has('walking-access')) {
+      this.pumpedWater=new Set(water);this.dailyPumpedWater=new Set(daily);this.legacySampleWaivers=new Set(sampleWaivers);this.recordedRoutes=new Set(value.routes);this.selectedRoute=value.selectedRoute;this.surveyProgress=guided;this.activeSurvey=undefined;
+      if(![3,4].includes(value.mapExercise) && !objectives.has('walking-access')) {
         // Partial visits become an uncompleted table comparison. Finished findings survive.
         this.recordedRoutes.clear();this.selectedRoute=undefined;this.surveyProgress=undefined;
       }
+      if(![3,4].includes(value.mapExercise) && objectives.has('walking-access'))this.surveyProgress={routeId:'rupert-broad',phase:'done',marker:2};
       this.dayIntroOpen=value.dayIntro;this.activeDialogueId=undefined;this.activeDialogueQuestionId=undefined;
       // Older previews allowed an unbriefed player to leave on days two and three.
       // Return to Snow's office; selecting him resumes the preserved cursor.

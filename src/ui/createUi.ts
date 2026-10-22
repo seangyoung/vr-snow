@@ -132,6 +132,34 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   new OutsidePanelDismiss(root, () => !isTransitioning && document.body.dataset.dayTransition!=='true' && document.body.dataset.xrPresenting !== "true", dismissPanels,
     event => document.body.dataset.conversationOpen==='true' && event.target===document.getElementById('scene'));
 
+  let markerDrag: {pointer:number;rect:DOMRect;route:string} | undefined;
+  root.addEventListener('pointerdown',event=>{
+    const target=(event.target as Element).closest('[data-action="route-marker"]');
+    const guide=gameState.getFieldworkView()?.guided;
+    if(!target || guide?.markerFraction===undefined || event.button!==0)return;
+    const svg=root.querySelector('.map-exercise-map')!;
+    markerDrag={pointer:event.pointerId,rect:svg.getBoundingClientRect(),route:guide.progress};
+    root.setPointerCapture(event.pointerId);event.preventDefault();event.stopPropagation();
+    (target as HTMLElement).focus({preventScroll:true});
+  });
+  function dragMarker(event:PointerEvent):void {
+    if(!markerDrag || event.pointerId!==markerDrag.pointer)return;
+    const guide=gameState.getFieldworkView()?.guided;
+    if(guide?.markerFraction===undefined || guide.progress!==markerDrag.route){markerDrag=undefined;return;}
+    const r=markerDrag.rect;
+    gameState.dragPumpMarker((event.clientX-r.left)/r.width*100,(event.clientY-r.top)/r.height*100);
+    event.preventDefault();
+  }
+  root.addEventListener('pointermove',dragMarker);
+  root.addEventListener('pointerup',event=>{dragMarker(event);if(markerDrag?.pointer===event.pointerId){markerDrag=undefined;if(root.hasPointerCapture(event.pointerId))root.releasePointerCapture(event.pointerId);}});
+  root.addEventListener('pointercancel',()=>{markerDrag=undefined;});
+  root.addEventListener('lostpointercapture',()=>{markerDrag=undefined;});
+  window.addEventListener('blur',()=>{markerDrag=undefined;});
+  root.addEventListener('route-marker-adjust',event=>{
+    const fraction=gameState.getFieldworkView()?.guided.markerFraction;
+    if(fraction!==undefined)gameState.movePumpMarker(fraction+(event as CustomEvent<number>).detail);
+  });
+
   function dismissPanels(): void {
     if(gameState.startupOpen)return;
     if(gameState.dayIntroOpen)gameState.dismissDayIntroduction();
@@ -463,8 +491,10 @@ function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): stri
   if(survey?.guided) {
     const guide=survey.guided;
     const point=guide.mapPoint, scale=broadStreetMapViewBoxSize/100;
+    const route=guide.mapPolyline?`<polyline points="${guide.mapPolyline.map(p=>`${p[0]*scale},${p[1]*scale}`).join(' ')}" fill="none" stroke="#fff4d4" stroke-width="220" stroke-linejoin="round"/><polyline points="${guide.mapPolyline.map(p=>`${p[0]*scale},${p[1]*scale}`).join(' ')}" fill="none" stroke="#926b24" stroke-width="95" stroke-linejoin="round"/>`:'';
+
     const marker=`<circle cx="${point.x*scale}" cy="${point.y*scale}" r="250" fill="#a32c20" stroke="#fff4d4" stroke-width="85"/><text x="${point.x*scale}" y="${point.y*scale+900}" text-anchor="middle" font-size="590" font-weight="bold" fill="#812018" stroke="#fff4d4" stroke-width="130" paint-order="stroke">${escapeHtml(point.label)}</text>`;
-    return `<aside class="overlay-panel map-panel pump-comparison-panel" aria-label="Snow’s map comparison"><div class="panel-header"><strong>${escapeHtml(guide.progress)}</strong><button class="icon-button" data-action="close-dialogue" aria-label="Close map comparison"><i data-lucide="x"></i></button></div><div class="map-exercise-layout"><div><svg class="map-exercise-map" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="${escapeHtml(point.label)} marked on Snow’s map${gameState.hasWalkingBoundary()?' outside the Broad Street pump service area':''}">${renderCustomMapBase(new Set(gameState.getCollectedEvidence().map(c=>c.id)),gameState)}${guide.mapPumps.map(p=>`<text x="${p.x*scale}" y="${p.y*scale-440}" text-anchor="${p.x>85?'end':p.x<20?'start':'middle'}" font-size="590" font-weight="bold" fill="#075d55" stroke="#fff4d4" stroke-width="130" paint-order="stroke">${escapeHtml(p.label)}</text>`).join('')}${marker}</svg><p class="map-exercise-caption">Red marker: ${escapeHtml(point.label)}${gameState.hasWalkingBoundary()?' · Green line: pump service area':''}</p></div><div><span>John Snow</span><h3>${escapeHtml(guide.title)}</h3><p aria-live="polite">${escapeHtml(guide.text)}</p>${guide.results.length?`<dl class="pump-comparison-results">${guide.results.map(result=>`<div><dt>${escapeHtml(result.label)}</dt><dd>${escapeHtml(result.time)}</dd></div>`).join('')}</dl>`:''}<div class="conversation-choices">${guide.actions.map(action=>`<button class="question-button" data-action="guided-survey" data-step="${action.id}" data-survey-key="${guide.key}">${escapeHtml(action.label)}</button>`).join('')}</div></div></div></aside>`;
+    return `<aside class="overlay-panel map-panel pump-comparison-panel" aria-label="Snow’s map comparison"><div class="panel-header"><strong>${escapeHtml(guide.progress)}</strong><button class="icon-button" data-action="close-dialogue" aria-label="Close map comparison"><i data-lucide="x"></i></button></div><div class="map-exercise-layout"><div><div class="route-map-surface"><svg class="map-exercise-map" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="${escapeHtml(point.label)} marked on Snow’s map${gameState.hasWalkingBoundary()?' outside the Broad Street pump service area':''}">${renderCustomMapBase(new Set(gameState.getCollectedEvidence().map(c=>c.id)),gameState,gameState.hasWalkingBoundary())}${route}${guide.mapPumps.map(p=>`<text x="${p.x*scale}" y="${p.y*scale-440}" text-anchor="${p.x>85?'end':p.x<20?'start':'middle'}" font-size="590" font-weight="bold" fill="#075d55" stroke="#fff4d4" stroke-width="130" paint-order="stroke">${escapeHtml(p.label)}</text>`).join('')}${marker}</svg>${guide.markerFraction!==undefined?`<button class="route-marker-handle" data-action="route-marker" role="slider" aria-label="Route marker: use arrow keys to move along the route" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(guide.markerFraction*100)}" aria-valuetext="${escapeHtml(guide.results.map(r=>r.label+': '+r.time).join('; '))}" style="left:${point.x}%;top:${point.y}%"></button>`:''}</div><p class="map-exercise-caption">Red marker: ${escapeHtml(point.label)}${gameState.hasWalkingBoundary()?' · Green line: pump service area':''}</p></div><div><span>John Snow</span><h3>${escapeHtml(guide.title)}</h3><p aria-live="polite">${escapeHtml(guide.text)}</p>${guide.results.length?`<dl class="pump-comparison-results">${guide.results.map(result=>`<div><dt>${escapeHtml(result.label)}</dt><dd>${escapeHtml(result.time)}</dd></div>`).join('')}</dl>`:''}<div class="conversation-choices">${guide.actions.map(action=>`<button class="question-button" data-action="guided-survey" data-step="${action.id}" data-survey-key="${guide.key}">${escapeHtml(action.label)}</button>`).join('')}</div></div></div></aside>`;
   }
   const view = gameState.getConversationView();
   if (view) return `

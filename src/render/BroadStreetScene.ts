@@ -124,6 +124,8 @@ type VrPanelMapCommand = {
   accessVisible?:boolean;
   exercisePoint?: {x:number;y:number;label:string};
   exercisePumps?: {x:number;y:number;label:string}[];
+  exercisePolyline?:number[][];
+  exerciseLandmark?:{x:number;y:number;label:string};
 };
 
 type VrPanelNotebookCardCommand = {
@@ -325,6 +327,8 @@ export class BroadStreetScene {
   private readonly vrQuestionPageCounts = new Map<string, number>();
   private readonly vrIdleHint = createVrIdleHintSprite();
   private vrPanelSurface?: THREE.Mesh;
+  private reusableMarkerSurface?: THREE.Mesh;
+  private vrMarkerDrag?: {controller:THREE.Group;input:'trigger'|'grip';lastUpdate:number;route:string};
   private readonly panelDepthLayers=new PanelDepthLayers();
   private readonly fallbackPanoramaTexture = createPanoramaTexture();
   private readonly skyMaterial = new THREE.MeshBasicMaterial({
@@ -979,6 +983,7 @@ export class BroadStreetScene {
     if(!pump?.action.water.visible)this.sound?.stopWater();
   }
   private resetTactileInteractions(): void {
+    this.vrMarkerDrag=undefined;
     this.streetBoundary?.reset();
     this.sound?.stopWater();
     this.propHold?.release(true);
@@ -1225,6 +1230,7 @@ export class BroadStreetScene {
         this.snapTurnLocked = false;
       });
       controller.addEventListener("disconnected", () => {
+        if(this.vrMarkerDrag?.controller===controller)this.vrMarkerDrag=undefined;
         if(this.propHold.anchor===controller)this.propHold.release(true);
         this.tactileVrSelections.delete(controller);
         this.vrSelectionStarts.delete(controller);
@@ -1239,6 +1245,7 @@ export class BroadStreetScene {
         if(this.dayTransition?.active)return;
         void this.sound?.unlock();
         this.tactileVrSelections.delete(controller);
+        if(this.beginVrMarkerDrag(controller,'trigger')){this.tactileVrSelections.add(controller);return;}
         if(!this.vrPanelBlocksWorld() && !this.pickVrPanel(controller)) {
           this.setRaycasterFromController(controller);
           if(this.activateTactile(this.controllerRaycaster,controller)) {
@@ -1249,11 +1256,13 @@ export class BroadStreetScene {
       });
 
       controller.addEventListener("select", () => this.selectFromVrController(controller));
+      controller.addEventListener('selectend',()=>this.endVrMarkerDrag(controller,'trigger'));
       controller.addEventListener("squeezestart", () => {
         void this.sound?.unlock();
-        this.beginGripGrab(controller);
+        if(!this.beginVrMarkerDrag(controller,'grip'))this.beginGripGrab(controller);
       });
       controller.addEventListener("squeezeend", () => {
+        this.endVrMarkerDrag(controller,'grip');
         if(this.propHold.anchor===controller)this.propHold.release();
       });
       if(modelFactory) {
@@ -1383,6 +1392,7 @@ export class BroadStreetScene {
       focused && this.vrWalkingEnabled && !this.vrPanelBlocksWorld() && !this.worldTravelPending && !!this.walkable,
       (from,to)=>this.canWalkWithBoundaryCue(from,to));
     if(this.walkable)teleportViewer(this.playerRig,this.camera,next);
+    if(focused)this.updateVrMarkerDrag();else this.vrMarkerDrag=undefined;
     if (this.vrPanelDirty) this.rebuildVrPanel();
     if(!focused){this.interactionIdleHint.reset(timeSeconds);this.vrIdleHint.visible=false;return;}
     this.updateVrPointers();
@@ -1390,6 +1400,41 @@ export class BroadStreetScene {
     this.updateVrPaginationButtons();
     this.updateSnapTurn(elapsed);
     this.updateVrIdleHint(timeSeconds);
+  }
+
+  /** Map-local coordinates from the controller ray, even when dragged off the panel. */
+  private vrMarkerCoordinates(controller:THREE.Group): {x:number;y:number}|undefined {
+    this.setRaycasterFromController(controller);
+    this.vrPanel.updateWorldMatrix(true,false);
+    const inverse=this.vrPanel.matrixWorld.clone().invert();
+    const ray=this.controllerRaycaster.ray.clone().applyMatrix4(inverse);
+    const point=ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,0,1),0),new THREE.Vector3());
+    if(!point)return;
+    // addVrMap(.66,.02,1.25,1.25) uses a centered 96% inner map.
+    return {x:(point.x-(.66-.6))/1.2*100,y:((.02+.6)-point.y)/1.2*100};
+  }
+  private beginVrMarkerDrag(controller:THREE.Group,input:'trigger'|'grip'):boolean {
+    if(this.vrMarkerDrag)return true;
+    const guide=this.gameState.getFieldworkView()?.guided;
+    if(this.vrPanelMode!=='home' || !this.vrPanelVisible || guide?.markerFraction===undefined || !this.pickVrPanel(controller))return false;
+    const point=this.vrMarkerCoordinates(controller);
+    if(!point || Math.hypot(point.x-guide.mapPoint.x,point.y-guide.mapPoint.y)>4)return false;
+    this.vrSelectionStarts.delete(controller);
+    this.vrMarkerDrag={controller,input,lastUpdate:-Infinity,route:guide.progress};
+    return true;
+  }
+  private updateVrMarkerDrag(force=false):void {
+    const drag=this.vrMarkerDrag;if(!drag)return;
+    const guide=this.gameState.getFieldworkView()?.guided;
+    if(!this.vrPanelVisible || this.vrPanelMode!=='home' || guide?.markerFraction===undefined || guide.progress!==drag.route){this.vrMarkerDrag=undefined;return;}
+    const now=performance.now();if(!force && now-drag.lastUpdate<80)return;
+    drag.lastUpdate=now;
+    const point=this.vrMarkerCoordinates(drag.controller);
+    if(point)this.gameState.dragPumpMarker(point.x,point.y);
+  }
+  private endVrMarkerDrag(controller:THREE.Group,input:'trigger'|'grip'):void {
+    if(this.vrMarkerDrag?.controller!==controller || this.vrMarkerDrag.input!==input)return;
+    this.updateVrMarkerDrag(true);this.vrMarkerDrag=undefined;
   }
 
   private beginVrSelection(controller: THREE.Group): void {
@@ -1775,10 +1820,10 @@ export class BroadStreetScene {
       this.addVrText(guide.progress,-.1,1.05,2.2,.13,{fontSize:24,color:'#f1d79c'});
       this.addVrIconButton('x',1.22,1.05,.2,{type:'close-dialogue'});
       this.addVrText(guide.title,0,.81,2.5,.20,{fontSize:30});
-      this.addVrMap(.66,.02,1.25,1.25);
+      this.addVrMap(.66,.02,1.25,1.25,false,this.gameState.hasWalkingBoundary());
       this.addVrText('John Snow: '+guide.text,-.67,.25,1.15,.80,{fontSize:25});
       guide.results.forEach((result,i)=>this.addVrText(`${result.label}: ${result.time}`,-.67,-.31-i*.19,1.15,.17,{fontSize:22,color:'#f1d79c'}));
-      guide.actions.forEach((action,i)=>this.addVrPanelButton(action.label,0,-.81-i*.25,2.5,.23,{type:'guided-survey',action:action.id,stepKey:guide.key}));
+      guide.actions.forEach((action,i)=>this.addVrPanelButton(action.label,guide.actions.length===3 && i<2?(i===0?-.64:.64):0,guide.actions.length===3?(i<2?-.81:-1.08):-.81-i*.25,guide.actions.length===3 && i<2?1.23:2.5,.23,{type:'guided-survey',action:action.id,stepKey:guide.key}));
       this.addVrPanelSurface();return;
     }
     const conversation = this.vrPanelMode === "home" ? this.gameState.getConversationView() : undefined;
@@ -2292,6 +2337,7 @@ export class BroadStreetScene {
       deathsVisible,
       mapImage: this.vrMapImages.get(this.gameState.hasWalkingBoundary()?"access":deathsVisible ? "deaths" : "base"),
       accessVisible:this.gameState.hasWalkingBoundary(),
+      exercisePolyline:this.gameState.getFieldworkView()?.guided.mapPolyline,
       exercisePoint:this.gameState.getFieldworkView()?.guided.mapPoint,
       exercisePumps:this.gameState.getFieldworkView()?.guided.mapPumps,
       locations: (referenceOnly || this.gameState.getFieldworkView()?[]:this.gameState.getMapLocations())
@@ -2421,7 +2467,8 @@ export class BroadStreetScene {
   }
 
   private addVrPanelSurface(): void {
-    const panelSurface = createVrPanelSurface(this.vrPanelDrawCommands,this.vrSurfaceHeight);
+    const panelSurface = createVrPanelSurface(this.vrPanelDrawCommands,this.vrSurfaceHeight,this.reusableMarkerSurface);
+    this.reusableMarkerSurface=undefined;
     panelSurface.position.set(0, 0, 0);
     this.vrPanelSurface = panelSurface;
     this.vrPanel.add(panelSurface);
@@ -2430,7 +2477,10 @@ export class BroadStreetScene {
   private clearVrPanel(): void {
     [...this.vrPanel.children].forEach((child) => {
       this.vrPanel.remove(child);
-      disposeObjectTree(child);
+      // Keep the large canvas/GPU texture during live dragging instead of
+      // allocating and disposing one on every distance update.
+      if(this.vrMarkerDrag && child===this.vrPanelSurface)this.reusableMarkerSurface=this.vrPanelSurface;
+      else disposeObjectTree(child);
     });
     this.vrPanelButtons.length = 0;
     this.vrFocusedButton = undefined;
@@ -2942,15 +2992,18 @@ function createControllerPointer(): VrControllerPointer {
   return { group, beam, reticle };
 }
 
-function createVrPanelSurface(commands: VrPanelDrawCommand[],height=vrPanelHeight): THREE.Mesh {
-  const canvas = document.createElement("canvas");
-  canvas.width = vrPanelTextureWidth;
-  canvas.height = Math.round(vrPanelTextureHeight*height/vrPanelHeight);
+function createVrPanelSurface(commands: VrPanelDrawCommand[],height=vrPanelHeight,reuse?:THREE.Mesh): THREE.Mesh {
+  const expectedHeight=Math.round(vrPanelTextureHeight*height/vrPanelHeight);
+  let existing=reuse && (reuse.material as THREE.MeshBasicMaterial).map;
+  if(existing && (existing.image as HTMLCanvasElement).height!==expectedHeight){disposeObjectTree(reuse!);reuse=undefined;existing=undefined;}
+  const canvas=(existing?.image as HTMLCanvasElement | undefined) ?? document.createElement("canvas");
+  if(!existing){canvas.width=vrPanelTextureWidth;canvas.height=expectedHeight;}
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     throw new Error("Could not create VR panel surface.");
   }
 
+  if(existing){ctx.resetTransform();ctx.clearRect(0,0,canvas.width,canvas.height);}
   drawVrPanelBackground(ctx, canvas.width, canvas.height);
   // Crop physical panel height without shrinking the text or ray hit targets.
   ctx.translate(0,(canvas.height-vrPanelTextureHeight)/2);
@@ -2973,6 +3026,7 @@ function createVrPanelSurface(commands: VrPanelDrawCommand[],height=vrPanelHeigh
     drawVrPanelText(ctx, command);
   });
 
+  if(reuse && existing){existing.needsUpdate=true;return reuse;}
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.generateMipmaps = false;
@@ -3158,12 +3212,25 @@ function drawVrPanelMap(ctx: CanvasRenderingContext2D, command: VrPanelMapComman
     drawVrMapPumps(ctx, mapRect);
   }
   command.locations.forEach((location) => drawVrMapLocation(ctx, mapRect, location));
+  if(command.exercisePolyline) {
+    for(const [colour,width] of [['#fff4d4',7],['#926b24',3]] as const) {
+      ctx.beginPath();command.exercisePolyline.forEach((p,i)=>{const point=getVrMapCanvasPoint(mapRect,p[0],p[1]);if(i===0)ctx.moveTo(point.x,point.y);else ctx.lineTo(point.x,point.y);});
+      ctx.strokeStyle=colour;ctx.lineWidth=width;ctx.lineJoin='round';ctx.stroke();
+    }
+  }
+  if(command.exerciseLandmark) {
+    const p=getVrMapCanvasPoint(mapRect,command.exerciseLandmark.x,command.exerciseLandmark.y);
+    ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fillStyle='#514733';ctx.fill();
+    ctx.font=`bold ${Math.max(12,mapRect.width*.026)}px Arial`;ctx.textAlign='center';ctx.textBaseline='bottom';ctx.strokeStyle='#fff4d4';ctx.lineWidth=4;
+    ctx.strokeText('Broad St end',p.x,p.y-8);ctx.fillText('Broad St end',p.x,p.y-8);
+  }
   if(command.exercisePoint) {
     const marker=command.exercisePoint, point=getVrMapCanvasPoint(mapRect,marker.x,marker.y);
     ctx.beginPath();ctx.arc(point.x,point.y,mapRect.width*.014,0,Math.PI*2);
     ctx.fillStyle='#a32c20';ctx.fill();ctx.strokeStyle='#fff4d4';ctx.lineWidth=3;ctx.stroke();
     ctx.font=`bold ${Math.max(14,mapRect.width*.033)}px Arial`;ctx.textAlign='center';ctx.textBaseline='top';
-    ctx.lineWidth=5;ctx.strokeText(marker.label,point.x,point.y+12);ctx.fillStyle='#812018';ctx.fillText(marker.label,point.x,point.y+12);
+    const labelY=point.y+mapRect.width*.06;
+    ctx.lineWidth=5;ctx.strokeText(marker.label,point.x,labelY);ctx.fillStyle='#812018';ctx.fillText(marker.label,point.x,labelY);
     for(const pump of command.exercisePumps??[]) {
       const p=getVrMapCanvasPoint(mapRect,pump.x,pump.y);ctx.textAlign=pump.x>85?'right':pump.x<20?'left':'center';ctx.textBaseline='bottom';
       ctx.strokeText(pump.label,p.x,p.y-12);ctx.fillStyle='#075d55';ctx.fillText(pump.label,p.x,p.y-12);

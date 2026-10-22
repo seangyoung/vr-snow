@@ -1868,6 +1868,10 @@ button:focus-visible, [role="dialog"]:focus-visible {
 .map-exercise-layout h3 { margin: 10px 0; }
 .map-exercise-layout p { line-height: 1.55; }
 .map-exercise-caption { font-size: .85rem; }
+.pump-comparison-panel .conversation-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.pump-comparison-panel .conversation-choices .question-button { min-width: 0; padding: 12px; border: 1px solid #887750; border-radius: 6px; background: rgba(75,65,43,.34); }
+.pump-comparison-panel .conversation-choices .question-button:last-child { grid-column: 1 / -1; }
+.pump-comparison-panel .conversation-choices [data-step="mark"] { background: #e5ca83; color: #241d12; }
 @media (max-width: 650px) { .map-exercise-layout { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 14px; } }
 
 .object-inspection {
@@ -1929,3 +1933,9 @@ button:focus-visible, [role="dialog"]:focus-visible {
     transform: none;
   }
 }
+
+.route-map-surface { position: relative; }
+.route-map-surface .map-exercise-map { display: block; }
+.route-marker-handle { position:absolute; transform:translate(-50%,-50%); width:40px; height:40px; min-width:0; padding:0; border:0; border-radius:50%; background:transparent; cursor:grab; touch-action:none; }
+.route-marker-handle:active { cursor:grabbing; }
+.route-marker-handle:focus-visible { outline:3px solid #a32c20; outline-offset:0; }
