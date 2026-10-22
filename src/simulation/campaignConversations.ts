@@ -257,3 +257,34 @@ for(const person of additionalNeighbors)for(const day of [1,2,3] as const) {
  ]
 });
 }
+
+// Optional period context branches preserve existing beat IDs and conclusions for saved games.
+// These are authored conversations, not testimony from documented acquaintances.
+const periodContext = [
+ {conversation:'resident-east-day-1',from:'opening',id:'crystal-palace',
+  question:'What had you planned before the sickness came?',
+  text:'We meant to take the children to the Crystal Palace at Sydenham; it opened there this June. I remember all the talk of Prince Albert’s Great Exhibition three years ago, but now I only want the children safely out of these streets.',
+  source:'The Great Exhibition opened in 1851 with Prince Albert taking a leading organizational role (https://www.rct.uk/group/381/content/explore/themes/great-exhibition-of-1851). The rebuilt Crystal Palace at Sydenham opened June 10, 1854 (https://www.londonpicturearchive.org.uk/view-item?i=322667). The family’s intended outing is fictional.'},
+ {conversation:'seamstress-day-1',from:'answer-2',id:'dickens',
+  question:'Have you had anything to read when you put the work down?',
+  text:'We had been passing round Mr. Dickens’s Hard Times in Household Words; the last part came out only a few weeks ago. I have scarcely had the heart to read since the sickness began.',
+  source:'Hard Times was serialized in Household Words from April 1 to August 12, 1854 (https://www.victorianresearch.org/atcl/show_title.php?aid=1173&tid=7471). Sharing copies and the seamstress’s reading are invented personal context.'},
+ {conversation:'resident-west-day-2',from:'opening',id:'marx',
+  question:'Who else lives here in Soho?',
+  text:'There is a German writer, Mr. Karl Marx, living in Dean Street. He writes for an American newspaper, I am told; there are all sorts of people making a living round here.',
+  source:'Marx lived at 28 Dean Street during this period and wrote for the New York Daily Tribune (https://www.english-heritage.org.uk/visit/blue-plaques/karl-marx). The shopkeeper’s familiarity is authored context; no acquaintance with Snow or involvement in this investigation is implied.'},
+ {conversation:'resident-west-day-3',from:'rumor',id:'war-news',
+  question:'What else is in the papers these days?',
+  text:'The war with Russia, and our troops overseas with the French and Turks. I used to open the paper for news of them; now I look for news of our own street.',
+  source:'Britain, France and the Ottoman Empire were fighting Russia by September 1854 (https://www.nam.ac.uk/explore/crimean-war). The Crimean landing on September 14 and Alma on September 20 are still in the future of this September 7 exchange. This is general newspaper-reading context, not a transcription of the September 7 Daily News or a claim about the manufactory’s customers.'},
+];
+for(const context of periodContext) {
+ const conversation=campaignConversations.find(item=>item.id===context.conversation)!;
+ const from=conversation.beats.find(beat=>beat.id===context.from)!;
+ from.choices=[...from.choices,choice(context.id,context.question,context.id)];
+ conversation.beats=[...conversation.beats,{
+  id:context.id,speaker:from.speaker,text:context.text,
+  choices:[choice('thanks','Thank you for speaking with me.','conclusion')],
+ }];
+ conversation.sourceNote+=' Optional period context: '+context.source;
+}

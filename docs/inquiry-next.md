@@ -498,3 +498,26 @@ recap retain that completion without an invented interview or evidence card.
 Other existing saves gain the additional assignment. The visit is visible only
 on Day 2; its visited map mark remains afterward. Production and preview saves
 continue to use separate storage keys. Quest acceptance remains outstanding.
+
+## Contemporary references — 22 October 2026
+
+Five short optional exchanges place the September 5–7 inquiry in its wider setting:
+
+- Snow’s Day 1 opening offers a question about Queen Victoria. He mentions Prince Leopold’s birth the previous year, then returns to the assignments.
+- The Day 1 neighbor offers the family’s abandoned plan to visit the Crystal Palace at Sydenham, recalling Prince Albert’s Great Exhibition.
+- After asking how the Day 1 seamstress is managing, the player can ask about reading. She mentions sharing the recently completed *Hard Times* serial.
+- The Day 2 shopkeeper can mention Karl Marx living in Dean Street and writing for an American newspaper.
+- After discussing the Day 3 newspaper’s sewer letter, the player can ask about other news. The shopkeeper contrasts the war with Russia with concern for the street.
+
+These are authored personal exchanges, not quotations or documented relationships.
+Sources are attached to each conversation’s `sourceNote`: [Snow’s royal case record](https://epi-snow.ph.ucla.edu/Stream4_Snowlife_d.html), [the Great Exhibition](https://www.rct.uk/group/381/content/explore/themes/great-exhibition-of-1851), [Sydenham’s June 10 opening](https://www.londonpicturearchive.org.uk/view-item?i=322667), [*Hard Times* serialization dates](https://www.victorianresearch.org/atcl/show_title.php?aid=1173&tid=7471), [Marx’s Dean Street residence](https://www.english-heritage.org.uk/visit/blue-plaques/karl-marx), and [the Crimean War chronology](https://www.nam.ac.uk/explore/crimean-war).
+The war exchange does not anticipate the September 14 landing or September 20 battle;
+it does not invent military customers for the manufactory. Florence Nightingale is
+not added. The inhaler is not presented as the apparatus used for Victoria.
+
+Existing conversation and choice IDs remain intact. The branches award no extra
+evidence or objectives; Snow still grants the assignment at its original common
+conclusion. The shared graphs supply both desktop and VR. All 271 automated checks
+pass, including exhaustive graph paths, interruption/resume and once-only conclusions;
+the production build passes. Desktop testing additionally checks the new Snow branch,
+save/reload and subsequent assignment/map travel. No new headset validation is claimed.
