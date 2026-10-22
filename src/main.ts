@@ -21,6 +21,7 @@ if(new URLSearchParams(location.search).get('review') !== 'board') {
 }
 const ui = createUi(app, gameState);
 const scene = new BroadStreetScene(canvas, gameState);
+ui.setVrEntryControl(scene.getVrEntryControl());
 const sound = new Soundscape();
 ui.onEndDay=()=>scene.endDay();
 scene.onDayTransitionComplete=()=>ui.render();

@@ -1650,7 +1650,7 @@ button {
   z-index: 8 !important;
 }
 
-body[data-overlay-open="true"] .vr-entry-button {
+body[data-overlay-open="true"] .vr-entry-button:not(.vr-start-button) {
   display: none !important;
 }
 
@@ -1939,3 +1939,19 @@ button:focus-visible, [role="dialog"]:focus-visible {
 .route-marker-handle { position:absolute; transform:translate(-50%,-50%); width:40px; height:40px; min-width:0; padding:0; border:0; border-radius:50%; background:transparent; cursor:grab; touch-action:none; }
 .route-marker-handle:active { cursor:grabbing; }
 .route-marker-handle:focus-visible { outline:3px solid #a32c20; outline-offset:0; }
+
+.vr-start-entry { margin: 0 0 18px; }
+.vr-start-entry:empty { display: none; }
+.vr-start-entry .vr-entry-button {
+  position: static !important;
+  width: auto !important;
+  min-width: 160px;
+  padding: 14px 24px !important;
+  border: 1px solid var(--brass-strong) !important;
+  border-radius: 8px !important;
+  background: #e5ca83 !important;
+  color: #241d12 !important;
+  font: 700 1rem var(--ui-font, sans-serif) !important;
+  opacity: 1 !important;
+}
+.vr-start-entry .vr-entry-button:focus-visible { outline: 3px solid #fff4d4 !important; outline-offset: 4px; }

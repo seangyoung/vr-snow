@@ -114,6 +114,7 @@ export interface PrototypeUi {
   beginTravel: (locationId: LocationId) => void;
   render: () => void;
   setSoundControls: (controls: SoundControls) => void;
+  setVrEntryControl: (control: HTMLElement | undefined) => void;
   setMotionLookControls: (controls: MotionLookControls) => void;
   setPrompt: (hotspot?: Hotspot) => void;
   setMessage: (message: string) => void;
@@ -127,6 +128,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   let dismissedChapter: ChapterStage | undefined;
   let previousStage = gameState.getStage();
   let soundControls: SoundControls | undefined;
+  let vrEntryControl: HTMLElement | undefined;
   let motionLookControls: MotionLookControls | undefined;
   const keyboard = new DesktopKeyboard(root, document.getElementById("scene"), () => isTransitioning || document.body.dataset.dayTransition==='true');
   new OutsidePanelDismiss(root, () => !isTransitioning && document.body.dataset.dayTransition!=='true' && document.body.dataset.xrPresenting !== "true", dismissPanels,
@@ -185,6 +187,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       message = "Return to Snow with enough evidence before preparing the Board argument.";
       render();
     },
+    setVrEntryControl(control) { vrEntryControl=control;render(); },
     setSoundControls(controls: SoundControls) { soundControls=controls;render(); },
     setMotionLookControls(controls: MotionLookControls) {
       motionLookControls = controls;
@@ -439,6 +442,13 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       </div>
     `;
 
+    // Reattach the same WebXR control after redraws so its support detection,
+    // user-gesture session request and session-end state remain intact.
+    if(vrEntryControl) {
+      const slot=root.querySelector<HTMLElement>('.vr-start-entry');
+      vrEntryControl.classList.toggle('vr-start-button',!!slot);
+      (slot ?? document.body).appendChild(vrEntryControl);
+    }
     createIcons({ icons });
     keyboard.afterRender();
   }
@@ -1189,7 +1199,7 @@ function renderAssignments(game: GameState): string {
  return `<article class="study-goal assignment-summary"><div><h3>${escapeHtml(game.getDay().title)}</h3>${game.getAssignments().map(o=>`<p>${o.complete?'✓':'○'} ${escapeHtml(o.title)}</p>`).join('')}</div></article>`;
 }
 function renderStartPanel(game:GameState): string {
- return `<aside class="chapter-panel" aria-label="Start inquiry"><div class="chapter-heading"><span>Soho, London · 1854</span><h2>The Broad Street Inquiry</h2></div><div class="chapter-copy"><p>${escapeHtml(inquiryOpening)}</p>${game.saveNotice?`<p>${escapeHtml(game.saveNotice)}</p>`:''}</div><div class="chapter-actions">${game.hasSavedInquiry?'<button class="primary-action" data-action="continue-inquiry">Continue</button>':''}<button class="secondary-action" data-action="new-inquiry">New Inquiry</button></div></aside>`;
+ return `<aside class="chapter-panel" aria-label="Start inquiry"><div class="chapter-heading"><span>Soho, London · 1854</span><h2>The Broad Street Inquiry</h2></div><div class="vr-start-entry" aria-label="Virtual reality"></div><div class="chapter-copy"><p>${escapeHtml(inquiryOpening)}</p>${game.saveNotice?`<p>${escapeHtml(game.saveNotice)}</p>`:''}</div><div class="chapter-actions">${game.hasSavedInquiry?'<button class="primary-action" data-action="continue-inquiry">Continue</button>':''}<button class="secondary-action" data-action="new-inquiry">New Inquiry</button></div></aside>`;
 }
 function renderDayPanel(game:GameState): string {
  return `<aside class="chapter-panel" aria-label="Day ${game.day} introduction"><div class="chapter-heading"><span>Day ${game.day}</span><h2>${escapeHtml(game.getDay().date)}</h2></div><div class="chapter-copy">${game.getDayIntroduction().slice(1).map(text=>`<p>${escapeHtml(text)}</p>`).join('')}</div><div class="chapter-actions"><button class="primary-action" data-action="dismiss-day">Enter the office</button></div></aside>`;

@@ -230,6 +230,8 @@ export class BroadStreetScene {
   onHotspotActivate?: (hotspot: Hotspot) => void;
   onWorldTravel?: (locationId: LocationId) => void;
   onMotionLookChange?: () => void;
+  private vrEntryControl?: HTMLElement;
+  getVrEntryControl(): HTMLElement | undefined { return this.vrEntryControl; }
   onDayTransitionComplete?: () => void;
 
   private readonly reducedCharacterMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -2823,6 +2825,7 @@ export class BroadStreetScene {
   private addVrEntryButton(): void {
     const button = VRButton.createButton(this.renderer);
     button.classList.add("vr-entry-button");
+    this.vrEntryControl=button;
     document.body.appendChild(button);
   }
 
