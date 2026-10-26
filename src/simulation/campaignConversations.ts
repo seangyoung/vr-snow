@@ -58,7 +58,7 @@ export const campaignConversations: ConversationDefinition[] = [
  'Please speak softly; my father is resting in the bed. We have already lost my sister, and now he has the cholera too.',[
  ['May we begin with when the illness started?','My sister was taken ill in those first days of September. Father fell ill afterward; it has been one bedside after another.'],
  ['Where did you get drinking water?','We brought it from Broad Street, as we always did. There was usually a jug here in the room.'],
- ['Who is looking after your father?','I am, with a neighbor taking a turn when she can. We did the same for my sister; there is scarcely time to grieve.']],
+ ['Who is looking after your father?','I am. Reverend Whitehead has helped when he could. We did what we could for my sister too; there is scarcely time to grieve.']],
  'My sister and Father both drank the Broad Street water before the illness began. We lost her, and I am still nursing him.',
  ['Do you remember which day the illness began?','It was in those first days of September. I cannot be certain of the day now; we hardly slept.'],
  ['Were you able to get any rest?','Very little. Father needs someone beside him, and there is always another cloth to wash or something to fetch.'],

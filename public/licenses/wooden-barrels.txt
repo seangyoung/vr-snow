@@ -1,0 +1,13 @@
+Wooden Barrels — MatteReal
+Source: https://www.blendswap.com/blends/view/68065
+License: Creative Commons Attribution 3.0 Unported
+https://creativecommons.org/licenses/by/3.0/
+
+Adapted for The Broad Street Inquiry: simplified mesh, resized wood color/normal
+textures, normalized dimensions, new iron material, added bungs, placement and
+baked room lighting. Original presentation scene and OpenFootage metal textures
+are not included. The original supplied license is archived in
+assets/wooden-barrel/BLENDSWAP_LICENSE.txt in the source repository.
+
+Broad Street pump detail additions are original project geometry. The separate
+workhouse pump adaptation is credited in workhouse-hand-pump.txt.

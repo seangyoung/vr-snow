@@ -2,14 +2,14 @@
   "bakedLighting": {
     "size": 2048,
     "normalization": 4,
-    "diffusePeak999": 13.231,
+    "diffusePeak999": 10.9595,
     "environmentSize": [
       512,
       256
     ]
   },
-  "triangles": 22984,
-  "materialBatches": 13,
+  "triangles": 29544,
+  "materialBatches": 14,
   "layout": {
     "width": 10,
     "depth": 12,
@@ -79,5 +79,7 @@
         "height": 1.1
       }
     ]
-  }
+  },
+  "caskSource": "assets/wooden-barrel/source.json",
+  "caskCount": 8
 }

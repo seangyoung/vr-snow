@@ -42,3 +42,42 @@ The standing-owner revision also checks the unobstructed central floor, approach
 to both owners, loaded character collision, seated/standing viewer selection, and
 that the side accounts table does not create an extra conversation target. Room
 and person lighting are rebaked together, with front and side pose review.
+
+## Supplied barrel integration (October 2026)
+
+The eight rack casks now use an optimized version of **MatteReal's Wooden
+Barrels**, supplied under CC BY 3.0. The archived license and source metadata are
+in `assets/wooden-barrel/`; the public credit is
+`public/licenses/wooden-barrels.txt`, linked from the Sound settings panel.
+The source model's OpenFootage metal maps are excluded; the iron material is
+newly authored. The wood color and normal maps are resized to 1024 pixels.
+
+`scripts/assets/prepare_wooden_barrel.py` applies the source subdivision before
+simplifying to 1,604 triangles, repairs shell normals for backface culling, and
+normalizes the cask to the existing rack envelope. Its packed output,
+`assets/wooden-barrel/wooden-barrel.blend`, is tracked, so ordinary room rebuilds
+do not depend on a file in `tmp`. To regenerate that master from the supplied
+download:
+
+```sh
+blender --background --factory-startup --disable-autoexec \
+  --python scripts/assets/prepare_wooden_barrel.py -- /path/to/Wooden_Barrels_Scene.blend
+```
+
+The room generator places the eight casks, adds head bungs and paired timber
+chocks beneath each barrel, and rebakes the room lighting. Cask bellies rest at
+shelf height; the sixteen chocks resist rolling in either direction along the rack.
+The room has 29,544 triangles and 14 mesh batches (15 material
+primitives, because the cask batch has wood and iron). Its GLB is approximately
+5 MB. Existing rack collision, walkways, portable objects and interactions are
+unchanged. The casks remain fixed scenery.
+
+The accompanying Broad Street pump pass retains the existing profile and
+interaction mechanism. Original low-poly hinge cheeks, axle/fasteners, base
+bolts, spout collar, outlet lip and a handgrip wear band add mechanical detail.
+The moving wear band belongs to the removable handle; fixed fittings stay on
+the body. No mesh or material from the supplied `Hand pump.blend` is shipped.
+
+Validation: 280 walkable checks, production build and installation checks;
+browser review of rack placement, cask materials and pump motion/removal. A
+Quest review is still needed for close-range appearance and load performance.

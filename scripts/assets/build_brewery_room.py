@@ -138,23 +138,33 @@ f=furniture('barrel-rack');x,z=f['x'],f['z']
 for y in [.08,1.15,2.23]:box('Rack shelf',x,y,z,.9,.1,4.8,'Timber')
 for zz in [-2.32,0,2.32]:
     for dx in [-.38,.38]:box('Rack post',x+dx,1.4,z+zz,.10,2.8,.10,'Timber')
-for y in [.18,1.25]:
-    for zz in [-1.75,-.6,.6,1.75]:
-        # Author upright, then rotate around its center so its axis faces the aisle.
-        before=set(bpy.context.scene.objects)
-        profile=[(0,-.40),(.38,-.40),(.44,-.28),(.46,0),(.44,.28),(.38,.40),(0,.40)]
-        staves('Cask individual staves',0,0,0,profile[1:-1])
-        for end in [-.385,.385]:
-            # Recessed heads, with a rim and four visible board joints.
-            cylinder('Recessed cask head',0,end,0,.365,.025,'Timber')
-            for offset in [-.22,-.07,.08,.23]:
-                span=2*math.sqrt(.355**2-offset**2)
-                box('Cask head joint',offset,end+(.014 if end>0 else -.014),0,.003,.002,span,'Recess')
-            cylinder('Head bung',.10,end+(.021 if end>0 else -.021),0,.033,.016,'Timber')
-        for yy in [-.33,0,.33]:lathe('Cask hoop',0,yy,0,[(.44,0),(.465,.015),(.465,.05),(.44,.065)],'Iron',24)
-        from mathutils import Matrix,Vector
+# Optimized CC BY 3.0 barrel master; all copies share the two authored materials.
+# Baking gives each cask its own lighting UVs; final export batches by material.
+with bpy.data.libraries.load(str(ROOT/'assets/wooden-barrel/wooden-barrel.blend'),link=False) as (source,target):
+    target.objects=['Detailed cask master']
+master=target.objects[0]
+for mat in master.data.materials:M[mat.name]=mat
+from mathutils import Matrix,Vector
+for y in [.13,1.20]:  # shelf tops: the cask belly rests on the timber, without a gap
+    for index,zz in enumerate([-1.75,-.6,.6,1.75]):
+        ob=master.copy();ob.data=master.data.copy();bpy.context.collection.objects.link(ob)
+        ob.name='Detailed brewery cask'
         transform=Matrix.Translation(Vector((x,-(z+zz),y+.46))) @ Matrix.Rotation(math.pi/2,4,'Y')
-        for ob in set(bpy.context.scene.objects)-before:ob.matrix_world=transform @ ob.matrix_world
+        # Slight axial rotation varies the visible stave pattern without changing bounds.
+        ob.matrix_world=transform @ Matrix.Rotation((index%3)*.13,4,'Z')
+        # Paired timber chocks resist rolling in either direction along the rack.
+        # Their low inner edges tuck beneath the belly; outer edges rise beside it.
+        for side in [-1,1]:
+            chock=box('Cask retaining chock',x,y+.115,z+zz+side*.31,.74,.23,.22,'Timber')
+            for vertex in chock.data.vertices:
+                if vertex.co.z>0:
+                    outward=(-vertex.co.y*side+.11)/.22
+                    vertex.co.z=-.115+.045+outward*.185
+            chock.data.update()
+        for end in [-.385,.385]:
+            bung=cylinder('Cask head bung',.1,end,0,.033,.016,'Timber')
+            bung.matrix_world=transform @ bung.matrix_world
+bpy.data.objects.remove(master,do_unlink=True)
 # A compact accounts table against the side wall leaves the working floor clear.
 # Build along local X, then turn the whole table and its contents along the wall.
 before_table=set(bpy.context.scene.objects)
@@ -205,6 +215,6 @@ for name,mat in M.items():
     bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=name
 bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/brewery-room.glb'),export_format='GLB',export_yup=True,export_cameras=False,export_lights=False)
 triangles=sum(len(p.vertices)-2 for o in bpy.context.scene.objects if o.type=='MESH' for p in o.data.polygons)
-report={'bakedLighting':lighting_report,'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout}
+report={'bakedLighting':lighting_report,'triangles':triangles,'materialBatches':len([o for o in bpy.context.scene.objects if o.type=='MESH']),'layout':layout,'caskSource':'assets/wooden-barrel/source.json','caskCount':8}
 (asset/'build-report.json').write_text(json.dumps(report,indent=2)+'\n')
 print('BREWERY BUILD',triangles,'triangles;',report['materialBatches'],'material batches')

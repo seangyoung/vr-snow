@@ -105,45 +105,45 @@
           16.4160839,
           33.8796204
         ]
-      ]
+      ],
+      "pumpLabel": "Marlborough Street"
     },
     {
       "id": "rupert",
-      "title": "Broad Street to Rupert Street",
-      "destination": "rupert-pump",
-      "landmark": {
-        "label": "Eastern end of Broad Street",
-        "point": [
-          77,
-          34
-        ]
-      },
+      "title": "Broad Street to Bridle Lane",
+      "destination": "bridle-pump",
       "polyline": [
         [
           56.1413586,
           45.7177822
         ],
         [
-          77,
-          34
+          56.8,
+          45.1
         ],
         [
-          84.6,
-          48.6
+          62.25,
+          56.15
         ],
         [
-          88.1,
-          55
+          69.8,
+          68.9
         ],
         [
-          93.9,
-          66.1
+          77.7,
+          78.6
         ],
         [
-          97.4150849,
-          73.2052947
+          67,
+          87.9
+        ],
+        [
+          65.4120879,
+          86.1723277
         ]
-      ]
+      ],
+      "pumpLabel": "Bridle Lane",
+      "notes": "Southern street route to the Bridle Lane pump (Bridle St Pump in the source anchors). The rupert identifier is retained only for saved exercise progress. Midpoint checked against the unmodified PumpServiceArea layer; the route follows street junctions, not a fitted boundary point."
     }
   ]
 }

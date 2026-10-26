@@ -1,5 +1,5 @@
 import data from './route-data.json' with {type:'json'};
-import type {LocationId} from './types';
+// `rupert` is a legacy save key for the second example, now Bridle Lane.
 export type RouteId='marlborough-broad'|'marlborough-alternative'|'rupert-broad'|'rupert-alternative';
 export type RoutePair='marlborough'|'rupert';
 export const routeData=data;
@@ -46,8 +46,8 @@ export const surveyRoutes=pumpJourneys.flatMap(route=>{
  const midpoint=routePoint(route.id,.5),half=route.rawMetres/2;
  let travelled=0,split=0;while(split<route.lengths.length && travelled+route.lengths[split]<half)travelled+=route.lengths[split++];
  return [
-  {id:`${route.id}-broad` as RouteId,pair:route.id,title:'Broad Street to halfway',origin:'broad-street-pump',destination:'broad-street' as LocationId,polyline:[...route.polyline.slice(0,split+1),midpoint]},
-  {id:`${route.id}-alternative` as RouteId,pair:route.id,title:`Halfway to ${route.id==='rupert'?'Rupert Street':'Marlborough Street'}`,origin:'halfway',destination:route.destination as LocationId,polyline:[midpoint,...route.polyline.slice(split+1)]},
+  {id:`${route.id}-broad` as RouteId,pair:route.id,title:'Broad Street to halfway',origin:'broad-street-pump',destination:'broad-street',pumpLabel:'Broad Street',polyline:[...route.polyline.slice(0,split+1),midpoint]},
+  {id:`${route.id}-alternative` as RouteId,pair:route.id,title:`Halfway to ${route.pumpLabel}`,origin:'halfway',destination:route.destination,pumpLabel:route.pumpLabel,polyline:[midpoint,...route.polyline.slice(split+1)]},
  ].map(leg=>({...leg,metres:route.metres/2,seconds:Math.round(route.seconds/2)}));
 });
 export interface RouteObservation {routeId:RouteId;metres:number;seconds:number}
@@ -60,5 +60,5 @@ export interface GuidedSurveyView {
  key:string;title:string;text:string;progress:string;
  results:{label:string;time:string}[];actions:{id:string;label:string}[];
 }
-export const pumpName = (route: typeof surveyRoutes[number]): string => route.destination==='broad-street'?'Broad Street pump':route.destination==='marlborough-pump'?'Marlborough Street pump':'Rupert Street pump';
+export const pumpName = (route: typeof surveyRoutes[number]): string => `${route.pumpLabel} pump`;
 export const walkingTime = (seconds:number):string => `${Math.floor(seconds/60)}m ${String(seconds%60).padStart(2,'0')}s`;

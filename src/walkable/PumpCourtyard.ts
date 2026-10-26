@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { PumpAction } from "./PumpAction";
 import { streetBounds } from "./StreetBoundary";
 import { SceneCharacters } from "./SceneCharacters";
@@ -199,7 +200,7 @@ export class PumpCourtyard {
   }
 
   private buildPump(): void {
-    const iron = new THREE.MeshStandardMaterial({ color: "#39433b", metalness: 0.35, roughness: 0.5 });
+    const iron = new THREE.MeshStandardMaterial({ color: "#39433b", metalness: 0.28, roughness: 0.72 });
     const stone = new THREE.MeshStandardMaterial({ color: "#8b897a", roughness: 1 });
     // Profile follows the replica's narrow stem, shouldered barrel, rings, dome and finial.
     // The working handle is an inferred pre-removal detail, not present on the memorial.
@@ -208,6 +209,17 @@ export class PumpCourtyard {
       [.16,1.91],[.205,1.93],[.205,1.99],[.17,2.02],[.12,2.09],[.07,2.12],[.05,2.16],
       [.07,2.18],[.065,2.23],[.03,2.26],[0,2.27]];
     const body = new THREE.Mesh(new THREE.LatheGeometry(profile.map(([r,y]) => new THREE.Vector2(r,y)), 24), iron);
+    body.name='Broad Street cast-iron body';
+    // Subtle casting variation follows the existing profile; no texture download.
+    const positions=body.geometry.attributes.position,normals=body.geometry.attributes.normal;
+    const tones=new Float32Array(positions.count*3);
+    for(let i=0;i<positions.count;i++) {
+      const y=positions.getY(i),a=Math.atan2(positions.getZ(i),positions.getX(i));
+      const tone=.92+.035*Math.sin(y*31+a*3)+.025*Math.cos(a*7-y*9)-.05*Math.max(0,-normals.getY(i));
+      tones.set([tone,tone,tone],i*3);
+    }
+    body.geometry.setAttribute('color',new THREE.BufferAttribute(tones,3));
+    const bodyIron=iron.clone();bodyIron.vertexColors=true;body.material=bodyIron;
     this.pump.add(body);
     const slab = new THREE.Mesh(new THREE.BoxGeometry(.58,.07,.62), stone);
     slab.position.y = -.005;
@@ -228,6 +240,34 @@ export class PumpCourtyard {
     ]) {
       mesh.geometry.translate(-.13,-1.72,0);this.pumpAction.handle.add(mesh);
     }
+    // Original low-poly fittings informed by generic pump mechanics. The supplied
+    // model's geometry/materials are not copied; our replica-based profile remains.
+    const wornIron=new THREE.MeshStandardMaterial({color:'#65675c',metalness:.5,roughness:.62});
+    const fittings:THREE.BufferGeometry[]=[];
+    const fitting=(geometry:THREE.BufferGeometry,x:number,y:number,z:number,rx=0,rz=0)=>{
+      geometry.rotateX(rx);geometry.rotateZ(rz);geometry.translate(x,y,z);fittings.push(geometry);
+    };
+    // Fixed hinge cheeks and axle: the working lever rotates between them.
+    for(const z of [-.067,.067])fitting(new THREE.BoxGeometry(.12,.12,.025),.13,1.72,z);
+    fitting(new THREE.CylinderGeometry(.028,.028,.19,10),.13,1.72,0,Math.PI/2);
+    for(const z of [-.105,.105]) {
+      fitting(new THREE.CylinderGeometry(.043,.043,.018,12),.13,1.72,z,Math.PI/2);
+      fitting(new THREE.CylinderGeometry(.032,.032,.022,6),.13,1.72,z*1.18,Math.PI/2);
+    }
+    // Mounting bolts, spout collar and rolled outlet lip stay with the body.
+    for(const x of [-.125,.125])for(const z of [-.125,.125]) {
+      fitting(new THREE.CylinderGeometry(.024,.024,.009,10),x,.077,z);
+      fitting(new THREE.CylinderGeometry(.017,.017,.018,6),x,.089,z);
+    }
+    fitting(new THREE.CylinderGeometry(.076,.076,.035,16),0,1.30,-.155,Math.PI/2);
+    fitting(new THREE.TorusGeometry(.050,.006,5,16),0,1.157,-.45,Math.PI/2);
+    const joined=mergeGeometries(fittings)!;
+    const hardware=new THREE.Mesh(joined,wornIron);hardware.name='Fixed pump fittings';this.pump.add(hardware);
+    for(const geometry of fittings)geometry.dispose();
+    // A short wear band belongs to the removable handle, including the epilogue.
+    const wear=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.085,12),wornIron);
+    wear.rotation.x=Math.PI/2;wear.position.set(.34,-.92,.065);
+    wear.name='Worn handgrip band';this.pumpAction.handle.add(wear);
     // A slightly wider invisible grip makes the narrow iron handle selectable.
     const grip=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.28,4,8),new THREE.MeshBasicMaterial({visible:false}));
     grip.position.set(.35,-.74,.04);this.pumpAction.handle.add(grip);

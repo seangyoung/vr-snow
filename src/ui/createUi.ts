@@ -1191,7 +1191,7 @@ function renderSoundPanel(controls?: SoundControls): string {
         <button class="secondary-action" data-action="${channel}-down" aria-label="Lower ${channel}" ${settings[channel]<=0?"disabled":""}>−</button>
         <button class="secondary-action" data-action="${channel}-up" aria-label="Raise ${channel}" ${settings[channel]>=1?"disabled":""}>+</button></div>`).join("")}
       <p>All clues and actions remain available visually. Ambience softens while you read. Sound starts after you interact with the app.</p>
-      <p><a href="${import.meta.env?.BASE_URL??"/"}audio/credits.html" target="_blank" rel="noopener">Audio sources and credits</a></p>
+      <p><a href="${import.meta.env?.BASE_URL??"/"}audio/credits.html" target="_blank" rel="noopener">Audio sources and credits</a> · <a href="${import.meta.env?.BASE_URL??"/"}licenses/wooden-barrels.txt" target="_blank" rel="noopener">Barrel model credit</a> · <a href="${import.meta.env?.BASE_URL??"/"}licenses/workhouse-hand-pump.txt" target="_blank" rel="noopener">Pump model credit</a></p>
     </div></aside>`;
 }
 

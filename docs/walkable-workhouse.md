@@ -60,3 +60,32 @@ selection, well and character collision, exit travel, the closed door,
 single floor surfaces, source/export consistency and geometry budgets. Offline
 renders inspect the pose and environment; headset appearance and comfort remain
 device checks.
+## Detailed working pump (October 2026)
+
+The workhouse fitting now loads a simplified version of the user-supplied
+`Hand pump.blend`, independently of the Broad Street replica-based pump.
+`scripts/assets/prepare_workhouse_pump.py` evaluates the original modifiers,
+simplifies the meshes, repairs normals, replaces procedural materials with cast
+iron, and exports separate body/lever meshes. The editable output is in
+`assets/workhouse-hand-pump/`; the runtime model is
+`public/models/workhouse-hand-pump.glb` (6,604 triangles, two meshes, no textures).
+
+`WorkhousePump` retains the existing well position and collision envelope. It
+fits the new lever to the shared pump action, adds a reachable grip proxy, and
+animates a piston rod between the moving joint and the lid guide. Water starts
+at the new spout. Trigger, grip, mouse and keyboard retain the shared pump
+interaction; sample evidence and sound still use the existing water event.
+The procedural pump remains the loading/error fallback. The courtyard's baked
+environment is shared by the new fitting without applying the old lightmap to
+its new geometry.
+
+Source/licensing: [Hand pump by Mdfaizan](https://blendswap.com/blend/23714)
+lists **CC-BY**, verified on 26 October 2026. The listing does not specify a
+license version; none is inferred. `source.json` records this verification
+and the source file hash. Public attribution and a description of the adaptation
+are in `public/licenses/workhouse-hand-pump.txt`, linked from Sound settings.
+
+Validation covers the loaded lever's reach and classification, rod motion and
+return, one water event per stroke, disabled-handle behavior, load failure,
+existing interaction checks, and browser appearance. Quest validation remains
+separate from these desktop checks.

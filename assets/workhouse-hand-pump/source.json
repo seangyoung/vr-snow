@@ -1,0 +1,18 @@
+{
+  "sourceFile": "Hand pump.blend",
+  "sourceSha256": "9f42a6e3af95fd32f0935cb907e0817739c3c18d7fcf79bfbd0424a1ed5d4fb3",
+  "sourceUrl": "https://blendswap.com/blend/23714",
+  "author": "Mdfaizan",
+  "license": "CC BY",
+  "status": "Source listing verified on 2026-10-26: Hand pump by Mdfaizan, CC-BY. The listing does not specify a license version.",
+  "triangles": 6604,
+  "meshBatches": 2,
+  "scale": 0.15,
+  "pivot": [
+    0.2512613832950592,
+    1.6422185897827148,
+    -0.0
+  ],
+  "changes": "Simplified evaluated meshes; repaired normals; replaced source procedural materials with plain cast iron; separated lever and its joint fasteners. Piston rod is rebuilt and animated at runtime.",
+  "licenseVersion": null
+}

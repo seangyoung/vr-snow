@@ -30,7 +30,7 @@ export class WorkhouseCourtyard extends FurnishedRoom {
     return super.hotspotFor(object);
   }
   override loadVisuals(basePath: string): Promise<void> {
-    return this.courtyardVisuals ??= Promise.all([super.loadVisuals(basePath), this.loadSky(basePath)]).then(() => {});
+    return this.courtyardVisuals ??= Promise.all([super.loadVisuals(basePath), this.loadSky(basePath), this.pump.loadVisuals(basePath)]).then(() => {});
   }
   private async loadSky(basePath: string): Promise<void> {
     try {

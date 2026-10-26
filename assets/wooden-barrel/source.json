@@ -1,0 +1,28 @@
+{
+  "sourceTitle": "Wooden Barrels",
+  "author": "MatteReal",
+  "license": "CC BY 3.0",
+  "sourceUrl": "https://www.blendswap.com/blends/view/68065",
+  "sourceSha256": "a04959aded07f2a2d446515ef7fb1bd5dea5152e9d82ed93c3186780296a1956",
+  "triangles": 1604,
+  "materials": [
+    "Cask oak",
+    "Cask iron"
+  ],
+  "dimensionsMetres": [
+    0.92,
+    0.92,
+    0.8
+  ],
+  "textures": {
+    "color": [
+      1024,
+      1024
+    ],
+    "normal": [
+      1024,
+      1024
+    ]
+  },
+  "changes": "Simplified mesh; resized wood maps; replaced metal material; normalized rack dimensions. Original stage and OpenFootage textures excluded."
+}

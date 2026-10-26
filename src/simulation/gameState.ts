@@ -78,7 +78,7 @@ export class GameState {
   private guidedSurveyView(): GuidedSurveyView | undefined {
     const progress=this.surveyProgress;if(!progress)return undefined;
     const route=surveyRoutes.find(r=>r.id===progress.routeId)!,journey=pumpJourneys.find(j=>j.id===route.pair)!;
-    const alternative=route.pair==='marlborough'?'Marlborough Street':'Rupert Street';
+    const alternative=journey.pumpLabel;
     const fraction=(progress.marker??1)/4,point=routePoint(route.pair,progress.phase==='origin'?0:fraction);
     const base: GuidedSurveyView={key:`${progress.routeId}:${progress.phase}:${progress.marker??0}`,title:'Find an equal-distance point',progress:`Snow’s map table · Journey ${route.pair==='marlborough'?1:2} of 2`,
       mapPumps:[{x:journey.polyline[0][0],y:journey.polyline[0][1],label:'Broad St pump'},{x:journey.polyline.at(-1)![0],y:journey.polyline.at(-1)![1],label:alternative+' pump'}],
@@ -88,7 +88,7 @@ export class GameState {
       mapPumps:[],mapPoint:{...this.getLocation('household-away')!.mapPoint,label:'Household 3'},
       text:'These are two examples. I checked the surrounding pumps and the nearest streets to each point; the green line brings those comparisons together. Household 3 lies outside it, yet someone there has fallen ill. Could they have used Broad Street water?',actions:[{id:'discuss',label:'Ask Snow about Household 3'}]};
     if(progress.phase==='origin')return {...base,title:`Broad Street to ${alternative}`,
-      text:`I measured to all the nearby public pumps. For this example, start at Broad Street and follow the streets to ${alternative}.${route.pair==='rupert'?' This journey passes the eastern end of Broad Street.':''}`,
+      text:`I measured to all the nearby public pumps. For this example, start at Broad Street and follow the streets to ${alternative}.`,
       actions:[{id:'trace',label:'Trace the street route'}]};
     base.mapPolyline=journey.polyline;
     base.results=[{label:'Back to Broad Street',time:`${Math.round(journey.metres*fraction)} m · ${walkingTime(Math.round(journey.seconds*fraction))}`},
@@ -97,7 +97,7 @@ export class GameState {
       text:`The whole journey is ${journey.metres} metres (${walkingTime(journey.seconds)}). Grab the red marker and slide it along the route until the two walks balance.`,
       actions:progress.marker===2?[{id:'mark',label:'Mark this equal-distance point'}]:[]};
     return {...base,text:'Here the distance is equal in either direction along this route. To draw a boundary, I must also check the nearest streets and the other pumps—not merely join two marks.',
-      actions:[{id:route.pair==='marlborough'?'next':'finish',label:route.pair==='marlborough'?'Explore the eastern journey':'Show Snow’s full pump service area'}]};
+      actions:[{id:route.pair==='marlborough'?'next':'finish',label:route.pair==='marlborough'?'Explore the Bridle Lane journey':'Show Snow’s full pump service area'}]};
   }
   movePumpMarker(fraction:number): boolean {
     const progress=this.surveyProgress;

@@ -986,7 +986,8 @@ for (const [asset, size] of [['registrar-room',2048],['household-room',2048],['b
 test('remaining furnished scenes use separate baked environments and load their lighting once', async(t)=>{
   const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
   const roots=[];const loaded=[];
-  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>{
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async(url)=>{
+    if(url.endsWith('workhouse-hand-pump.glb'))return {scene:await exportedRoom('workhouse-hand-pump.glb')};
     const root=new THREE.Group(),geometry=new THREE.BoxGeometry();
     geometry.setAttribute('uv1',geometry.getAttribute('uv').clone());
     root.add(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({vertexColors:true})));
@@ -2466,8 +2467,11 @@ test('pump-to-pump journeys start at Broad Street and split by street distance, 
   const chord=origin.map((x,i)=>(x+journey.polyline.at(-1)[i])/2),mid=routePoint(journey.id,.5);
   assert.ok(Math.hypot(chord[0]-mid[0],chord[1]-mid[1])>1,'halfway follows street bends, not a straight-line midpoint');
  }
- const east=pumpJourneys.find(j=>j.id==='rupert');assert.ok(east.landmark.point[0]>75);
- assert.deepEqual(east.polyline[1],east.landmark.point,'eastern route reaches the end of Broad Street');
+ const south=pumpJourneys.find(j=>j.id==='rupert');
+ assert.equal(south.pumpLabel,'Bridle Lane');
+ assert.deepEqual(south.polyline.at(-1),[65.4120879,86.1723277],'ends at the digitized Bridle Lane pump');
+ const mid=routePoint(south.id,.5);
+ assert.ok(Math.hypot(mid[0]-70,mid[1]-69)<1,'southern halfway mark remains near the mapped service-area crossing');
  const game=gameAtDay(3,true),r=surveyRoutes[0];game.resumePumpComparison();
  assert.equal(game.advancePumpComparison('finish'),false);assert.equal(game.advancePumpComparison('mark'),false);
  game.advancePumpComparison('trace');assert.equal(game.getRouteObservations().length,0);
@@ -2707,6 +2711,40 @@ test('workhouse pump replaces static geometry without moving the well, buckets o
   ray.set(origin,target.sub(origin).normalize());const handle=room.pick(ray);
   assert.ok(room.pumpAction.owns(handle.object),'handle reachable from outside the well collision area');
   assert.ok(handle.distance<2.4);assert.equal(room.canTeleport(handle),false);assert.equal(room.hotspotFor(handle.object),undefined);
+});
+
+test('detailed workhouse pump retains reachable handle, articulated rod and single water event',async(t)=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const model=await exportedRoom('workhouse-hand-pump.glb'),room=new WorkhouseCourtyard();
+  assert.ok(triangles(model)<8000,'detailed pump remains within its mobile geometry budget');
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>({scene:model}));
+  const environment=new THREE.Texture();
+  room.pump.group.children.find(o=>o.isMesh).material.envMap=environment;
+  await room.pump.loadVisuals('/');room.group.visible=true;room.group.updateMatrixWorld(true);
+  assert.equal(room.pump.group.userData.modelStatus,'ready');
+  const body=room.pump.group.getObjectByName('Workhouse_pump_body');
+  assert.equal(body.material.envMap,environment,'environment survives replacement regardless of load order');
+  const rod=room.pump.group.getObjectByName('Workhouse moving piston rod'),initial=rod.position.clone();
+  const origin=new THREE.Vector3(5.1,1.15,-5.8),target=new THREE.Vector3(3.64,.77,-5.8);
+  const ray=new THREE.Raycaster(origin,target.sub(origin).normalize()),hit=room.pick(ray);
+  assert.ok(room.pumpAction.owns(hit.object));assert.ok(hit.distance<2.4);
+  assert.equal(room.canTeleport(hit),false);assert.equal(room.hotspotFor(hit.object),undefined);
+  assert.ok(room.pumpAction.stroke());let events=0;
+  for(let i=0;i<12;i++)events+=Number(room.pumpAction.update(.05,false));
+  assert.ok(rod.position.distanceTo(initial)>.02,'rod follows the lever rather than remaining suspended');
+  for(let i=0;i<24;i++)events+=Number(room.pumpAction.update(.05,false));
+  assert.equal(events,1);assert.ok(rod.position.distanceTo(initial)<1e-6);
+  assert.equal(room.pumpAction.water.visible,false);room.pumpAction.reset(false);
+  assert.equal(room.pumpAction.owns(hit.object),false);
+});
+
+test('missing detailed workhouse pump keeps its procedural handle operational',async(t)=>{
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  t.mock.method(GLTFLoader.prototype,'loadAsync',async()=>{throw new Error('offline');});
+  t.mock.method(console,'warn',()=>{});
+  const room=new WorkhouseCourtyard();await room.pump.loadVisuals('/');
+  assert.equal(room.pump.group.userData.modelStatus,'fallback');
+  assert.ok(room.pumpAction.handle.children.length);assert.ok(room.pumpAction.stroke());
 });
 
 test('both pumps work through the same mouse, keyboard and controller tactile path with reach limits',()=>{

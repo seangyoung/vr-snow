@@ -1,0 +1,15 @@
+Hand pump — Mdfaizan
+Source: https://blendswap.com/blend/23714
+License: Creative Commons Attribution (CC BY)
+
+Creator and CC-BY license verified on the source listing on 26 October 2026.
+The listing does not specify a CC BY version.
+Source file: Hand pump.blend
+
+Adapted for The Broad Street Inquiry's workhouse: simplified geometry, repaired
+surface normals, resized model, replaced procedural materials with cast iron,
+separated the moving lever and joint fasteners, and added an animated piston
+rod and interactive water flow. This credit does not imply creator endorsement.
+
+Source file hash and adaptation metadata: assets/workhouse-hand-pump/source.json
+in the source repository.

@@ -60,8 +60,14 @@ acceptance; automated or desktop results do not establish headset readiness.
 
 Day three begins at Snow’s map table. He says he measured journeys to all the
 nearby public pumps. The player explores two examples beginning at Broad Street:
-Marlborough Street and Rupert Street. The eastern journey runs to the end of Broad
-Street before turning south; it no longer starts beside the pump.
+Marlborough Street and Bridle Lane. The southern Bridle Lane route follows the
+mapped street junctions to the digitized pump. Its distance-based midpoint is
+approximately (70.13%, 69.31%) on the map, close to Snow's service-area crossing.
+It replaces the Rupert Street example, whose midpoint lay well inside the
+boundary. The source boundary itself is unchanged. The internal `rupert` route
+keys remain for saved-progress compatibility; displayed names and measurements
+come from the revised route data. These are illustrative traced distances,
+not recovered field measurements by Snow.
 
 Trace a street route, then grab the red marker and slide it directly along the
 route. Mouse/touch dragging and VR trigger or grip rays use the same calibrated
