@@ -488,7 +488,8 @@ test('all walkable rooms restore scene geometry, lighting and arrival',async()=>
 
 test('authored office fits a small mesh budget and matches the runtime furniture layout',async()=>{
   const report=JSON.parse(await readFile('assets/snow-office/build-report.json','utf8'));
-  assert.deepEqual(report.layout,officeLayout);assert.ok(report.triangles<30000);assert.ok(report.materialBatches<=16);
+  assert.deepEqual(report.layout,officeLayout);assert.ok(report.triangles<30000);
+  assert.ok(report.materialBatches<=17,'original room materials plus one shared medicine-label atlas');
   const glb=await readFile('public/models/snow-office.glb');assert.equal(glb.readUInt32LE(0),0x46546c67);
   const json=JSON.parse(glb.subarray(20,20+glb.readUInt32LE(12)).toString());
   assert.ok(json.meshes.length>0);assert.ok(json.images.every(image=>image.bufferView!==undefined),'textures embedded');
@@ -3528,14 +3529,17 @@ test('resting household member stays inside the bed, has baked surfaces and resp
  assert.ok(!propSpecs['household-room.glb'].some(p=>p.name==='Pillow'),'occupied pillow cannot be taken from under the patient');
 });
 
-test('new domestic artifacts are complete pickups with short inspection notes',async()=>{
+test('medical and domestic artifacts are complete pickups with short inspection notes',async()=>{
  const {objectNotes}=await load('walkable/ObjectInspection');
- const expected={'household-room.glb':['Feeding boat','Chamber candlestick'],'household-routines-room.glb':['Flat iron','Sewing scissors'],'household-away-room.glb':['Warming pan','Tea caddy']};
+ const expected={
+  'snow-office.glb':['Ether apparatus','Ether bottle','Chloroform bottle','Ethyl nitrate bottle','Chloric ether bottle','Castor oil bottle','Medicine spoon','Small medicine spoon','Tongue scraper','Lancet case','Sick syphon','Suture needle case','Experimental thermometer'],
+  'household-room.glb':['Feeding boat','Chamber candlestick'],'household-routines-room.glb':['Flat iron','Sewing scissors'],'household-away-room.glb':['Warming pan','Tea caddy']};
  for(const [asset,names] of Object.entries(expected)){
   const model=await exportedRoom(asset),parent=new THREE.Group();parent.add(model);
   const props=extractProps(model,parent,asset);
   for(const name of names){
    const prop=props.find(p=>p.name===name);assert.ok(prop,name);assert.ok(objectNotes[name]?.text.length<320,'caption fits the nonmodal panel');
+   if(name.endsWith('bottle'))assert.ok(prop.group.children.some(m=>m.material.name==='Medicine labels'),'label stays attached to its own bottle');
    const anchor=new THREE.Object3D(),hold=new PropHold();parent.add(anchor);
    assert.ok(hold.begin(prop,anchor,true));hold.rotate(.3,.1);hold.update(.05);hold.release(true);
    assert.ok(prop.group.position.distanceTo(prop.home)<1e-9);assert.ok(prop.group.quaternion.angleTo(prop.homeRotation)<1e-7);

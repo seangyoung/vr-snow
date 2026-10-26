@@ -23,7 +23,7 @@ The old lights are hidden only after both textures load and the mesh UVs validat
 
 ## Cost and acceptance
 
-The room contains 26,128 triangles in 16 material batches, below the existing 30,000-triangle budget. Its GLB is 3,041,180 bytes; the separate lightmap is 2,074,236 bytes and the reflection panorama is 568,739 bytes. Added texture memory is the main tradeoff: the 2048-square lightmap is roughly 16 MiB as RGBA8, or about 21.3 MiB with mipmaps, before the reflection texture/filtering and existing textures. These are estimates, not headset measurements. First-use reflection preparation and shader compilation must also be checked on Quest.
+The room contains 29,864 triangles in 17 material batches (including the shared medicine-label atlas), below the existing 30,000-triangle budget. Its GLB is 3,448,664 bytes; the separate lightmap is 2,125,224 bytes and the reflection panorama is 569,547 bytes. Added texture memory is the main tradeoff: the 2048-square lightmap is roughly 16 MiB as RGBA8, or about 21.3 MiB with mipmaps, before the reflection texture/filtering and existing textures. These are estimates, not headset measurements. First-use reflection preparation and shader compilation must also be checked on Quest.
 
 The 50 automated tests cover the existing interactions, collision and travel, exported atlas UVs and texture dimensions, successful lighting activation, single loading, texture-failure fallback and atomic rejection of missing UVs. The production build and Blender atlas review are required before handoff. Offline atlas review validates the shadow placement and seams; it is not a substitute for testing the browser renderer.
 
@@ -36,4 +36,4 @@ On Quest and desktop, review:
 5. Travel out and back, panel legibility, and unchanged conversation/exit behavior.
 6. First-load and steady frame times and texture memory before applying this workflow elsewhere.
 
-Browser visual verification is currently blocked by the browser tool's local-preview access restriction. The rebuilt preview is available for manual review. No on-device performance claim is made.
+The ether apparatus and expanded medical collection were reviewed in the browser with the office loader and baked lighting, including pickup and return. No on-device performance claim is made.

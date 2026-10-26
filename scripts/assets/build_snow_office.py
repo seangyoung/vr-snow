@@ -6,6 +6,7 @@ import bpy, math, json, random, sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from snow_office_details import window_exterior, medical_instruments, desk_stethoscope
+from office_medical_collection import medical_collection
 ROOT=Path(__file__).resolve().parents[2]
 layout=json.loads((ROOT/'src/walkable/office-layout.json').read_text())
 random.seed(1854)
@@ -110,19 +111,14 @@ for shelf in [.16,.72,1.29,1.86]:
         mat=random.choice(['Red binding','Green binding','Blue binding','Oak'])
         box('Bound volume',bx,shelf+bh/2,z+.05,.09,bh,.26,mat,.004)
         for yy in [shelf+.055,shelf+bh-.05]:box('Spine band',bx,yy,z+.186,.091,.014,.007,'Brass')
-# Medical side table: compact interpretive Snow-type inhaler, based on the
-# 1848 description (water-bath cylinder, elastic tube and metal facepiece).
+# Medical side table: RCP-inspired 1847 ether apparatus and experimental bottles.
 f=next(f for f in layout['furniture'] if f['id']=='medical-table');x,z=f['x'],f['z']
 box('Medical side table',x,.79,z,f['width'],.07,f['depth'],'Dark walnut',.015)
 for dx in [-.62,.62]:
     for dz in [-.25,.25]:box('Medical table leg',x+dx,.38,z+dz,.065,.76,.065,'Dark walnut')
 box('Instrument cloth',x,.83,z,.94,.012,.48,'Paper')
 medical_instruments(box,cylinder,M,x,z)
-for dx in [-.52,.54]:
-    cylinder('Stoppered medicine bottle',x+dx,.906,z-.22,.031,.15,'Dark walnut')
-    cylinder('Bottle neck',x+dx,.995,z-.22,.016,.04,'Dark walnut')
-    cylinder('Bottle stopper',x+dx,1.022,z-.22,.018,.018,'Brass')
-    box('Bottle paper label',x+dx,.91,z-.187,.040,.055,.005,'Paper')
+medical_collection(box,cylinder,M,ROOT)
 # Case book and loose clinical notes keep the table recognizably medical.
 box('Medical case book',x+.49,.848,z+.17,.27,.035,.22,'Green leather',.003)
 box('Case book paper',x+.49,.87,z+.17,.24,.009,.19,'Paper')
@@ -168,6 +164,14 @@ lighting_report=bake_office(M,ROOT,exterior)
 asset=ROOT/'assets/snow-office';asset.mkdir(exist_ok=True)
 bpy.context.scene.unit_settings.system='METRIC';bpy.context.preferences.filepaths.save_version=0
 bpy.ops.file.pack_all();bpy.ops.wm.save_as_mainfile(filepath=str(asset/'snow-office.blend'))
+# Bake continuous surfaces before separating their material regions for batching.
+# Preserve the smooth corner normals across the new material boundaries.
+for ob in list(bpy.context.scene.objects):
+    if ob.type!='MESH' or len(ob.data.materials)<2:continue
+    ob.data.normals_split_custom_set([n.vector.copy() for n in ob.data.corner_normals])
+    bpy.ops.object.select_all(action='DESELECT');ob.select_set(True);bpy.context.view_layer.objects.active=ob
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.separate(type='MATERIAL');bpy.ops.object.mode_set(mode='OBJECT')
 for name,mat in M.items():
     obs=[o for o in bpy.context.scene.objects if o.type=='MESH' and o.data.materials and o.data.materials[0]==mat]
     if not obs:continue

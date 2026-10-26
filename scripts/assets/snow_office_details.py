@@ -109,50 +109,87 @@ def window_exterior(box, cylinder, material, materials, root):
 
 
 def medical_instruments(box, cylinder, materials, x, z):
-    # 15 cm canister with turned rims, raised shoulder, cap and hose coupling.
-    base=.837;cx=x-.18;cz=z+.01
-    profile=[(0,0), (0,.032),(.003,.037),(.010,.037),(.014,.034),(.113,.034),
-             (.119,.037),(.125,.037),(.129,.031),(.135,.029),(.140,.017),(.145,.017),(.145,0)]
-    turned('Inhaler brass water jacket',(cx,base,cz),(0,1,0),profile,materials['Brass'],32)
-    for y in [.845,.953]:
-        turned('Rolled canister seam',(cx,y,cz),(0,1,0),[(0,.034),(.002,.038),(.004,.038),(.006,.034)],materials['Pewter'],32)
-    cylinder('Inhaler cap',cx-.018,base+.144,cz-.023,.012,.018,'Pewter')
-    for i in range(10):
-        a=i*2*math.pi/10
-        box('Cap knurl',cx-.018+.011*math.cos(a),base+.145,cz-.023+.011*math.sin(a),.003,.013,.003,'Brass')
-    turned('Hose coupling',(cx,base+.146,cz),(0,1,0),[(0,.015),(.012,.015),(.014,.018),(.022,.018),(.025,.012)],materials['Pewter'])
-    # Short, gently ribbed cloth-covered hose lies across the tray, not a rigid rod.
-    start=Vector((cx,base+.171,cz));end=Vector((x+.09,.879,z+.035))
-    a=Vector((cx-.01,1.12,z+.19));b=Vector((x+.16,.99,z+.20))
+    # Original geometry after the RCP photograph of Richardson's apparatus,
+    # designed by Snow in 1847. Proportions are interpreted, not measured.
+    base=.837;cx=x-.11;cz=z+.015
+    profile=[(0,0),(0,.080),(.004,.090),(.012,.090),(.017,.080),
+             (.076,.080),(.080,.087),(.088,.087),(.092,.075),(.092,0)]
+    turned('Ether chamber',(cx,base,cz),(0,1,0),profile,materials['Recess'],40)
+    turned('Chamber rolled rim',(cx,base+.078,cz),(0,1,0),
+           [(0,.085),(.002,.088),(.005,.088),(.007,.085)],materials['Pewter'],40)
+    # The brass outlet stands above the dark, low drum; the second neck is open.
+    coupling=(cx-.018,base+.091,cz-.024)
+    turned('Ether outlet',coupling,(0,1,0),
+           [(0,.021),(.009,.021),(.012,.014),(.050,.014),(.053,.021),
+            (.062,.021),(.066,.016),(.095,.016)],materials['Brass'],24)
+    box('Outlet thumb wing',cx+.003,base+.151,cz-.024,.066,.008,.014,'Brass',.002)
+    turned('Ether filler neck',(cx+.040,base+.091,cz+.025),(0,1,0),
+           [(0,.016),(.022,.016),(.024,.019),(.029,.019),(.029,.012),(.007,.012)],materials['Brass'],24)
+    # Long cloth-covered loop. Parallel transport prevents the tube's cross-section
+    # flipping at its crest; small checks use existing materials, no extra texture.
+    start=Vector((coupling[0],base+.185,coupling[2]))
+    end=Vector((x+.135,.880,z+.130))
+    a=Vector((cx-.10,1.50,z-.015));b=Vector((x+.48,1.24,z+.20))
     points=[]
-    for i in range(45):
-        t=i/44;points.append((1-t)**3*start+3*(1-t)**2*t*a+3*(1-t)*t*t*b+t**3*end)
-    tube('Cloth covered flexible hose',points,.014,materials['Recess'],12)
-    for i in range(2,43,2):
-        turned('Hose winding',points[i],points[i+1]-points[i-1],[(-.0015,.014),(-.0005,.0155),(.0005,.0155),(.0015,.014)],materials['Dark walnut'],12)
-    # A hollow oval/pear-shaped metal facepiece, open upward on the cloth.
-    mx=x+.18;mz=z+.025;n=32
-    rings=[(.011,.45),(.022,.66),(.049,1),(.049,.90),(.022,.55),(.017,.38)]
+    for i in range(81):
+        t=i/80;points.append((1-t)**3*start+3*(1-t)**2*t*a+3*(1-t)*t*t*b+t**3*end)
+    sides=12;verts=[];u=Vector((0,0,1))
+    for i,p in enumerate(points):
+        tangent=(points[min(i+1,80)]-points[max(0,i-1)]).normalized()
+        u=(u-tangent*u.dot(tangent)).normalized();v=tangent.cross(u)
+        for j in range(sides):
+            angle=j*2*math.pi/sides
+            verts.append(p+.016*(u*math.cos(angle)+v*math.sin(angle)))
+    checks=[[],[],[]]
+    for i in range(80):
+        for j in range(sides):
+            # Muted blue/grey cloth with a narrow, warm crosshatch.
+            material=1 if i%4==0 and j%3==0 else (2 if i%4==0 or j%3==0 else 0)
+            checks[material].append((i*sides+j,i*sides+(j+1)%sides,(i+1)*sides+(j+1)%sides,(i+1)*sides+j))
+    # Keep shared vertices through the light bake: separate checker fragments
+    # would create thousands of tiny UV islands and visibly black atlas seams.
+    o=mesh_object('Woven ether hose',verts,[f for group in checks for f in group],materials['Blue binding'])
+    for mat in ['Paper','Oak']:o.data.materials.append(materials[mat])
+    offset=0
+    for index,faces in enumerate(checks):
+        for p in list(o.data.polygons)[offset:offset+len(faces)]:
+            p.material_index=index;p.use_smooth=True
+        offset+=len(faces)
+    # Hollow pear-shaped facepiece, tipped towards the visitor, with padded edge.
+    mx=x+.075;mz=z+.170;n=32
+    def mask_point(px,py,pz):
+        angle=math.radians(33)
+        return (mx+px,.864+py*math.cos(angle)-pz*math.sin(angle),
+                mz+py*math.sin(angle)+pz*math.cos(angle))
+    rings=[(0,.36),(.017,.62),(.048,1),(.048,.88),(.017,.50),(.005,.28),(.004,0)]
     verts=[]
     for yy,scale in rings:
         for i in range(n):
             a=2*math.pi*i/n;pear=1-.18*math.cos(a)
-            verts.append((mx+.047*scale*math.sin(a)*pear,.842+yy,mz+.073*scale*math.cos(a)))
+            verts.append(mask_point(.049*scale*math.sin(a)*pear,yy,.071*scale*math.cos(a)))
     faces=[(j*n+i,j*n+(i+1)%n,(j+1)*n+(i+1)%n,(j+1)*n+i) for j in range(len(rings)-1) for i in range(n)]
-    o=mesh_object('Hollow brass facepiece',verts,faces,materials['Brass'])
+    o=mesh_object('Ether facepiece',verts,faces,materials['Recess'])
     for p in o.data.polygons:p.use_smooth=True
-    rim=[(mx+.047*math.sin(a)*(1-.18*math.cos(a)),.891,mz+.073*math.cos(a)) for a in [i*2*math.pi/48 for i in range(49)]]
-    tube('Velvet facepiece edge',rim,.004,materials['Recess'],8)
-    tube('Facepiece inlet',[(x+.09,.879,z+.035),(mx-.030,.866,mz+.02)],.013,materials['Pewter'])
-    turned('Facepiece valve',(mx,.86,mz),(0,1,0),[(0,.012),(.006,.012),(.008,.016),(.01,.016)],materials['Pewter'])
-    # A small shallow instrument box, lid propped against the back of the table.
-    bx=x-.49;bz=z+.025
-    box('Instrument case base',bx,.842,bz,.28,.035,.22,'Dark walnut',.008)
-    box('Instrument case lining',bx,.862,bz,.245,.008,.184,'Green leather',.003)
-    box('Instrument case open lid',bx,.978,bz-.113,.28,.235,.018,'Dark walnut',.006)
-    box('Instrument case lid lining',bx,.978,bz-.101,.24,.19,.008,'Green leather')
-    for dx in [-.085,.085]:box('Case hinge',bx+dx,.865,bz-.106,.034,.014,.020,'Brass')
-    box('Case clasp',bx,.853,bz+.115,.035,.028,.009,'Brass')
+    rim=[mask_point(.049*math.sin(a)*(1-.18*math.cos(a)),.048,.071*math.cos(a)) for a in [i*2*math.pi/48 for i in range(49)]]
+    tube('Padded facepiece rim',rim,.007,materials['Red binding'],8)
+    tube('Facepiece inlet',[end,Vector(mask_point(.025,.005,-.005))],.014,materials['Brass'],12)
+    # Small metal retaining bow under the padded facepiece.
+    bow=[mask_point(.053*math.sin(a),.029,.073*math.cos(a)) for a in [i*math.pi/20 for i in range(21)]]
+    tube('Facepiece retaining bow',bow,.0025,materials['Pewter'],6)
+    # Open red-lined timber storage case. Distinct walls leave a visible recess.
+    bx=x-.43;bz=z-.015
+    box('Instrument case base',bx,.844,bz,.30,.016,.24,'Dark walnut',.003)
+    box('Instrument case lining',bx,.854,bz,.276,.005,.216,'Red binding')
+    for dx in [-.144,.144]:box('Instrument case wall',bx+dx,.872,bz,.012,.050,.24,'Dark walnut',.002)
+    for dz in [-.114,.114]:box('Instrument case wall',bx,.872,bz+dz,.28,.050,.012,'Dark walnut',.002)
+    box('Instrument case open lid',bx,1.014,bz-.123,.30,.28,.018,'Dark walnut',.004)
+    box('Instrument case lid lining',bx,1.014,bz-.112,.27,.245,.005,'Red binding')
+    turned('Case maker disc',(bx,1.046,bz-.108),(0,0,1),[(0,.015),(.002,.015),(.002,0)],materials['Paper'],24)
+    for dx in [-.10,.10]:box('Case hinge',bx+dx,.891,bz-.113,.032,.014,.024,'Brass')
+    box('Case clasp',bx,.871,bz+.123,.025,.027,.008,'Brass',.002)
+    box('Case keyhole',bx,.873,bz+.128,.004,.009,.002,'Recess')
+    box('Case instrument',bx,.861,bz,.21,.008,.027,'Oak',.002)
+    box('Case instrument scale',bx,.866,bz,.18,.002,.012,'Paper')
 
 
 def desk_stethoscope(box, materials):

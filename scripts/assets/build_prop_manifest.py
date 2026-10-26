@@ -27,9 +27,17 @@ def build(inventory):
         if asset == 'snow-office':
             one('Wooden stethoscope','Wooden monaural stethoscope','Stethoscope pale collar')
             one('Medical case book','Medical case book','Case book paper','Case note ruling')
-            one('Chloroform inhaler','Inhaler brass water jacket','Rolled canister seam','Inhaler cap','Cap knurl','Hose coupling','Cloth covered flexible hose','Hose winding','Hollow brass facepiece','Velvet facepiece edge','Facepiece inlet','Facepiece valve')
-            one('Instrument case','Instrument case base','Instrument case lining','Instrument case open lid','Instrument case lid lining','Case hinge','Case clasp')
-            each('Medicine bottle','Stoppered medicine bottle','Bottle neck','Bottle stopper','Bottle paper label')
+            one('Ether apparatus','Ether chamber','Chamber rolled rim','Ether outlet','Outlet thumb wing','Ether filler neck','Woven ether hose','Ether facepiece','Padded facepiece rim','Facepiece inlet','Facepiece retaining bow')
+            one('Instrument case','Instrument case base','Instrument case lining','Instrument case wall','Instrument case open lid','Instrument case lid lining','Case maker disc','Case hinge','Case clasp','Case keyhole','Case instrument','Case instrument scale')
+            for name in ['Ether bottle','Chloroform bottle','Ethyl nitrate bottle','Chloric ether bottle','Castor oil bottle']:
+                one(name,*[name+' '+part for part in ['body','stopper','lip','label']])
+            for name in ['Medicine spoon','Small medicine spoon']:
+                one(name,*[name+' '+part for part in ['bowl','stem','terminal']])
+            one('Tongue scraper','Tongue scraper bow','Tongue scraper arm','Tongue scraper grip')
+            one('Lancet case','Lancet case shell','Lancet case lining','Lancet case lid','Lancet handle','Lancet blade','Lancet pivot','Lancet case clasp')
+            one('Sick syphon','Sick syphon tube','Sick syphon hook','Sick syphon strainer','Strainer perforation')
+            one('Suture needle case','Needle case base','Needle case pad','Suture needle','Needle eye','Needle case flap')
+            one('Experimental thermometer','Thermometer backing','Thermometer scale','Thermometer stem','Thermometer bulb','Thermometer graduation')
             one('Clinical notes','Clinical observation sheet','Observation note lines')
             one('Open case ledger','Open ledger','Ledger lines')
             each('Correspondence','Correspondence')

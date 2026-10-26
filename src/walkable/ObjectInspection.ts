@@ -13,10 +13,70 @@ export const objectNotes: Record<string,ObjectNote> = {
     source: "https://collection.sciencemuseumgroup.org.uk/objects/co91097/monaural-stethoscope",
     sourceLabel: "Science Museum Group · example dated 1840–1850",
   },
-  "Chloroform inhaler": {
-    text: "Snow studied how to administer anaesthetics. His chloroform inhaler used a water jacket to help regulate temperature, with a tube and facepiece for inhaling the vapour.",
-    source: "https://collection.sciencemuseumgroup.org.uk/objects/co75826/snow-type-chloroform-inhaler-inhaler",
-    sourceLabel: "Science Museum Group · Snow-type inhaler",
+  "Ether apparatus": {
+    text: "Snow designed apparatus for administering ether as an anaesthetic in 1847. A chamber, flexible tube and padded facepiece connect his work as a doctor with his experiments on inhaled vapours.",
+    source: "https://history.rcp.ac.uk/collections/art-and-objects/medical-collections",
+    sourceLabel: "Royal College of Physicians · Snow’s 1847 design",
+  },
+  "Ether bottle": {
+    text: "Sulphuric ether is the period name for diethyl ether. Snow studied its vapour and developed apparatus to make anaesthesia more controlled.",
+    source: "https://www.woodlibrarymuseum.org/wp-content/uploads/rare-books/S_ADRI.pdf",
+    sourceLabel: "John Snow · On Narcotism by the Inhalation of Vapours · 1848",
+  },
+  "Chloroform bottle": {
+    text: "Chloroform is another anaesthetic used by Snow. His work compares the effects of inhaled vapours and the quantities needed to produce insensibility.",
+    source: "https://www.woodlibrarymuseum.org/wp-content/uploads/rare-books/S_ADRI.pdf",
+    sourceLabel: "John Snow · On Narcotism by the Inhalation of Vapours · 1848",
+  },
+  "Ethyl nitrate bottle": {
+    text: "The label’s ‘nitrate of oxide of ethyle’ means ethyl nitrate. Snow included it in his experimental comparisons of vapours; it belongs among his research substances.",
+    source: "https://www.woodlibrarymuseum.org/wp-content/uploads/rare-books/S_ADRI.pdf",
+    sourceLabel: "John Snow · experimental vapour studies · 1848",
+  },
+  "Chloric ether bottle": {
+    text: "Despite its name, chloric ether is chloroform dissolved in alcohol. Snow discussed the preparation and its variable effects when inhaled.",
+    source: "https://epi-snow.ph.ucla.edu/Stream1_introduction_d5.html",
+    sourceLabel: "Snow’s publications · UCLA collection",
+  },
+  "Castor oil bottle": {
+    text: "Castor oil was a familiar purgative. Its unpleasant taste inspired specially designed medicine spoons, alongside the ordinary spoons used to give liquid medicines.",
+    source: "https://www.rcp.ac.uk/news-and-media/news-and-opinion/symons-collection/",
+    sourceLabel: "Royal College of Physicians · medicine spoons",
+  },
+  "Medicine spoon": {
+    text: "A small metal spoon for giving liquid medicine. Medicine spoons came in many forms, including double-ended and covered designs.",
+    source: "https://www.rcp.ac.uk/news-and-media/news-and-opinion/symons-collection/",
+    sourceLabel: "Royal College of Physicians · Symons collection",
+  },
+  "Small medicine spoon": {
+    text: "A smaller spoon sits beside the larger medicine spoon. These implements belong to the everyday work of feeding and nursing sick people.",
+    source: "https://www.rcp.ac.uk/news-and-media/news-and-opinion/symons-collection/",
+    sourceLabel: "Royal College of Physicians · feeding and medicine spoons",
+  },
+  "Tongue scraper": {
+    text: "This wishbone-shaped scraper is used to clean deposits from the tongue. Silver examples were made in London well before the outbreak.",
+    source: "https://collection.sciencemuseumgroup.org.uk/objects/co98610/silver-tongue-scraper-london-england-1827",
+    sourceLabel: "Science Museum Group · London tongue scraper · 1827",
+  },
+  "Lancet case": {
+    text: "A pocket case protects small folding lancets. Such blades were used for bloodletting, a longstanding practice in medicine.",
+    source: "https://blog.sciencemuseum.org.uk/not-for-the-squeamish/",
+    sourceLabel: "Science Museum · lancets and bloodletting instruments · 1750–1850",
+  },
+  "Sick syphon": {
+    text: "A curved drinking tube helps a sick person drink from a cup. Its pierced end strains out larger pieces of food; the hook rests over the cup’s rim.",
+    source: "https://collection.sciencemuseumgroup.org.uk/objects/co121637/silver-sick-siphon-1801-1830",
+    sourceLabel: "Science Museum Group · silver sick siphon · 1801–1830",
+  },
+  "Suture needle case": {
+    text: "Straight and curved eyed needles sit in a padded case. They carry thread for stitching, rather than injecting liquids.",
+    source: "https://collection.sciencemuseumgroup.org.uk/objects/co169613/7-suture-needles-suture-needles",
+    sourceLabel: "Science Museum Group · nineteenth-century suture needles",
+  },
+  "Experimental thermometer": {
+    text: "Temperature matters when comparing vapours. A glass thermometer with a marked scale belongs beside Snow’s apparatus and experimental notes.",
+    source: "https://www.woodlibrarymuseum.org/wp-content/uploads/rare-books/S_ADRI.pdf",
+    sourceLabel: "John Snow · temperature and vapour experiments · 1848",
   },
   "Medical case book": { text: "A working case book for recording symptoms, treatments, and observations. Careful notes help a doctor compare one patient’s experience with another’s." },
   "Returns ledger": { text: "These registers bring individual deaths together as names, addresses, and recorded causes. Each entry represents a household affected by the outbreak." },
