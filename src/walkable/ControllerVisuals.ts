@@ -11,18 +11,18 @@ export function controllerComponentNode(model:THREE.Object3D,component:Component
   return names.map(name=>model.getObjectByName(name)).find(node=>node&&!new THREE.Box3().setFromObject(node).isEmpty());
 }
 type MotionModel = { components: Record<string,Component> };
-export type ControllerHelpContext = { held: boolean; holdingThis: boolean; panel: boolean; paged: boolean; walking: boolean; map: boolean; turning?: boolean };
+export type ControllerHelpContext = { held: boolean; holdingThis: boolean; panel: boolean; paged: boolean; walking: boolean; map: boolean; turning?: boolean; back?: boolean };
 export type ControllerLabel = { button: number; text: string; enabled: boolean };
 
 /** Labels use the same bindings as input handling, never guessed face-button positions. */
 export function controllerLabelSpecs(source: XRInputSource, context: ControllerHelpContext): ControllerLabel[] {
   if(source.hand || source.targetRayMode!=="tracked-pointer" || source.gamepad?.mapping!=="xr-standard")return [];
   const left=source.handedness==="left", bindings=controllerButtons(source),labels:ControllerLabel[]=[];
-  if(bindings.secondary)labels.push({button:bindings.secondary.index,text:`${bindings.secondary.label} · ${left?"Notebook":"Settings"}`,enabled:true});
+  if(bindings.secondary)labels.push({button:bindings.secondary.index,text:`${bindings.secondary.label} · ${left?"Notebook":context.back?"Back":"Settings"}`,enabled:true});
   if(bindings.primary)labels.push({button:bindings.primary.index,text:`${bindings.primary.label} · ${left?"Map":"Stand / crouch"}${left&&!context.map?" (locked)":""}`,enabled:!left||context.map});
   const stick=source.gamepad.axes.length>=4 && source.gamepad.buttons.length>3;
   if(stick) {
-    const move=left?(context.panel?"Paused":context.walking?"Walk":"Walk off"):(context.held?"Rotate item":context.turning===false?"Paused":"Turn");
+    const move=left?(context.panel?"Paused":context.walking?"Walk":"Walk off"):(context.held?"Rotate item":context.turning===false?"Paused":context.panel||source.handedness!=="right"?"Turn":"↑ Teleport · ↔ Turn");
     const click=context.held?"Return item for menu":context.panel&&context.paged?(left?"Click · Previous page":"Click · Next page"):"Click · Menu";
     labels.push({button:3,text:`Stick · ${move}\n${click}`,enabled:true});
   }

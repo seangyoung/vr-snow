@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 // Compile into the ignored dependency cache; no additional test dependency.
 const output = resolve("node_modules/.cache/walkable-tests");
-for (const name of ["render/PanelDepthLayers", "render/DayTransition", "walkable/StreetBoundary", "walkable/ControllerVisuals", "walkable/ObjectInspection", "walkable/InteractionIdleHint", "simulation/streetPopulation", "walkable/WorkhousePump", "simulation/campaign", "simulation/campaignConversations", "simulation/fieldwork", "simulation/waterSamples", "walkable/AdditionalHousehold", "walkable/PumpSurveyStop", "walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "walkable/StreetNewspaper", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/ManufactoryRoom", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
+for (const name of ["walkable/InteractionFeedback", "walkable/PropTargeting", "render/PanelDepthLayers", "render/DayTransition", "walkable/StreetBoundary", "walkable/ControllerVisuals", "walkable/ObjectInspection", "walkable/InteractionIdleHint", "simulation/streetPopulation", "walkable/WorkhousePump", "simulation/campaign", "simulation/campaignConversations", "simulation/fieldwork", "simulation/waterSamples", "walkable/AdditionalHousehold", "walkable/PumpSurveyStop", "walkable/BoardRoom", "simulation/conversations", "walkable/CharacterIdle", "walkable/InspectableProps", "walkable/PumpAction", "ui/createUi", "ui/DesktopKeyboard", "ui/OutsidePanelDismiss", "render/BroadStreetScene", "walkable/WalkableArea", "walkable/SnowOffice", "walkable/SnowCharacter", "walkable/SceneCharacters", "walkable/StreetNewspaper", "audio/Soundscape", "audio/ambience", "walkable/FurnishedRoom", "walkable/BakedRoomLighting", "walkable/RegistrarRoom", "walkable/HouseholdRoom", "walkable/WorkhouseCourtyard", "walkable/ManufactoryRoom", "walkable/BreweryRoom", "walkable/DesktopMovement", "walkable/locomotion", "walkable/VrInput", "walkable/PumpCourtyard", "walkable/WorldTravelTargets", "walkable/TravelRoutes", "simulation/gameState", "simulation/content", "simulation/types"]) {
   const source = await readFile(`src/${name}.ts`, "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
     .replace(/from (["'])(\.\.?\/[^"'.]+)\1/g, 'from "$2.js"');
@@ -19,7 +19,7 @@ await copyFile("src/simulation/route-data.json", resolve(output, "simulation/rou
 for (const name of ["manufactory-layout", "portable-props", "household-routines-layout", "household-away-layout", "board-layout", "controller-buttons", "scene-characters", "office-layout", "registrar-layout", "household-layout", "workhouse-layout", "brewery-layout"]) await copyFile(`src/walkable/${name}.json`, resolve(output, `walkable/${name}.json`));
 await writeFile(resolve(output, "package.json"), '{"type":"module"}');
 const load = (name) => import(pathToFileURL(resolve(output, `${name}.js`)).href);
-const { teleportViewer, turnViewer, standardTurnAxis } = await load("walkable/locomotion");
+const { teleportViewer, turnViewer, standardTurnAxis, StickTeleport, hasTeleportStick } = await load("walkable/locomotion");
 const { DesktopMovement } = await load("walkable/DesktopMovement");
 const { PumpCourtyard, isValidDestination, canWalkBetween, pumpPosition, streetSpawn } = await load("walkable/PumpCourtyard");
 const { GameState } = await load("simulation/gameState");
@@ -3611,4 +3611,135 @@ test('VR controller rays grab and slide the same marker with trigger or grip wit
   aim(.5);scene.endVrMarkerDrag(controller,input);assert.equal(scene.vrMarkerDrag,undefined);assert.equal(game.getFieldworkView().guided.markerFraction,.5);
   assert.equal(game.getRouteObservations().length,0,'release does not confirm the result');
  }
+});
+
+
+test('stick teleport requires a deliberate forward gesture and neutral after every cancellation',()=>{
+ const stick=new StickTeleport();
+ assert.equal(stick.update(0,-1,true),'idle','connecting while deflected cannot arm');
+ stick.update(0,0,true);assert.equal(stick.update(0,-.3,true),'idle');assert.equal(stick.update(0,-.8,true),'aim');
+ assert.equal(stick.update(.1,-.5,true),'aim');assert.equal(stick.update(0,0,true),'release');
+ assert.equal(stick.update(0,0,true),'idle','release commits only once');
+ stick.update(0,-1,true);assert.equal(stick.update(.8,-.5,true),'idle','sideways cancels');
+ assert.equal(stick.update(0,-1,true),'idle');stick.update(0,0,true);stick.update(0,-1,true);
+ assert.equal(stick.update(0,.8,true),'idle','pulling back cancels');
+ stick.update(0,0,true);stick.update(0,-1,true);assert.equal(stick.update(0,0,false),'idle','focus loss is not release');
+ assert.equal(stick.update(0,-1,true),'idle');stick.update(0,0,true);stick.update(0,-1,true);
+ assert.equal(stick.update(NaN,0,true),'idle');assert.equal(stick.update(0,0,true),'idle');
+ const right={...xrController('right'),targetRayMode:'tracked-pointer'};
+ assert.equal(hasTeleportStick(right),true);assert.equal(hasTeleportStick({...right,handedness:'left'}),false);
+ assert.equal(hasTeleportStick({...right,hand:{}}),false);
+ assert.equal(hasTeleportStick({...right,gamepad:{...right.gamepad,mapping:''}}),false);
+ assert.equal(hasTeleportStick({...right,gamepad:{...right.gamepad,axes:[0,0]}}),false);
+});
+
+test('actual right-stick teleport uses the release ray, respects blockers and preserves trigger interactions',()=>{
+ const scene=Object.create(BroadStreetScene.prototype),camera=new THREE.PerspectiveCamera(),rig=new THREE.Group(),controller=new THREE.Group();
+ camera.position.set(.15,1.4,.2);rig.add(camera,controller);controller.position.set(-2,1.4,0);controller.rotation.x=-Math.PI/4;
+ const courtyard=new PumpCourtyard();courtyard.group.visible=true;
+ const source={...xrController('right'),targetRayMode:'tracked-pointer'};
+ Object.assign(scene,{camera,playerRig:rig,courtyard,gameState:new GameState(),renderer:{xr:{isPresenting:true}},
+  controllerRaycaster:new THREE.Raycaster(),controllerWorldPosition:new THREE.Vector3(),controllerWorldQuaternion:new THREE.Quaternion(),controllerWorldDirection:new THREE.Vector3(),
+  vrPanelVisible:false,vrPanelButtons:[],vrControllers:[controller],vrInputSources:new Map([[controller,source]])});
+ const frame=(y,focused=true)=>{source.gamepad.axes[3]=y;return scene.updateStickTeleport(focused);};
+ frame(0);scene.selectFromVrController(controller);assert.equal(rig.position.length(),0,'trigger no longer teleports with a right stick');
+ assert.equal(frame(-1),true);assert.equal(rig.position.length(),0,'pushing forward only aims');
+ controller.position.x=-3;const destination=scene.pickVrPointerHit(controller).point.clone();
+ assert.equal(frame(0),true);const viewer=camera.getWorldPosition(new THREE.Vector3());
+ assert.ok(Math.abs(viewer.x-destination.x)<1e-9 && Math.abs(viewer.z-destination.z)<1e-9);assert.equal(viewer.y,1.4);
+ const pose=rig.position.clone();frame(0);assert.deepEqual(rig.position,pose);
+ frame(-1);controller.rotation.x=.4;frame(0);assert.deepEqual(rig.position,pose,'invalid release cannot reuse the last valid destination');controller.rotation.x=-Math.PI/4;
+ for(const blocker of ['panel','held','focus','travel','button','transition','disconnect']){
+  frame(0);frame(-1);
+  if(blocker==='panel')scene.vrPanelVisible=true;
+  if(blocker==='held')scene.propHold={prop:{}};
+  if(blocker==='travel')scene.worldTravelPending=true;
+  if(blocker==='button')source.gamepad.buttons[0].pressed=true;
+  if(blocker==='transition')scene.dayTransition={active:true};
+  if(blocker==='disconnect')scene.vrInputSources.clear();
+  frame(0,blocker!=='focus');assert.deepEqual(rig.position,pose,blocker+' cancels');
+  scene.vrPanelVisible=false;scene.propHold=undefined;scene.worldTravelPending=false;scene.dayTransition=undefined;source.gamepad.buttons[0].pressed=false;scene.vrInputSources.set(controller,source);
+  frame(-1);assert.equal(scene.stickTeleport.active,false,'neutral required after '+blocker);frame(0);
+ }
+ controller.position.set(pumpPosition.x-rig.position.x,1.4,6-rig.position.z);controller.rotation.x=0;
+ let inspected;scene.activateVrHotspot=hotspot=>{inspected=hotspot.id;};scene.selectFromVrController(controller);
+ assert.equal(inspected,'broad-street-pump','trigger still selects objects');
+});
+
+const {InteractionFeedback}=await load('walkable/InteractionFeedback');
+test('haptics are optional, rate-limited and tolerate absent or failed actuators',async()=>{
+ const feedback=new InteractionFeedback(),calls=[];
+ const source={gamepad:{hapticActuators:[{pulse:(...args)=>{calls.push(args);return Promise.resolve(true);}}]}};
+ feedback.pulse(source,'grab');feedback.pulse(source,'grab');assert.equal(calls.length,1);
+ assert.ok(calls[0][0]<.3 && calls[0][1]<80);
+ feedback.enabled=false;feedback.pulse({gamepad:{hapticActuators:[{pulse:()=>{throw Error('must not call');}}]}},'pump');
+ feedback.enabled=true;feedback.pulse(undefined,'teleport');feedback.pulse({gamepad:{}},'grab');
+ feedback.pulse({gamepad:{hapticActuators:[{pulse:()=>Promise.reject(Error('disconnected'))}]}},'transfer');
+ feedback.pulse({gamepad:{hapticActuators:[{pulse:()=>{throw Error('lost');}}]}},'pump');
+ await Promise.resolve();
+});
+
+const {PropTargeting}=await load('walkable/PropTargeting');
+test('small prop assistance respects reach, direct hits, obstructions and returning objects',()=>{
+ const target=new PropTargeting();
+ const group=new THREE.Group(),mesh=new THREE.Mesh(new THREE.BoxGeometry(.02,.12,.02),new THREE.MeshBasicMaterial());
+ group.add(mesh);group.position.set(.025,0,-1);const prop=new InspectableProp(group,'Lancet');mesh.userData.inspectableProp=prop;group.updateMatrixWorld(true);
+ const ray=new THREE.Raycaster(new THREE.Vector3(),new THREE.Vector3(0,0,-1));
+ assert.equal(ray.intersectObject(group,true).length,0,'original ray misses tiny item');
+ let obstruction;
+ const pick=r=>obstruction??r.intersectObject(group,true)[0];
+ assert.equal(propFor(target.pick(ray,undefined,[prop],pick)?.object),prop);
+ obstruction={distance:.5,object:new THREE.Mesh(),point:new THREE.Vector3(0,0,-.5)};
+ assert.equal(target.pick(ray,obstruction,[prop],pick),obstruction,'never select through a wall');
+ obstruction=undefined;prop.returning=true;assert.equal(target.pick(ray,undefined,[prop],pick),undefined);prop.returning=false;
+ ray.ray.origin.z=6;assert.equal(target.pick(ray,undefined,[prop],pick),undefined,'reach is unchanged');
+ ray.ray.origin.z=0;
+ const other={object:{userData:{inspectableProp:{name:'Other'}}},distance:.4};
+ assert.equal(target.pick(ray,other,[prop],pick),other,'an actual hit wins over assistance');
+});
+
+test('VR Back returns from submenus, resumes an exchange, closes it, then opens Settings',()=>{
+ const scene=Object.create(BroadStreetScene.prototype);let active=true,closed=0;
+ Object.assign(scene,{vrPanelVisible:true,vrPanelMode:'sound',gameState:{getActiveDialogue:()=>active,closeDialogue:()=>{active=false;closed++;}},markVrPanelDirty(){},hideVrPanel(){this.vrPanelVisible=false;},openVrShortcut(mode){this.vrPanelMode=mode;this.vrPanelVisible=true;}});
+ scene.backVr();assert.equal(scene.vrPanelMode,'settings');assert.equal(closed,0);
+ scene.backVr();assert.equal(scene.vrPanelMode,'home');assert.equal(closed,0);
+ scene.backVr();assert.equal(scene.vrPanelVisible,false);assert.equal(closed,1);
+ scene.backVr();assert.equal(scene.vrPanelMode,'settings');assert.equal(scene.vrPanelVisible,true);
+ scene.backVr();assert.equal(scene.vrPanelVisible,false);
+});
+
+test('desktop numbered choices fire once and Escape releases mouse capture before closing a dialogue',()=>{
+ const old={document:globalThis.document,window:globalThis.window,HTMLElement:globalThis.HTMLElement};
+ class Element {dataset={};getClientRects(){return [{}];}closest(){return null;}}
+ globalThis.HTMLElement=Element;globalThis.window=new EventTarget();
+ const calls=[];const buttons=[1,2,3].map(i=>Object.assign(new Element(),{dataset:{action:'conversation-choice'},click:()=>calls.push(i)}));
+ const panel={classList:{contains:()=>true},querySelectorAll:()=>buttons,querySelector:()=>({click:()=>calls.push('close')}),contains:()=>true};
+ const scene=new Element();let locked=false,open=true;
+ const root={querySelector:q=>q.startsWith('.tool-rail')?{click:()=>calls.push('settings')}:open?panel:null};
+ globalThis.document={body:{dataset:{}},activeElement:scene,get pointerLockElement(){return locked?scene:null;},exitPointerLock(){locked=false;calls.push('unlock');}};
+ try {
+  new DesktopKeyboard(root,scene,()=>false);
+  const key=(key,repeat=false)=>{const e=new Event('keydown',{cancelable:true});Object.assign(e,{key,repeat});window.dispatchEvent(e);};
+  key('2');key('2',true);assert.deepEqual(calls,[2]);
+  locked=true;key('Escape');assert.deepEqual(calls,[2,'unlock']);key('Escape');assert.deepEqual(calls,[2,'unlock','close']);
+  open=false;key('Escape');assert.equal(calls.at(-1),'settings');
+ }finally{Object.assign(globalThis,old);}
+});
+
+test('captured mouse motion turns the view and clicks use the center, while modal panels stop turning',()=>{
+ const oldDocument=globalThis.document,oldWindow=globalThis.window;
+ const doc=new EventTarget();doc.body={dataset:{}};globalThis.document=doc;globalThis.window=new EventTarget();
+ const canvas=new EventTarget();canvas.focus=()=>{};canvas.getBoundingClientRect=()=>({left:10,top:20,width:800,height:600});
+ const scene=Object.create(BroadStreetScene.prototype);const clicks=[];let turned=0;
+ Object.assign(scene,{canvas,renderer:{xr:{isPresenting:false,getController:()=>new THREE.Group(),addEventListener:()=>{}}},
+  playerRig:new THREE.Group(),vrControllers:[],vrControllerPointers:[],yaw:0,pitch:0,pointerTravel:0,dragging:false,
+  desktopMovement:new DesktopMovement(),applyCameraOrientation:()=>turned++,pickHotspot:(x,y)=>{clicks.push([x,y]);},activateTactile:()=>true});
+ try {
+  scene.addInputHandlers();doc.pointerLockElement=canvas;doc.dispatchEvent(new Event('pointerlockchange'));
+  const motion=new Event('mousemove');Object.assign(motion,{movementX:10,movementY:5});doc.dispatchEvent(motion);
+  assert.equal(turned,1);assert.equal(scene.yaw,.04);assert.equal(scene.pitch,.015);
+  canvas.dispatchEvent(pointerEvent('click',30,40));assert.deepEqual(clicks,[[410,320]],'locked click uses center rather than stale cursor');
+  doc.body.dataset.overlayOpen='true';doc.dispatchEvent(motion);assert.equal(turned,1,'modal blocks mouse look');
+  doc.body.dataset.overlayOpen='false';doc.pointerLockElement=null;doc.dispatchEvent(motion);assert.equal(turned,1,'unlocked mouse motion does not turn');
+ }finally{globalThis.document=oldDocument;globalThis.window=oldWindow;}
 });

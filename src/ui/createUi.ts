@@ -1,3 +1,4 @@
+import { interactionFeedback } from "../walkable/InteractionFeedback";
 import { inquiryOpening } from '../simulation/campaign';
 import { surveyRoutes } from "../simulation/fieldwork";
 import type { SoundControls } from "../audio/Soundscape";
@@ -19,7 +20,7 @@ import type {
   LocationId,
 } from "../simulation/types";
 
-type OverlayMode = "none" | "notebook" | "map" | "sound";
+type OverlayMode = "none" | "notebook" | "map" | "sound" | "settings";
 type MotionLookStatus = "unavailable" | "idle" | "requesting" | "enabled" | "denied";
 type ActiveDialogueAnswer = NonNullable<ReturnType<GameState["getActiveDialogueAnswer"]>>;
 
@@ -130,10 +131,17 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
   let soundControls: SoundControls | undefined;
   let vrEntryControl: HTMLElement | undefined;
   let motionLookControls: MotionLookControls | undefined;
+  let mouseLookNotice = "";
+  const mouseLookFailed=(error?:unknown)=>{console.warn("Mouse look unavailable",error instanceof Error?error.message:"Pointer capture denied");mouseLookNotice="Mouse look could not start in this browser. Drag or use the arrow keys to look.";render();};
+  document.addEventListener("pointerlockerror",mouseLookFailed);
   const keyboard = new DesktopKeyboard(root, document.getElementById("scene"), () => isTransitioning || document.body.dataset.dayTransition==='true');
   new OutsidePanelDismiss(root, () => !isTransitioning && document.body.dataset.dayTransition!=='true' && document.body.dataset.xrPresenting !== "true", dismissPanels,
     event => document.body.dataset.conversationOpen==='true' && event.target===document.getElementById('scene'));
 
+  document.addEventListener('pointerlockchange',()=>{
+    const button=root.querySelector<HTMLButtonElement>('[data-action="mouse-look"]');
+    if(button){const locked=!!document.pointerLockElement;button.setAttribute('aria-pressed',String(locked));button.title=locked?'Escape: release mouse look':'Mouse look (Escape to release)';}
+  });
   let markerDrag: {pointer:number;rect:DOMRect;route:string} | undefined;
   root.addEventListener('pointerdown',event=>{
     const target=(event.target as Element).closest('[data-action="route-marker"]');
@@ -231,6 +239,18 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
       render(); return;
     }
 
+    if(action==='settings'){overlayMode=overlayMode==='settings'?'none':'settings';render();return;}
+    if(action==='haptics-toggle'){interactionFeedback.enabled=!interactionFeedback.enabled;render();return;}
+    if(action==='mouse-look') {
+      mouseLookNotice='';overlayMode='none';render();
+      const canvas=document.getElementById('scene');
+      if(document.pointerLockElement){document.exitPointerLock();return;}
+      if(!canvas?.requestPointerLock){mouseLookFailed();return;}
+      canvas.focus({preventScroll:true});
+      try { void Promise.resolve(canvas.requestPointerLock()).catch(mouseLookFailed); }
+      catch(error) {mouseLookFailed(error);}
+      return;
+    }
     if(action==="sound") {overlayMode=overlayMode==="sound"?"none":"sound";render();return;}
     if(soundControls && ["toggle-sound","ambience-down","ambience-up","effects-down","effects-up"].includes(action)) {
       if(action==="toggle-sound")soundControls.toggleMuted();
@@ -350,7 +370,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     }
     if (action === "close") {
       gameState.clearActiveDialogueAnswer();
-      overlayMode = "none";
+      overlayMode = overlayMode === "sound" ? "settings" : "none";
     }
     if (action === "reset") {
       dismissedChapter = undefined;
@@ -399,6 +419,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
     document.body.dataset.conversationOpen = !gameState.startupOpen && !gameState.dayIntroOpen && !isTransitioning
       && overlayMode==='none' && !!gameState.getConversationView() ? 'true' : 'false';
     document.body.dataset.stage = stage;
+    if(document.pointerLockElement && document.body.dataset.overlayOpen==='true' && document.body.dataset.conversationOpen!=='true')document.exitPointerLock();
 
     root.innerHTML = `
       <div class="hud" data-overlay="${overlayMode}" data-stage="${stage}" data-synthesis-panel="${showSynthesisPanel}">
@@ -408,7 +429,8 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           <span class="location-line">${escapeHtml(currentLocation.title)}</span>
           <span class="location-line">${escapeHtml(gameState.getInteractionHint())}</span>
           <span class="location-line">WASD to move · Arrow keys to look<br>Select clear ground to teleport · Marked exits or map to travel</span>
-          <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Objects: click / Space to inspect or return · Q / E: spin · R / F: tilt<br>Panels: Tab / arrows, Enter to choose<br>Click outside / Esc: close · Page Up / Down: read more</span>
+          ${mouseLookNotice?`<span role="status" class="location-line">${escapeHtml(mouseLookNotice)}</span>`:""}
+          <span id="desktop-controls" class="keyboard-help">Space / Enter: select · M: map · N: notebook<br>Objects: click / Space to inspect or return · Q / E: spin · R / F: tilt<br>Dialogue: 1 / 2 / 3 to choose · Panels: Tab / arrows, Enter<br>Esc: release mouse look / close panel · Page Up / Down: read more</span>
         </section>
 
         <nav class="tool-rail" aria-label="Investigation tools">
@@ -424,7 +446,8 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
           <button class="icon-button" data-action="reset" aria-label="Reset inquiry">
             <i data-lucide="rotate-ccw"></i>
           </button>
-          <button class="icon-button" data-action="sound" aria-label="Sound settings" title="Sound settings"><i data-lucide="volume-2"></i></button>
+          <button class="icon-button" data-action="mouse-look" aria-label="Mouse look (Escape to release)" aria-pressed="${!!document.pointerLockElement}" title="Mouse look (Escape to release)"><i data-lucide="mouse-pointer-2"></i></button>
+          <button class="icon-button" data-action="settings" aria-label="Settings" title="Settings (Escape)"><i data-lucide="settings"></i></button>
         </nav>
 
         ${renderMotionLookToggle(motionLookControls)}
@@ -438,6 +461,7 @@ export function createUi(root: HTMLDivElement, gameState: GameState): PrototypeU
         ${overlayMode === "notebook" ? renderNotebook(collected, allEvidence, gameState) : ""}
         ${overlayMode === "map" ? renderMap(collected, gameState) : ""}
         ${overlayMode === "sound" ? renderSoundPanel(soundControls) : ""}
+        ${overlayMode === "settings" ? `<aside class="overlay-panel notebook-panel" aria-label="Settings"><div class="panel-header"><strong>Settings</strong><button class="icon-button" data-action="close" aria-label="Close settings"><i data-lucide="x"></i></button></div><div class="panel-body"><button class="secondary-action" data-action="sound">Sound</button><button class="secondary-action" data-action="mouse-look">Start mouse look</button><button class="secondary-action" data-action="haptics-toggle" aria-pressed="${interactionFeedback.enabled}">Controller vibration: ${interactionFeedback.enabled?'On':'Off'}</button><p>Mouse look: move the mouse to look around; Escape releases the cursor. Drag-to-look and arrow keys remain available.</p><p>WASD: move · Space / Enter: select · M: map · N: notebook<br>Dialogue choices: 1 / 2 / 3 · Tab / arrows: navigate panels<br>Held objects: Q / E to spin, R / F to tilt<br>Escape: Back, close a panel, or open Settings.</p></div></aside>` : ""}
         ${isTransitioning ? renderTravelFade(message) : ""}
       </div>
     `;
@@ -514,7 +538,7 @@ function renderDialoguePanel(dialogue: DialogueNode, gameState: GameState): stri
       <div class="conversation-content">
       ${view.map ? `<figure class="recap-map"><svg class="map-exercise-map" viewBox="0 0 ${broadStreetMapViewBoxSize} ${broadStreetMapViewBoxSize}" role="img" aria-label="${view.map==='deaths'?'Deaths plotted around the Broad Street pump':'Streets and pumps around Broad Street, before plotting deaths'}">${renderCustomMapBase(new Set(gameState.getCollectedEvidence().map(c=>c.id)),gameState,view.map==='deaths')}</svg><figcaption>${view.map==='deaths'?'Bars: deaths · ':''}Teal circles: pumps</figcaption></figure>` : ''}
       <div><p class="conversation-beat" aria-live="polite">${escapeHtml(view.text)}</p>
-      <div class="conversation-choices">${view.choices.map(choice => `<button class="question-button" data-action="conversation-choice" data-beat-id="${escapeHtml(view.beatId)}" data-choice-id="${escapeHtml(choice.id)}">${escapeHtml(choice.label)}</button>`).join("")}
+      <div class="conversation-choices">${view.choices.map((choice,index) => `<button class="question-button" aria-keyshortcuts="${index+1}" data-action="conversation-choice" data-beat-id="${escapeHtml(view.beatId)}" data-choice-id="${escapeHtml(choice.id)}">${index+1}. ${escapeHtml(choice.label)}</button>`).join("")}
       ${view.terminalAction ? `<button class="question-button" data-action="${view.terminalAction}">${view.terminalAction==='resume-survey'?'Join Snow at the map table':view.terminalAction==='end-day'?'End day':view.terminalAction==='board-decision'?'Read the Board decision':'Review the theories'}</button>` : ''}
       ${view.complete ? '<button class="question-button" data-action="close-dialogue">Return to the scene</button>' : ""}</div></div></div>
     </aside>`;

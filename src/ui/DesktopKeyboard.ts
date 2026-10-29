@@ -75,6 +75,14 @@ export class DesktopKeyboard {
     }
     const panel = this.panel();
     const conversation=panel?.classList.contains('conversation-panel') ?? false;
+    if(event.key==='Escape' && document.pointerLockElement) {
+      document.exitPointerLock();event.preventDefault();return;
+    }
+    if(conversation && /^[1-3]$/.test(event.key)) {
+      event.preventDefault();
+      if(!event.repeat)this.buttons(panel!).filter(button=>button.dataset.action==='conversation-choice')[Number(event.key)-1]?.click();
+      return;
+    }
     if(conversation && ['w','a','s','d','q','e','r','f'].includes(event.key.toLowerCase())) {
       this.scene?.focus({preventScroll:true});return;
     }
@@ -91,7 +99,7 @@ export class DesktopKeyboard {
       event.preventDefault();
       const close = panel?.querySelector<HTMLButtonElement>('[data-action="close"], [data-action="close-dialogue"], [data-action="close-snow-review"], [data-action="close-chapter"]');
       if (close) close.click();
-      else if (!panel) this.scene?.focus({ preventScroll: true });
+      else if (!panel) this.root.querySelector<HTMLButtonElement>('.tool-rail [data-action="settings"]')?.click();
       return;
     }
     const tool = event.key.toLowerCase() === "m" ? "map" : event.key.toLowerCase() === "n" ? "notebook" : undefined;

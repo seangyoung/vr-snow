@@ -5,12 +5,12 @@
 | Input | Action |
 | --- | --- |
 | Left stick | Head-relative forward/backward walking and strafing |
-| Right stick | Spin/tilt a held object; otherwise 45-degree snap turns |
+| Right stick | Forward: aim, then return to centre to teleport; sideways: 45-degree snap turns. Spin/tilt while holding an object. |
 | Left X | Open/close Map |
 | Left Y | Open/close Notebook |
 | Right A | Stand/crouch view toggle |
 | Right B | Open/close Settings |
-| Trigger | Select people, pump handles, menu items or clear ground for teleport |
+| Trigger | Select people, pump handles and menu items. Ground teleport is a fallback when no standard right thumbstick is connected. |
 | Grip/squeeze | Hold to grab a portable object within 5 metres; release to return it |
 | Stick click | Open/close the menu, except while holding an item or paging through text |
 | Stick click while reading | Left: previous text page; right: next text page; on-panel arrows remain |
@@ -101,3 +101,42 @@ Attempting to cross an outer street limit fades in a small “Turn back — Retu
 Keyboard and left-stick movement retain their existing collision checks; room-scale motion is observed for the same cue without repositioning the tracked camera. Furniture, figures, pump collisions and teleport jumps do not trigger it. Decorative geometry does not intercept selection rays. This indicates the inquiry's virtual extent and does not replace, reproduce or modify the headset's physical-space boundary.
 
 Design references: [Meta Comfort](https://developers.meta.com/vr/design/comfort/) recommends clear boundaries/visual cues, comfortable seated and standing use, and avoiding unnatural camera movement; [Locomotion Best Practices](https://developers.meta.com/vr/design/locomotion-best-practices/) emphasizes minimizing acceleration and maintaining stable performance. The amber strip and wording are this app's implementation of that guidance, not a prescribed Meta boundary treatment. Quest review must confirm text readability, fade comfort and room-scale behavior at each edge.
+
+## Thumbstick teleport
+
+On a tracked right-hand controller using the [WebXR standard mapping](https://www.w3.org/TR/webxr-gamepads-module-1/), push the thumbstick forward, point at clear ground, and release it to centre. The ray turns green for a valid destination and shows “Release stick to move”; blocked targets turn red. Only the current valid release target, within 12 metres, is used. Pull back or sideways to cancel.
+
+The gesture requires neutral after connection, travel, focus loss, menus or object handling. Trigger/grip actions cancel an aim. Holding an item reserves the stick for rotation. Walking and snap turns pause during aiming; conversations still permit teleporting away. Desktop click teleport is unchanged. Controllers without a suitable right stick retain ground-trigger teleport; no vendor axis order is guessed. Quest acceptance should cover valid/invalid releases, cancellation, menus, grabbing, sideways turns, seated play and room-scale offsets.
+
+## Interaction polish — October 29, 2026
+
+- Quest B is **Back** while a panel is open, and opens Settings otherwise. Sound,
+  Controls and Height return to Settings. Utility panels return to a suspended
+  conversation when present; another Back closes the exchange. Controller labels
+  follow this context. Explicit close controls and outside-click dismissal remain.
+- Successful grabs, hand transfers, teleports and pump strokes give short,
+  rate-limited controller pulses when WebXR haptics are available. Settings offers
+  a Vibration toggle (session only). Unsupported/disconnected actuators are harmless.
+- Small portable objects get 2.2 cm of hit assistance, extended to 3.5 cm for the
+  current target to reduce jitter. Direct object hits take precedence. Reach stays
+  at 5 m; assistance requires a visible surface and cannot bypass an obstruction.
+  A muted bounding outline and the existing name identify the selected object.
+- Desktop **1 / 2 / 3** select the displayed conversation choices once per key press.
+  Tab/arrows and Enter still work. Escape releases mouse capture first, then closes
+  a panel or goes back from Sound to Settings; in the scene it opens Settings.
+- The desktop Mouse look button (also in Settings) opts into browser pointer lock.
+  Mouse motion turns the camera and clicks target the center reticle. Escape frees
+  the pointer; utility panels, travel and VR entry also release it. Browser failure
+  shows a notice; drag-to-look and keyboard navigation remain available.
+
+Walking speed, snap angle, sensitivity, grip-hold behavior and stick-click mappings
+are unchanged. Quest acceptance still needs physical haptic strength, Back behavior,
+small-object selection and performance checks. Desktop browser acceptance should
+include pointer-lock permission/failure, Escape, modal opening and numbered choices.
+
+Validation for this pass: 289 automated walkable checks, TypeScript/production
+build, and PWA checks. Browser review covered numbered dialogue activation and
+layout, Escape's Settings/Sound hierarchy, and graceful pointer-lock rejection.
+In foreground Chrome, mouse capture activated successfully; Escape released it
+without opening Settings, a second Escape opened Settings, and opening the
+notebook released capture. Physical Quest feedback and targeting remain unverified.
