@@ -13,7 +13,7 @@ export class SnowOffice extends FurnishedRoom {
   private characterVisuals?: Promise<void>;
   constructor() {
     super({name: "Snow's walkable office", asset: "snow-office.glb", layout, area: officeArea,
-      interactionFurniture: "desk", hotspot: "john-snow", daylight: "#f4eee2", fill: 2.5,
+      rayHeights: {cabinet:1.32}, interactionFurniture: "desk", hotspot: "john-snow", daylight: "#f4eee2", fill: 2.5,
       bakedLighting: {lightMap: "snow-office-lightmap.png", environment: "snow-office-environment.png"}});
     this.group.add(this.character.group);
   }

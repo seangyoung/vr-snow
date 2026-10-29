@@ -60,29 +60,90 @@ def medical_collection(box, cylinder, materials, root):
         box('Tongue scraper arm',sx+dx,1.337,sz+.027,.005,.003,.054,'Pewter')
         box('Tongue scraper grip',sx+dx,1.337,sz+.059,.008,.004,.012,'Pewter',.002)
 
-    # Compact leather lancet case, three folded blades retained together as a pickup.
-    lx=-1.96;lz=2.77
-    box('Lancet case shell',lx,1.338,lz,.15,.019,.105,'Dark walnut',.005)
-    box('Lancet case lining',lx,1.350,lz,.137,.005,.092,'Red binding')
-    box('Lancet case lid',lx,1.354,lz+.087,.15,.008,.065,'Dark walnut',.003)
-    for dx in [-.045,0,.045]:
-        box('Lancet handle',lx+dx,1.357,lz+.011,.017,.006,.063,'Recess',.003)
-        vertices=[(lx+dx+a,y,lz+b) for y in [1.358,1.360] for a,b in [(-.007,-.016),(.007,-.016),(0,-.041)]]
-        mesh_object('Lancet blade',vertices,[(0,1,2),(5,4,3),(0,3,4,1),(1,4,5,2),(2,5,3,0)],materials['Pewter'])
-        cylinder('Lancet pivot',lx+dx,1.361,lz-.010,.003,.003,'Brass')
-    box('Lancet case clasp',lx,1.341,lz-.055,.022,.014,.004,'Brass')
+    # Open leather wallet: recessed fitted slots, separate horn scales, steel tangs
+    # and double-edged blades (38-44 mm), rather than oversized triangular tips.
+    lx=-1.98;lz=2.745
+    box('Lancet case shell',lx,1.339,lz,.178,.024,.144,'Dark walnut',.005)
+    box('Lancet case lining',lx,1.352,lz,.163,.006,.130,'Red binding',.003)
+    for dx in [-.083,.083]:box('Lancet case piping',lx+dx,1.356,lz,.004,.004,.134,'Dark walnut',.001)
+    for dz in [-.065,.065]:box('Lancet case piping',lx,1.356,lz+dz,.166,.004,.004,'Dark walnut',.001)
+    lid=box('Lancet case lid',lx,1.394,lz+.112,.178,.010,.112,'Dark walnut',.004)
+    lid.rotation_euler.x=math.radians(-40)
+    pad=box('Lancet lid lining',lx,1.398,lz+.108,.161,.004,.094,'Red binding',.002)
+    pad.rotation_euler.x=math.radians(-40)
+    for dx in [-.052,.052]:box('Lancet case hinge',lx+dx,1.357,lz+.072,.025,.007,.009,'Brass',.002)
+    box('Lancet case clasp',lx,1.344,lz-.074,.024,.014,.005,'Brass',.002)
+    # Small stitches distinguish leather from a plain wooden slab.
+    for j in range(12):
+        for dz in [-.060,.060]:box('Lancet case stitching',lx-.071+j*.013,1.359,lz+dz,.004,.0008,.001,'Paper')
+    def outline_prism(name,outline,bottom,top,mat):
+        verts=[(x,y,z) for y in [bottom,top] for x,z in outline];n=len(outline)
+        return mesh_object(name,verts,[tuple(range(n-1,-1,-1)),tuple(range(n,2*n))]+
+            [(i,(i+1)%n,(i+1)%n+n,i+n) for i in range(n)],materials[mat])
+    for index,dx in enumerate([-.054,0,.054]):
+        cx=lx+dx;pz=lz+.014
+        box('Lancet fitted slot',cx,1.356,lz,.025,.001,.116,'Recess',.003)
+        # Two gently tapered protective scales, joined by a pivot and end rivet.
+        outline=[(cx-.005,pz-.006),(cx+.005,pz-.006),(cx+.007,pz+.006),
+                 (cx+.0055,pz+.052),(cx+.002,pz+.059),(cx-.003,pz+.059),(cx-.006,pz+.051),(cx-.007,pz+.006)]
+        outline_prism('Lancet handle',outline,1.357,1.359,'Recess')
+        outline_prism('Lancet handle',outline,1.362,1.364,'Recess')
+        box('Lancet spine',cx,1.3605,pz+.029,.002,.002,.050,'Pewter')
+        length=.038+index*.003
+        blade=[(cx-.0025,pz+.004),(cx+.0025,pz+.004),(cx+.003,pz-.009),
+               (cx+.0055,pz-.019),(cx,pz-length),(cx-.0055,pz-.019),(cx-.003,pz-.009)]
+        # A raised central ridge catches the light along both sharpened edges.
+        verts=[(x,1.360,z) for x,z in blade]+[(cx,1.363,pz-.018)]
+        n=len(blade)
+        mesh_object('Lancet blade',verts,[(i,(i+1)%n,n) for i in range(n)]+[tuple(range(n-1,-1,-1))],materials['Pewter'])
+        cylinder('Lancet pivot',cx,1.365,pz,.0025,.002,'Pewter')
+        cylinder('Lancet end rivet',cx,1.365,pz+.051,.0015,.0015,'Brass')
 
-    # Sick syphon rests flat: curved drinking tube, rim hook and pierced strainer.
-    sx=-1.73;sz=2.76
-    points=[(sx-.038,1.343,sz+.047),(sx-.038,1.343,sz-.020)]
-    points += [(sx+.030*math.cos(a),1.343,sz-.020+.030*math.sin(a)) for a in [math.pi+j*math.pi/16 for j in range(17)]]
-    points += [(sx+.030,1.343,sz+.045)]
-    tube('Sick syphon tube',points,.004,materials['Pewter'],8)
-    tube('Sick syphon hook',[(sx-.035,1.343,sz+.012),(sx-.018,1.343,sz+.010),(sx-.018,1.343,sz+.030)],.0025,materials['Pewter'],6)
-    cylinder('Sick syphon strainer',sx-.038,1.343,sz+.045,.011,.009,'Pewter')
-    for dx,dz in [(0,0),(-.005,0),(.005,0),(0,-.005),(0,.005)]:
-        verts=[(sx-.038+dx+.0015*math.sin(j*math.pi/4),1.3481,sz+.045+dz+.0015*math.cos(j*math.pi/4)) for j in range(8)]
-        mesh_object('Strainer perforation',verts,[tuple(range(8))],materials['Recess'])
+    # S-shaped silver feeding pipe with flared, flattened intake and a rim clip.
+    # Slightly enlarged (~15 cm across) for close inspection; not a measured replica.
+    from mathutils import Vector
+    sx=-1.72;sz=2.77;n=28;sides=12;verts=[];points=[]
+    for i in range(n+1):
+        t=i/n
+        p=Vector((sx-.074+.148*t,1.351+.006*math.cos(math.pi*t),sz+.028*math.sin(math.pi*2*t)))
+        tangent=Vector((.148,-.006*math.pi*math.sin(math.pi*t),.056*math.pi*math.cos(math.pi*2*t))).normalized()
+        u=tangent.cross(Vector((0,1,0))).normalized();v=tangent.cross(u)
+        # Broad oval strainer tapers into a round, continuous drinking tube.
+        width=.005+.013*max(0,1-t/.28)**2
+        height=.005+.001*max(0,1-t/.25)
+        points.append((p,tangent,u,v))
+        for j in range(sides):
+            angle=2*math.pi*j/sides;verts.append(p+u*width*math.cos(angle)+v*height*math.sin(angle))
+    faces=[(i*sides+j,i*sides+(j+1)%sides,(i+1)*sides+(j+1)%sides,(i+1)*sides+j) for i in range(n) for j in range(sides)]
+    body=mesh_object('Sick syphon tube',verts,faces,materials['Pewter'])
+    for poly in body.data.polygons:poly.use_smooth=True
+    # Rolled, hollow mouthpiece with a visible inner wall.
+    end,tangent,_,_=points[-1]
+    turned('Sick syphon mouthpiece',end,tangent,[(0,.005),(.004,.0054),(.005,.0051),(.005,.0036),(-.006,.0036)],materials['Pewter'],12)
+    # The pierced cover is an elliptical silver plate with actual open apertures.
+    p,tangent,u,v=points[0]
+    count=24
+    capverts=[p-tangent*depth+u*(.018*math.cos(j*2*math.pi/count))+v*(.006*math.sin(j*2*math.pi/count))
+              for depth in [0,.001] for j in range(count)]
+    capfaces=[tuple(range(count)),tuple(range(2*count-1,count-1,-1))]
+    capfaces += [(j,j+count,(j+1)%count+count,(j+1)%count) for j in range(count)]
+    plate=mesh_object('Sick syphon strainer',capverts,capfaces,materials['Pewter'])
+    # Boolean holes in the thin cap are real geometry, visible from both sides.
+    for row in [-1,0,1]:
+        for col in range(-3,4):
+            if abs(col)==3 and row:continue
+            center=p+u*(col*.004)+v*(row*.003)
+            bpy.ops.mesh.primitive_cylinder_add(vertices=8,radius=.00105,depth=.008,
+                location=(center.x,-center.z,center.y))
+            cutter=bpy.context.object
+            direction=Vector((-tangent.x,tangent.z,-tangent.y))
+            cutter.rotation_euler=direction.to_track_quat('Z','Y').to_euler()
+            mod=plate.modifiers.new('Pierced strainer','BOOLEAN');mod.operation='DIFFERENCE';mod.object=cutter
+            bpy.context.view_layer.objects.active=plate;bpy.ops.object.modifier_apply(modifier=mod.name)
+            bpy.data.objects.remove(cutter,do_unlink=True)
+    # A flattened clip doubles back along the underside to catch a cup rim.
+    clip=[(sx+.018,1.345,sz-.019),(sx+.018,1.335,sz-.019),(sx-.026,1.335,sz+.006)]
+    tube('Sick syphon hook',clip,.0022,materials['Pewter'],6)
 
     # Three eyed suture needles in an open padded case: straight and curved forms.
     nx=-1.51;nz=2.78

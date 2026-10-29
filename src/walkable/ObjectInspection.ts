@@ -60,8 +60,8 @@ export const objectNotes: Record<string,ObjectNote> = {
   },
   "Lancet case": {
     text: "A pocket case protects small folding lancets. Such blades were used for bloodletting, a longstanding practice in medicine.",
-    source: "https://blog.sciencemuseum.org.uk/not-for-the-squeamish/",
-    sourceLabel: "Science Museum · lancets and bloodletting instruments · 1750–1850",
+    source: "https://collection.sciencemuseumgroup.org.uk/objects/co138498/six-lancets-in-a-tortoiseshell-case",
+    sourceLabel: "Science Museum Group · folding lancets and protective case",
   },
   "Sick syphon": {
     text: "A curved drinking tube helps a sick person drink from a cup. Its pierced end strains out larger pieces of food; the hook rests over the cup’s rim.",

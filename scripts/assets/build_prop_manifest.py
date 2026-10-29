@@ -34,8 +34,8 @@ def build(inventory):
             for name in ['Medicine spoon','Small medicine spoon']:
                 one(name,*[name+' '+part for part in ['bowl','stem','terminal']])
             one('Tongue scraper','Tongue scraper bow','Tongue scraper arm','Tongue scraper grip')
-            one('Lancet case','Lancet case shell','Lancet case lining','Lancet case lid','Lancet handle','Lancet blade','Lancet pivot','Lancet case clasp')
-            one('Sick syphon','Sick syphon tube','Sick syphon hook','Sick syphon strainer','Strainer perforation')
+            one('Lancet case','Lancet case shell','Lancet case lining','Lancet case lid','Lancet handle','Lancet blade','Lancet pivot','Lancet case clasp','Lancet case piping','Lancet lid lining','Lancet case hinge','Lancet case stitching','Lancet fitted slot','Lancet spine','Lancet end rivet')
+            one('Sick syphon','Sick syphon tube','Sick syphon hook','Sick syphon strainer','Strainer perforation','Sick syphon mouthpiece')
             one('Suture needle case','Needle case base','Needle case pad','Suture needle','Needle eye','Needle case flap')
             one('Experimental thermometer','Thermometer backing','Thermometer scale','Thermometer stem','Thermometer bulb','Thermometer graduation')
             one('Clinical notes','Clinical observation sheet','Observation note lines')

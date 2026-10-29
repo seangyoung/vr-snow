@@ -488,7 +488,7 @@ test('all walkable rooms restore scene geometry, lighting and arrival',async()=>
 
 test('authored office fits a small mesh budget and matches the runtime furniture layout',async()=>{
   const report=JSON.parse(await readFile('assets/snow-office/build-report.json','utf8'));
-  assert.deepEqual(report.layout,officeLayout);assert.ok(report.triangles<30000);
+  assert.deepEqual(report.layout,officeLayout);assert.ok(report.triangles<33000,"office allowance includes the refined feeding pipe and folding lancet geometry");
   assert.ok(report.materialBatches<=17,'original room materials plus one shared medicine-label atlas');
   const glb=await readFile('public/models/snow-office.glb');assert.equal(glb.readUInt32LE(0),0x46546c67);
   const json=JSON.parse(glb.subarray(20,20+glb.readUInt32LE(12)).toString());
@@ -3742,4 +3742,41 @@ test('captured mouse motion turns the view and clicks use the center, while moda
   doc.body.dataset.overlayOpen='true';doc.dispatchEvent(motion);assert.equal(turned,1,'modal blocks mouse look');
   doc.body.dataset.overlayOpen='false';doc.pointerLockElement=null;doc.dispatchEvent(motion);assert.equal(turned,1,'unlocked mouse motion does not turn');
  }finally{globalThis.document=oldDocument;globalThis.window=oldWindow;}
+});
+
+test('pickup assistance handles hollow tools and ignores only coarse enclosing proxies, never actual walls',()=>{
+ const targeting=new PropTargeting(),group=new THREE.Group();
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(.025,.003,6,24),new THREE.MeshBasicMaterial());
+ group.add(ring);group.position.z=-1;group.updateMatrixWorld(true);
+ const prop=new InspectableProp(group,'Hollow instrument');ring.userData.inspectableProp=prop;
+ const ray=new THREE.Raycaster(new THREE.Vector3(),new THREE.Vector3(0,0,-1));
+ assert.equal(ray.intersectObject(group,true).length,0,'box center is genuinely empty');
+ const proxy={object:new THREE.Mesh(),distance:.8,point:new THREE.Vector3(0,0,-.8)};
+ const pick=r=>r.intersectObject(group,true)[0];
+ assert.equal(propFor(targeting.pick(ray,proxy,[prop],pick)?.object),prop,'visible tube remains targetable inside an oversized furniture proxy');
+ assert.equal(targeting.pick(ray,proxy,[prop],()=>proxy),proxy,'a real obstruction blocks every candidate surface');
+});
+
+test('office cabinet ray surface matches its visible top so nearby tools are not buried',()=>{
+ const office=new SnowOffice();
+ const cabinet=office.solids.find(o=>Math.abs(o.position.x+1.95)<.01 && Math.abs(o.position.z-2.85)<.01);
+ assert.ok(cabinet);office.group.updateMatrixWorld(true);
+ assert.ok(Math.abs(new THREE.Box3().setFromObject(cabinet).max.y-1.32)<.0001);
+});
+
+test('refined cabinet instruments export as complete, reachable pickups with visible-surface assistance',async()=>{
+ const model=await exportedRoom('snow-office.glb'),office=new SnowOffice();
+ office.props.push(...extractProps(model,office.group,'snow-office.glb'));
+ office.visualModel=model;office.group.add(model);office.group.visible=true;office.group.updateMatrixWorld(true);
+ const targeting=new PropTargeting();
+ for(const name of ['Sick syphon','Lancet case','Medicine spoon','Tongue scraper']) {
+  const prop=office.props.find(p=>p.name===name);assert.ok(prop,name);
+  const box=new THREE.Box3().setFromObject(prop.group),center=box.getCenter(new THREE.Vector3());
+  const origin=new THREE.Vector3(center.x,1.62,2.0),direction=center.clone().sub(origin).normalize();
+  const ray=new THREE.Raycaster(origin,direction);
+  const hit=targeting.pick(ray,office.pick(ray),office.props,r=>office.pick(r));
+  assert.equal(propFor(hit?.object)?.name,name,`${name}: pickup from a standing position in front of the cabinet`);
+  if(name==='Sick syphon')assert.ok(box.getSize(new THREE.Vector3()).x>.14,'enlarged S-shaped pipe');
+  if(name==='Lancet case')assert.ok(box.getSize(new THREE.Vector3()).y>.06,'hinged lid remains attached to the complete case');
+ }
 });

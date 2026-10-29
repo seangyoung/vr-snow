@@ -117,10 +117,10 @@ The gesture requires neutral after connection, travel, focus loss, menus or obje
 - Successful grabs, hand transfers, teleports and pump strokes give short,
   rate-limited controller pulses when WebXR haptics are available. Settings offers
   a Vibration toggle (session only). Unsupported/disconnected actuators are harmless.
-- Small portable objects get 2.2 cm of hit assistance, extended to 3.5 cm for the
+- Small portable objects get 3.5 cm of hit assistance, extended to 4.5 cm for the
   current target to reduce jitter. Direct object hits take precedence. Reach stays
-  at 5 m; assistance requires a visible surface and cannot bypass an obstruction.
-  A muted bounding outline and the existing name identify the selected object.
+  at 5 m; assistance requires a visible surface and cannot bypass an obstruction. Hollow objects are checked against sampled mesh surfaces rather than their empty box centers.
+  Name-only hover labels identify the selected object. Outlines and per-object pickup instructions were removed after user review.
 - Desktop **1 / 2 / 3** select the displayed conversation choices once per key press.
   Tab/arrows and Enter still work. Escape releases mouse capture first, then closes
   a panel or goes back from Sound to Settings; in the scene it opens Settings.

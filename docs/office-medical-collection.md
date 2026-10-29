@@ -24,4 +24,37 @@ Then run Blender on `scripts/assets/build_snow_office.py`, followed by `scripts/
 
 ## Validation
 
-The expanded office exports 29,864 triangles in 17 material batches, below 30,000 triangles. The GLB is 3,448,664 bytes. All 282 walkable tests pass, including complete pickup/rotation/return of each new artifact and checks that each bottle retains its label. Production build and installation checks pass. Browser review confirms the table/cabinet arrangement, readable label orientation, source captions, and pickup/return. The preview serves the rebuilt asset; Quest performance and seated readability remain device checks.
+The initial collection exported 29,864 triangles in 17 material batches. Its 282 walkable tests passed, including complete pickup/rotation/return of each new artifact and checks that each bottle retains its label. Production build and installation checks pass. Browser review confirms the table/cabinet arrangement, readable label orientation, source captions, and pickup/return. The preview serves the rebuilt asset; Quest performance and seated readability remain device checks.
+
+
+## Instrument refinement — 29 October 2026
+
+The feeding pipe now follows the S-shaped Science Museum example more closely:
+a continuous silver tube, flared oval intake, pierced strainer, open rolled
+mouthpiece and a separate cup-rim clip. It is approximately 15 cm across for
+readability, deliberately larger than the museum object's roughly 9.4 × 9.3 cm
+bounding dimensions. It remains an original interpretive model, not a measured replica.
+The museum photographs are reference only and are not bundled in the app.
+
+The lancet wallet has fitted slots, lining, piping, stitches, a hinged lid and
+clasp. Each lancet has separate dark horn-like protective scales, pivot/end
+rivets, a steel spine and a double-edged ridged blade. Blade lengths are 38–44 mm,
+within the 35–50 mm range in the [Science Museum folding-lancet record](https://collection.sciencemuseumgroup.org.uk/objects/co138498/six-lancets-in-a-tortoiseshell-case).
+The larger open display arrangement is interpretive; this is not a copy of that
+record's compact tortoiseshell pocket case. Case and instruments remain one pickup.
+
+The office geometry allowance is now 33,000 triangles to accommodate these details;
+the material-batch limit stays at 17. The cabinet ray proxy now ends at the actual
+1.32 m tabletop, rather than above the small tools. Invisible pickup assistance
+checks actual surface samples on hollow shapes and allows 3.5 cm aim tolerance
+(4.5 cm to retain the current target), with visible-surface obstruction and 5 m
+reach checks. Hover labels show object names only, without targeting outlines or
+pickup instructions.
+
+Validation: the revised office exports 32,028 triangles in the same 17 material
+batches (about 7% more geometry than the initial collection). All 292 walkable
+tests pass, including pickup rays against the exported cabinet instruments,
+hollow-object assistance, obstruction checks, and complete pickup/return. The
+production build and web-app installation checks pass. A Blender close-up was
+reviewed for the pipe, strainer, lancets and case. Browser automation timed out;
+runtime appearance, seated reach and Quest pickup feel still need device review.

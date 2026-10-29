@@ -351,7 +351,6 @@ export class BroadStreetScene {
   private readonly motionLookAvailable: boolean;
   private readonly allowCanvasCapture: boolean;
   private readonly propTargeting = new PropTargeting();
-  private propHighlight?: THREE.Box3Helper;
   private feedback(controller: THREE.Group | undefined, kind: 'grab'|'transfer'|'teleport'|'pump'): void {
     if(controller)interactionFeedback.pulse(this.vrInputSources?.get(controller),kind);
   }
@@ -1014,7 +1013,6 @@ export class BroadStreetScene {
     this.courtyard?.setPumpClosed?.(this.gameState.isPumpClosed());
     this.courtyard?.pumpAction?.reset(!this.gameState.isPumpClosed());
     this.workhouse?.pumpAction?.reset();
-    if(this.propHighlight)this.propHighlight.visible=false;
     if(this.tactileLabel)this.tactileLabel.visible=false;
     this.objectInspection?.update(undefined,this.renderer?.xr.isPresenting??false,this.camera);
   }
@@ -1088,7 +1086,6 @@ export class BroadStreetScene {
     if(this.propHold.prop&&!this.objectInspection)this.objectInspection=new ObjectInspection(this.scene);
     this.objectInspection?.update(this.propHold.prop,this.renderer.xr.isPresenting,this.camera);
     this.updatePumpInteractions(delta);
-    if(this.propHighlight)this.propHighlight.visible=false;
     if(this.tactileLabel)this.tactileLabel.visible=false;
     if(blocked)return;
     let text="",point:THREE.Vector3|undefined;
@@ -1116,11 +1113,7 @@ export class BroadStreetScene {
       }
       if(hit) {
         const prop=propFor(hit.object);
-        if(prop && hit.distance<=grabReach) {
-          if(!this.propHighlight){this.propHighlight=new THREE.Box3Helper(new THREE.Box3(),0xc3b784);this.propHighlight.raycast=()=>{};this.scene.add(this.propHighlight);}
-          this.propHighlight.box.setFromObject(prop.group).expandByScalar(.006);this.propHighlight.visible=true;
-        }
-        if(prop)text=hit.distance>grabReach?"Move closer to inspect":`${prop.name} · ${this.renderer.xr.isPresenting?"hold grip":"click / Space"}`;
+        if(prop)text=prop.name;
         else if(this.activePump?.action.owns(hit.object))text=hit.distance>2.4?"Move closer to the handle":this.renderer.xr.isPresenting?"Work pump · grip or trigger":"Work pump · select handle";
         else if(this.activePump && ['broad-street-pump','workhouse-pump'].includes(this.walkable?.hotspotFor(hit.object)??''))
           text=this.gameState.hasPumpedWater(this.activePump.location)?"Inspect water · select pump":"Draw water first · select the handle";
