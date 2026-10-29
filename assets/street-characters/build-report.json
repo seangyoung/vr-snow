@@ -106,14 +106,14 @@
   "sources": {
     "resident-west": "2b56b4c8c00de84c36e11fa6cdc56ea1c966b7e880c36781ce412e46776a1b8f",
     "resident-east": "c65885c6f423a2263c1f45aebe2b3383af601c4d0ae53d4629b3fb3cf5b55904",
-    "whitehead": "6c7a70820979d4db089ef46860fba61b3588c031140b3b028438877b21bcd8fa",
+    "whitehead": "0a8ac5bbe0ed4763b37270e3d43c762f9f4540884189be68a6994b3b56eab4f8",
     "seamstress": "8c38fa9efafdfed3b7a8a5433fcd8e935525cf7dbdfa177c7d85bbfa27ea8952",
     "laundress": "c5d2613e4fb88187d09efedaace019ad69aeebe304c04e5475bffb73d92c6f78",
     "porter": "ac9b337c621f5c418abdda1b5e4208566be2618073370cd20846b5e31626ee29",
     "messenger": "b99a452c3eb041b432ea62a21996406584520cde887a1b233ab81de598d22ba0"
   },
   "runtimeSkeleton": false,
-  "triangles": 196569,
+  "triangles": 200641,
   "materialBatches": 83,
   "bakedLighting": {
     "size": 2048,

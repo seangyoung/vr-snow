@@ -55,7 +55,7 @@ for index,spec in enumerate(config['actors']):
                     bpy.ops.object.modifier_apply(modifier=dec.name)
             bpy.data.objects.remove(ob,do_unlink=True)
         else:
-            group=head if role in ['Snow eyes','Snow swept hair','Snow eyebrows','Snow sideburns','Snow hair bun','Whitehead beard','Whitehead moustache -1','Whitehead moustache 1','Street cap','Street cap peak'] else (root if role in ['Snow leather shoes','Snow gathered skirt','Street apron'] else upper)
+            group=head if role.startswith(('Whitehead beard','Whitehead moustache')) or role in ['Snow eyes','Snow swept hair','Snow eyebrows','Snow sideburns','Snow hair bun','Street cap','Street cap peak'] else (root if role in ['Snow leather shoes','Snow gathered skirt','Street apron'] else upper)
             attach(ob,group)
             ratio=.44 if role=='Snow tailored coat and trousers' else (.35 if role=='Snow leather shoes' else (.5 if role in ['Snow high waistcoat','Snow gathered skirt'] else 1))
             if ratio<1:
@@ -122,7 +122,7 @@ for spec,root,upper,head,parts in actors:
         if not ob.name.startswith(('Snow eyes','Whitehead beard','Whitehead moustache')):continue
         uv=ob.data.uv_layers['Lightmap'];faceuv=face.data.uv_layers['Lightmap']
         for side in [-1,1]:
-            vertices=[ob.matrix_world@v.co for v in ob.data.vertices if v.co.x*side>0]
+            vertices=[ob.matrix_world@v.co for v in ob.data.vertices if (v.co.x>=0)==(side>0)]
             if not vertices:continue
             center=sum(vertices,Vector())/len(vertices)
             # Aim below the eyelid toward the exposed upper cheek.
@@ -131,7 +131,7 @@ for spec,root,upper,head,parts in actors:
             poly=face.data.polygons[pi]
             sample=sum((faceuv.data[i].uv for i in poly.loop_indices),Vector((0,0)))/len(poly.loop_indices)
             for loop in ob.data.loops:
-                if ob.data.vertices[loop.vertex_index].co.x*side>0:uv.data[loop.index].uv=sample
+                if (ob.data.vertices[loop.vertex_index].co.x>=0)==(side>0):uv.data[loop.index].uv=sample
 for ob in all_parts:
     chart=ob.data.uv_layers.get('FaceLighting')
     if chart:ob.data.uv_layers.remove(chart)

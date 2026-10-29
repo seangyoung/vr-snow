@@ -1465,6 +1465,22 @@ for(const [key,definition] of Object.entries(characterDefinitions))test(`${key} 
       assert.ok(eyes.min.y>1.57,'eyes align with an adult head above the collar');
       assert.ok(coat.max.y<eyes.min.y-.05,'coat cannot engulf the face');
       assert.ok(hair.min.y>1.50&&hair.getSize(new THREE.Vector3()).y<.25,'short hair stays on the scalp');
+      const beard=scene.getObjectByName('whitehead_head_Clerical_beard');
+      assert.ok(beard?.isMesh,'beard and fine strands export with the animated head');
+      assert.equal(beard.parent.name,'whitehead_head');
+      assert.ok(beard.material.alphaTest>0 && !beard.material.transparent,'hair uses cutout coverage without blended sorting');
+      assert.ok(beard.material.normalMap,'fine strand relief survives the runtime export');
+      const illumination=beard.geometry.getAttribute('uv1'),samples=new Set();
+      for(let i=0;i<illumination.count;i++)samples.add(`${illumination.getX(i).toFixed(6)},${illumination.getY(i).toFixed(6)}`);
+      assert.ok(samples.size<=2,'centerline hairs share cheek illumination instead of leaving an unlit seam');
+      const skin=scene.getObjectByName('whitehead_head_Skin');
+      for(const [x,y] of [[-.045,1.585],[.045,1.585],[0,1.54]]) {
+        const facialHair=cast(x,y,1,[0,0,-1],beard),anatomy=cast(x,y,1,[0,0,-1],skin);
+        assert.ok(facialHair&&anatomy,'hair follows the actual cheek and chin');
+        const gap=anatomy.distance-facialHair.distance;
+        assert.ok(gap>=0&&gap<.025,`beard stays close to the face: ${gap}`);
+      }
+      assert.equal(cast(0,1.570,1,[0,0,-1],beard),undefined,'lips remain visible between moustache and beard');
     }
     if(actor.pose==='standing') {
       const skin=scene.getObjectByName(actor.id+'_upper_Skin');
