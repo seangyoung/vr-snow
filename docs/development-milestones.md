@@ -96,3 +96,20 @@ development record, not an additional packaged milestone release. All 273
 automated checks, build, installation checks, and desktop interaction checks
 passed before promotion. Fresh Quest performance and comfort checks remain
 separate from the user's visual approval.
+
+## Daily water, artifacts and interaction promotion — 29 October 2026
+
+The approved `codex/daily-water-map` work joins `main`, preserving all five
+feature commits through [48119ae](https://github.com/seangyoung/vr-snow/commit/48119ae7fb82ba60e7ee1dfa9c505ef6ca5db934).
+This includes daily pump samples, draggable walking-distance comparisons, the
+starting-page Enter VR button, imported barrels and the workhouse pump, Snow's
+expanded medical collection, thumbstick teleport, Back navigation, haptics,
+small-object targeting, numbered dialogue choices and optional desktop mouse-look.
+
+The feature revision passed 289 automated interaction checks, the production
+build and installation checks. Foreground Chrome confirmed mouse capture,
+Escape release and notebook opening; physical Quest validation of the latest
+controls remains separate. This is a development record, not a new packaged
+milestone release. After verified deployment, the temporary feature branch is
+retired and development resumes on `main`; substantial future changes may use
+short-lived branches when needed.
