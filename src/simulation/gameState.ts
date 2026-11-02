@@ -649,7 +649,7 @@ export class GameState {
 
   getInteractionHint(): string {
     if(this.stage==='complete')return 'The inquiry is complete. Open the chapter panel for the epilogue or the notebook to review your evidence.';
-    if (this.currentLocationId === "board-room" && !this.boardPresented) return "Walk around the table. Open the chapter panel when ready to begin.";
+    if (this.currentLocationId === "board-room" && !this.boardPresented) return "Open the chapter panel when ready to begin.";
     if(this.currentLocationId==='broad-street')return (this.getAssignments().some(o=>o.id===waterSamples[this.day].objective && !o.complete)
       ? 'Use the pump handle to draw today’s water, then select the pump to inspect it. ' : '')+
       (this.day===3?'Speak with Whitehead and the street residents. Follow today’s household and brewery inquiries.':'Speak with Whitehead and the street residents. Follow the marked exits or map to today’s interviews.');
