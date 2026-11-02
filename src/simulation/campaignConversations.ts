@@ -46,7 +46,7 @@ export const campaignConversations: ConversationDefinition[] = [
   {id:'reminder',speaker:'John Snow',text:'Please finish the remaining assignments, then bring your notes back this evening.',choices:[],conclusion:{}},
  ]},
  interview('registrar-records','registrar','registrar','Registrar',[0,1.3,-.12],'records','attack-timeline',
- 'You’re here for Dr. Snow? I have the cholera returns ready. There are a great many entries from the streets around Broad Street.',[
+ 'You’re here for Dr. Snow? I have the cholera returns ready. There are a great many entries from your neighborhood, in and around Broad Street.',[
  ['May I see the dates?','Here are the dates of death, with the duration of illness where it was supplied. Several of these people were taken ill very suddenly.'],
  ['Are the addresses recorded?','Yes, here beside each name: street and house number. Take your time with the handwriting; some of the returns are easier to read than others.'],
  ['What cause is entered?','Cholera, in these returns. I enter the particulars sent to this office; the medical attendant supplies the cause of death.']],
@@ -56,17 +56,17 @@ export const campaignConversations: ConversationDefinition[] = [
  'There, you have the copies. Please leave the ledger open at this page; I must return to the entries.'),
  interview('household-first','survivor','household','Bereaved householder',[.25,1.2,-.55],'first-household','household-exposure',
  'Please speak softly; my father is resting in the bed. We have already lost my sister, and now he has the cholera too.',[
- ['May we begin with when the illness started?','My sister was taken ill in those first days of September. Father fell ill afterward; it has been one bedside after another.'],
- ['Where did you get drinking water?','We brought it from Broad Street, as we always did. There was usually a jug here in the room.'],
- ['Who is looking after your father?','I am. Reverend Whitehead has helped when he could. We did what we could for my sister too; there is scarcely time to grieve.']],
+ ['May we begin with when the illness started?','My sister was taken ill about a week ago, and died yesterday. Father fell ill two days ago. I haven\'t told him about my sister yet. I fear he may not survive the shock of it.'],
+ ['Where did you get your drinking water?','We brought it from Broad Street, as we always do. We keep a jug here in the room.'],
+ ['Who is looking after your father?','I am. Reverend Whitehead has stopped by several times. We did what we could for my sister too; there is scarcely time to grieve.']],
  'My sister and Father both drank the Broad Street water before the illness began. We lost her, and I am still nursing him.',
  ['Do you remember which day the illness began?','It was in those first days of September. I cannot be certain of the day now; we hardly slept.'],
  ['Were you able to get any rest?','Very little. Father needs someone beside him, and there is always another cloth to wash or something to fetch.'],
- 'Thank you for hearing me. I must see to Father now; I hope Dr. Snow can spare another family this.',
+ 'Thank you for hearing me. I must see to Father now; I hope you and the good doctor can spare another family this.',
  'What water was the household drinking before the illness began?'),
  interview('household-routines','water-householder','household-routines','Householder',[-.65,1.2,-.2],'water-routines','household-water-pattern',
  'You wanted to ask about our household? I can spare a few minutes before the next errand.',[
- ['Which drinking water do you prefer?','Broad Street water. We prefer the taste; we have tried water from elsewhere and gone back to it.'],
+ ['Which drinking water do you prefer?','Broad Street water. We prefer the taste; we have tried water from elsewhere, but the Broad Street pump is the best.'],
  ['Who collects your drinking water?','Whoever is going out on an errand takes the jug to Broad Street. Often I drink it here without going to the pump myself.'],
  ['Does everyone drink the same water?','At home, usually. But those out at work drink there too, and I cannot tell you every cup they have.']],
  'The Broad Street jug comes home with the errands, and we keep it for drinking. We have carried on that way for some time.',
@@ -76,47 +76,47 @@ export const campaignConversations: ConversationDefinition[] = [
  interview('workhouse-supply','steward','workhouse','Workhouse steward',[-1.5,1.45,-7.8],'workhouse','workhouse-exception',
  'I can spare a moment before my next round. You wanted to ask about illness among the inmates?',[
  ['How many people live here?','Over five hundred. Keeping everyone fed and the wards in order takes a good deal of work.'],
- ['Where do you obtain drinking water?','We have our own supply here. There is no need to send out to the Broad Street pump for the inmates’ drinking water.'],
+ ['Where do you obtain drinking water?','We have our own supply here. Our well in the courtyard supplies all our needs.'],
  ['Have there been many cholera deaths?','Very few here, thank goodness. We hear dreadful accounts from the streets just outside.']],
  'With over five hundred inmates, we have had very few deaths. Our drinking water comes from our separate supply, here within the institution.',
- ['May I draw some water to inspect?','Certainly. The pump is over there by the covered well; you may draw what you need.'],
- ['How has the outbreak affected your work?','There is constant concern for the wards. I have the inmates and staff to attend to, whatever is happening outside.'],
+ ['May I draw some water to inspect?','Certainly. The pump is over there; you may draw what you need.'],
+ ['How has the outbreak affected your work?','Thankfully very little. There is constant concern for the wards. I have the inmates and staff to attend to, whatever is happening outside.'],
  'You have the particulars, then. If you’ll excuse me, I must get back to my round.',
  'Do the inmates use Broad Street water, or a separate supply?'),
  {id:'manufactory-supply',actorId:'factory-worker',locationId:'manufactory',title:'Field interview',anchor:[-.9,1.4,-.4],start:'opening',
  sourceNote:source+' The witness and workshop are reconstructed. About a dozen is an authored interim estimate, not a documented September 6 count; Snow later reported eighteen deaths among roughly two hundred workers.',beats:[
-  {id:'opening',speaker:'Workshop worker',text:'You’re here for Dr. Snow? I can spare a few minutes. What would he like to know about the workshop?',choices:[
+  {id:'opening',speaker:'Workshop worker',text:'You’re here helping Dr. Snow? I can spare a few minutes. What would he like to know about the workshop?',choices:[
    choice('approach-0','How many people work here?','answer-0'),
    choice('approach-1','How has cholera affected the workers?','answer-1'),
    choice('approach-2','Have workers been taken ill here at the workshop?','answer-2')]},
   {id:'answer-0',speaker:'Workshop worker',text:'About two hundred, men and women, when everyone is here. There are far fewer at the benches now.',choices:[choice('follow','Have many been ill with cholera?','answer-1')]},
   {id:'answer-1',speaker:'Workshop worker',text:'We have lost about a dozen, I think, and some are sick now. Their families send word from home; it is hard to keep account.',choices:[choice('follow','What drinking water is provided at work?','followup')]},
   {id:'answer-2',speaker:'Workshop worker',text:'I cannot say where each person first felt unwell. The people we have lost died at their own homes, in different streets.',choices:[choice('follow','How many have you lost?','answer-1')]},
-  {id:'followup',speaker:'Workshop worker',text:'Those two tubs are kept filled from the Broad Street pump for any of our two hundred or so workers who want a drink.',choices:[
+  {id:'followup',speaker:'Workshop worker',text:'Those two tubs are kept filled from the Broad Street pump for any of our workers who want a drink.',choices:[
    choice('limits','Did everyone drink from them?','limits'),choice('compare','Did those who died live together?','comparison')]},
-  {id:'limits',speaker:'Workshop worker',text:'I could not say what each person drank. The tubs were there for all of us, but I did not watch everyone take a drink. Those we have lost died at home, in different streets.',choices:[choice('record','Thank you. I’ll make a note.','conclusion')]},
+  {id:'limits',speaker:'Workshop worker',text:'I could not say what each person drank. The tubs were there for all of us, but I did not watch everyone take a drink.',choices:[choice('record','Thank you. I’ll make a note.','conclusion')]},
   {id:'comparison',speaker:'Workshop worker',text:'No, they lived in different streets. Their work brought them here together, but their families sent word of their deaths from home.',choices:[choice('record','Thank you. I’ll make a note.','conclusion')]},
   {id:'conclusion',speaker:'Workshop worker',text:'Please tell Dr. Snow what we have told you. We are waiting for news of the others.',choices:[],conclusion:{objective:'manufactory',evidenceId:'manufactory-exposure'}},
  ]},
  interview('brewery-supply' ,'brewery-owner','brewery','Edward and John Huggins',[-2.65,1.4,2.5],'brewery','brewery-exception',
- 'Dr. Snow has sent you? We have been fortunate here: none of our men has died in this outbreak.',[
- ['What do the men drink during work?','They have an allowance of beer, and we have our own well. They do not generally fetch water from the street pump.'],
+ 'Dr. Snow has sent you? We have been fortunate here: none of our men have died in this outbreak.',[
+ ['What do the men drink during work?','They have an allowance of beer, and we have our own well.'],
  ['Have they continued working here?','Yes, here at the brewery, close to all this trouble. We have been anxious for them and their families.'],
- ['Does the brewery use the public pump?','We have our own well on the premises. We do not rely on the Broad Street pump.']],
+ ['Does the brewery use the public water pump?','No. We have our own well on the premises. We do not rely on the Broad Street pump.']],
  'No deaths among our workers. The men have beer and access to our well; Broad Street pump water is not their usual drink.',
- ['Is the beer allowance part of their usual day?','Yes, it is our ordinary practice. It was not introduced because of the outbreak.'],
+ ['Is the beer allowance part of their usual day?','Yes, it is our ordinary practice. A perk of the job.'],
  ['Are you still keeping the brewery running?','We are. There is work to be done, though everyone is thinking of what is happening in the neighboring streets.'],
  'Give Dr. Snow our regards. We are thankful the men have been spared.',
  'What do the men usually drink here instead of Broad Street water?'),
  interview('household-away','away-householder','household-away','Householder',[1.0,1.2,-1.0],'nonlocal','nonlocal-exposure',
  'We live some way from Broad Street, yes. But my brother went there for work each day before he fell ill.',[
- ['Did he drink water while he was there?','He told me he used the Broad Street pump during the working day.'],
- ['Was any water brought home?','Sometimes he brought back a jug. We liked it, and he was coming this way anyway.'],
- ['Was he here when he became ill?','Yes, here at home. We sent for help here, though he had been out at work before the illness.']],
- 'My brother drank at Broad Street while working there, and sometimes carried water home. He became ill here, away from the pump.',
+ ['Did he drink water while he was there?','Yes, I\'m sure he did.'],
+ ['Was any water brought home?','Sometimes he brought back a jug from the Broad Street pump. We liked it, and he was coming this way anyway.'],
+ ['Was he here when he became ill?','Yes, here at home.']],
+ 'My brother drank at Broad Street while working there, and sometimes carried water home. He became ill here.',
  ['Did he go there only for the water?','No, his work took him there. Bringing a jug home was just part of his journey.'],
  ['Did you know the neighborhood was so badly affected?','We heard more as people began asking after one another. At first all our attention was on him.'],
- 'I hope that helps explain his journey. This is his home, but it is not where he spent the working day.',
+ 'I hope this was helpful to your investigation. My brother was a good man. He will be greatly missed.',
  'Was Broad Street water something he drank at work or brought home?'),
 ];
 
@@ -136,13 +136,13 @@ for(const day of [1,2,3] as const) {
 for (const day of [2,3] as const) campaignConversations.push({id:`snow-day-${day}`,actorId:'john-snow',locationId:'snow-desk',title:`Day ${day} assignments`,anchor:[-.65,1.35,-2.15],start:'opening',sourceNote:source,beats:[
  {id:'opening',speaker:'John Snow',text:`${snowMorningReport(day)} ${day===2?'Today we must ask about the water people drink, especially where nearby people have escaped the worst.':'Come to the map table before you go out; I have measured the journeys from Broad Street to all the nearby public pumps.'}`,choices:[choice('plan','What shall I investigate?','plan'),choice('doubt','What would challenge our interpretation?','doubt')]},
  {id:'doubt',speaker:'John Snow',text:'People who used the pump and remained well trouble Whitehead. I want to hear about them too, and about anyone who fell ill without drinking its water.',choices:[choice('plan','Let us plan the inquiries.','plan')]},
- {id:'plan',speaker:'John Snow',text:day===2?'Draw a fresh pump sample for comparison, and visit Household 2, the workhouse, and the manufactory at 37 Broad Street. Ask about illness and where people get their drinking water.':'I measured to all the nearby pumps, starting at Broad Street. Let us trace two journeys and find where the walk is equally far in either direction, then examine the area nearest Broad Street.',choices:[choice('accept',day===3?'Let us examine the map.':'I will bring back those findings.','conclusion')]},
- {id:'conclusion',speaker:'John Snow',text:day===3?'Here is the map. Begin at Broad Street pump and follow the streets; move the marker until the two walks balance.':'Come back when you have those accounts. I shall be here working through the addresses.',choices:[],...(day===3?{terminalAction:'resume-survey' as const}:{}),conclusion:{assignmentDay:day}},
+ {id:'plan',speaker:'John Snow',text:day===2?'Draw a fresh water sample from the pump for comparison, and visit Household 2, the nearby workhouse, and the manufactory at 37 Broad Street. Ask about illness and where people get their drinking water.':'I measured to all the nearby pumps, starting at Broad Street. Let us trace two journeys and find where the walk is equally far in either direction.',choices:[choice('accept',day===3?'Let us examine the map.':'I will bring back those findings.','conclusion')]},
+ {id:'conclusion',speaker:'John Snow',text:day===3?'Here is the map. Begin at the Broad Street pump and follow the streets; move the marker until the two walks balance.':'Come back when you have those accounts. We must work quickly.',choices:[],...(day===3?{terminalAction:'resume-survey' as const}:{}),conclusion:{assignmentDay:day}},
 ]});
 for (const day of [1,2,3] as InquiryDay[]) campaignConversations.push({id:`snow-recap-${day}`,actorId:'john-snow',locationId:'snow-desk',title:`Day ${day} review`,anchor:[-.65,1.35,-2.15],start:'opening',sourceNote:source,...(day===1?{map:'deaths' as const}:{}),beats:[
- {id:'opening',...(day===1?{map:'base' as const}:{}),speaker:'John Snow',text:day===1?'Here are the streets and pumps around Broad Street. Now let us add the addresses from the death returns and see where they gather.':day===2?'Today’s sample had more visible particles, though they tell us little by themselves. The workhouse account is striking. Let us go over what you heard.':'We have the brewery’s account, the brother’s journey and our map comparison. The pump samples have changed in appearance, without revealing the cause. Let us prepare for the Board’s questions.',choices:[choice('pattern',day===1?'Plot the addresses.':'Compare the exposure accounts.','pattern'),...(day===1?[]:[choice('limits','Start with what remains uncertain.','limits')])]},
- {id:'pattern',speaker:'John Snow',text:day===1?'Look how closely the deaths gather around Broad Street. The household you visited drank from this pump; tomorrow we must ask about other water supplies.':day===2?'The workhouse has few deaths and its own supply. At the manufactory, many workers have died at different homes, but they shared a workplace supplied with Broad Street water; Household 2 also uses that pump.':'The brewery men breathe the neighborhood’s air but have their own drinks. And the man who fell ill farther away drank Broad Street water while at work.',choices:[choice('limits','What still troubles you?','limits')]},
- {id:'limits',speaker:'John Snow',text:day===1?'The deaths cluster around Broad Street, but the map cannot settle whether water or another local cause is responsible. The first water sample gave us no answer either. We need to learn who used the pump and who did not.':day===2?'We have not found the cause by looking at the water. I would like more accounts of people who escaped, particularly the brewery men.':'A convenient pump is not always the one people use. The household preferred Broad Street water enough to carry it farther; we must explain that to the Board.',choices:[choice('next','What should happen next?','next')]},
+ {id:'opening',...(day===1?{map:'base' as const}:{}),speaker:'John Snow',text:day===1?'Here are the streets and pumps around Broad Street. Now let us add the addresses from the death returns and see where they gather.':day===2?'Today’s sample had more visible particles, though they tell us little by themselves. The workhouse account is striking. Let us go over what you heard.':'We have the brewery’s account, the brother’s journey and our map comparison. The pump samples have changed in appearance, which at least suggests the water quality varies. Let us prepare for the Board’s questions.',choices:[choice('pattern',day===1?'Plot the addresses.':'Compare the exposure accounts.','pattern'),...(day===1?[]:[choice('limits','Start with what remains uncertain.','limits')])]},
+ {id:'pattern',speaker:'John Snow',text:day===1?'Look how closely the deaths gather around Broad Street. The household you visited drank from this pump; tomorrow we must ask about other water supplies.':day===2?'The workhouse has few deaths and its own water supply. At the manufactory, many workers have died at different homes, but they shared a workplace supplied with Broad Street water; Household 2 also uses that pump.':'The brewery men breathe the neighborhood’s air but have their own drinks. And the man who fell ill farther away drank Broad Street water while at work.',choices:[choice('limits','What still troubles you?','limits')]},
+ {id:'limits',speaker:'John Snow',text:day===1?'The deaths cluster around Broad Street, but the map cannot settle whether water or another local cause is responsible. The first water sample gave us no answer either. We need to learn who used the pump and who did not.':day===2?'We have not found the cause by looking at the water. I would like more accounts of people who escaped, particularly the brewery men.':'A convenient pump is not always the one people use. Several households preferred Broad Street water enough to carry it farther; we must explain that to the Board.',choices:[choice('next','What should happen next?','next')]},
  {id:'next',speaker:'John Snow',text:day<3?'Let us finish for tonight, unless there is someone you wish to see again. We shall take up the remaining questions tomorrow.':'I believe the pump should be closed while we investigate further. Let us set down our argument and the action we will ask the Guardians to take.',choices:[choice('record','Record our review.','conclusion')]},
  {id:'conclusion',speaker:'John Snow',text:day<3?'I have your notes here. We can leave the rest until morning.':'Once our recommendation is ready, we can go before the Guardians.',choices:[],terminalAction:day<3?'end-day':'review-theory',conclusion:{recapDay:day,...(day===1?{evidenceId:'pump-cluster'}:{})}},
 ]});
@@ -158,8 +158,8 @@ const street: Record<string,{actor: ActorId; speaker:string; anchor:[number,numb
  'There is hardly any trade, so I have been reading today’s Daily News. There is a letter here about the sewer works that has set people talking again.']},
  'resident-east':{actor:'resident-east',speaker:'Street resident · neighbor',anchor:[11,1.5,-7],days:[
  'So many people have gone away these past few days. Houses where I used to hear children and visitors are shut up; in some, the people who kept them have died.',
- 'Several tradesmen are still opening their shops, but they have sent their families away. You can walk past door after door without seeing a familiar face.',
- 'The street is quieter, but so many families have fled that I would not take the silence for good news. There are still sick people behind some of those shutters.']},
+ 'Several tradesmen are still opening their shops, but most have sent their families away. You can walk past door after door without seeing a familiar face.',
+ 'The street is quieter, but so many families have fled that I would not take the silence for good news. There are still sick people behind many of those shutters.']},
 };
 for (const [id,person] of Object.entries(street)) for(const day of [1,2,3] as const) {
  if(id==='whitehead' && day===1)continue;
@@ -181,9 +181,9 @@ const objections = [
   ['Proximity does not establish consumption; compare people’s drinking routines.','Everyone near the pump must have become ill.','Only the number of deaths matters.'],
   'Some neighbors drink from other supplies. At the brewery, the men have beer and their own well; living or working nearby does not mean drinking this water.'],
  ['distant','Board member · guardian','And what of people who fell ill at more distant addresses?',
-  ['Work, errands and carried water can connect a distant home to Broad Street.','We should discard any address that does not fit.','Walking time proves what each household drank.'],
-  'The man whose household we visited worked near Broad Street and drank there. He also carried water home: the water could reach beyond the neighboring streets.'],
- ['declining','Chair of the Board','The deaths are already declining. Why remove the pump handle now?',
+  ['Work, errands and carried water can connect a distant home to Broad Street.','We can discard any address that does not fit the pattern.','Walking time proves what each household drank.'],
+  'In one household we visited beyond the immediate neighborhood, a man worked near Broad Street and regularly drank there before becoming ill. He also carried water home: the water could reach beyond the neighboring streets.'],
+ ['declining','Chair of the Board','By your own numbers, the deaths are already declining. Why remove the pump handle now?',
   ['The well could be poisoned again; closing it would prevent further exposure.','The decline proves that the pump is now safe.','Removing the handle will prove what caused the outbreak.'],
   'We have not yet found how the poison entered the well. Whatever poisoned it before could do so again. We must stop people drawing this water and prevent the poison from spreading any farther.'],
 ] as const;
@@ -203,7 +203,7 @@ for(const beat of hearing) {
 campaignConversations.push({id:'board-hearing',actorId:'board-chair',locationId:'board-room',title:'Board hearing',anchor:[0,1.4,-4.5],start:'air',sourceNote:source+' The officials and objections are representative teaching interpretations.',beats:hearing});
 
 campaignConversations.push({id:'walking-review',actorId:'john-snow',locationId:'snow-desk',title:'Walking-access comparison',anchor:[-.65,1.35,-2.15],start:'opening',sourceNote:source,beats:[
- {id:'opening',speaker:'John Snow',text:'Household 3 is beyond the boundary, where another pump is closer. Someone there has fallen ill. We should find out whether they ever used Broad Street water.',choices:[choice('meaning','Does the nearer pump establish what someone drank?','limits'),choice('exceptions','Why might someone use a farther pump?','preferences')]},
+ {id:'opening',speaker:'John Snow',text:'Household 3 is beyond the boundary, where another pump is closer. One person there died of cholera yesterday. We should find out whether they ever used Broad Street water.',choices:[choice('meaning','Does the nearer pump establish what someone drank?','limits'),choice('exceptions','Why might someone use a farther pump?','preferences')]},
  {id:'preferences',speaker:'John Snow',text:'Some people avoid the Marlborough water, and the streets make certain journeys to Rupert Street circuitous. Convenience, taste, work and errands can all affect which pump people use.',choices:[choice('limits','What does that mean for our evidence?','limits')]},
  {id:'limits',speaker:'John Snow',text:'Living outside the boundary need not mean drinking different water. Ask this household about the days before the illness; let their account tell us whether there is a connection.',choices:[choice('record','I will visit Household 3. What else needs doing?','conclusion')]},
  {id:'conclusion',speaker:'John Snow',text:'Visit Household 3 outside the boundary, and speak with the brewery owners, whose men seem to have escaped despite working nearby. Draw another sample from Broad Street as well, and bring the accounts and water notes back this evening.',choices:[],conclusion:{objective:'walking-access',evidenceId:'walking-access'}}

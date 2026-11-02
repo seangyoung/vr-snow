@@ -3502,6 +3502,7 @@ test('old saves retain completed days without fabricating manufactory evidence, 
 
 test('manufactory interview introduces illness through questions before asking about water on every approach',()=>{
  const graph=conversations.find(c=>c.id==='manufactory-supply');assert.match(graph.sourceNote,/authored interim estimate.*not a documented September 6 count/);
+ assert.match(graph.beats.find(b=>b.id==='answer-0').text,/two hundred/,'workforce size belongs in the answer about staffing');
  for(const approach of graph.beats[0].choices){const progress=new ConversationProgress();progress.open(graph.id);
   assert.doesNotMatch(progress.view().text,/died|deaths|dozen|sick|water/);
   progress.choose('opening',approach.id);
@@ -3511,7 +3512,7 @@ test('manufactory interview introduces illness through questions before asking a
   }
   let view=progress.view();assert.equal(view.beatId,'answer-1');assert.match(view.text,/about a dozen.*some are sick now/);
   assert.match(view.choices[0].label,/drinking water/);progress.choose(view.beatId,view.choices[0].id);
-  view=progress.view();assert.match(view.text,/two tubs.*Broad Street.*two hundred/);assert.doesNotMatch(view.text,/eighteen|\b18\b/);
+  view=progress.view();assert.match(view.text,/two tubs.*Broad Street.*workers/);assert.doesNotMatch(view.text,/eighteen|\b18\b/);
  }
 });
 
