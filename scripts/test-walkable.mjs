@@ -2534,11 +2534,11 @@ test('pump destinations and survey origins are removed from the world and travel
  assert.ok(!game.getAllHotspots().some(h=>h.id.startsWith('survey-')));
  assert.ok(!streetTravelRoutes.some(r=>r.to==='marlborough-pump'||r.to==='rupert-pump'));
 });
-test('hearing conclusions expose the explicit decision action and label historical versus alternate outcomes',()=>{
+test('hearing conclusions expose the decision action and distinguish the fictional alternate ending',()=>{
  for(const {id} of new GameState().getHypotheses()) {
   const game=reviewGame();game.selectHypothesis(id);game.prepareBoardArgument();game.presentToBoard();game.beginHearing();finishConversation(game);
-  assert.equal(game.getConversationView().terminalAction,'board-decision');assert.match(game.getCurrentSceneBody().join(' '),id==='waterborne'?/Historical course/:/Alternate teaching conclusion/);
-  game.finishBoard();assert.match(game.getCurrentSceneBody().join(' '),id==='waterborne'?/already declining/:/fictional teaching outcome/);
+  assert.equal(game.getConversationView().terminalAction,'board-decision');assert.match(game.getCurrentSceneBody().join(' '),id==='waterborne'?/Guardians order the pump handle removed/:/leave the pump open, against Snow’s advice/);
+  game.finishBoard();assert.match(game.getCurrentSceneBody().join(' '),id==='waterborne'?/September 8: the handle is gone.*already declining/:/While fictional, this hypothetical account/);
  }
 });
 

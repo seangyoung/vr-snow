@@ -326,13 +326,13 @@ export class GameState {
     if (this.stage === "board" && hypothesis) {
       if (hypothesis.id === "waterborne") {
         return [
-          "Historical course: you support Snow’s argument. The Guardians order the pump handle removed tomorrow morning.",
+          "You support Snow’s argument. The Guardians order the pump handle removed tomorrow morning.",
           `Recommended action: ${hypothesis.boardAction}`,
         ];
       }
 
       return [
-        `Alternate teaching conclusion: you persuade the Guardians to favor ${hypothesis.title.toLowerCase()} and leave the pump open, against Snow’s advice.`,
+        `You persuade the Guardians to favor ${hypothesis.title.toLowerCase()} and leave the pump open, against Snow’s advice.`,
         `Recommended action: ${hypothesis.boardAction}`,
         "Snow continues to argue that the water carries the poison and urges the Board to close the pump.",
       ];
@@ -341,15 +341,15 @@ export class GameState {
     if (this.stage === "complete" && hypothesis) {
       if (hypothesis.id === "waterborne") {
         return [
-          "Historical outcome — September 8: the handle is gone. A notice on the pump records the Guardians’ order. The outbreak was already declining, so its decline cannot by itself establish the effect of removing the handle.",
-          "Whitehead later changed his mind. His inquiries at 40 Broad Street, together with parish investigations of defective drainage beside the well, helped explain how the water became contaminated.",
+          "September 8: the handle is gone. A notice on the pump records the Guardians’ order. The outbreak was already declining, so its decline cannot by itself establish the effect of removing the handle, although later investigation will suggest removing the pump handle may have prevented a second wave of Cholera.",
+          "Reverend Whitehead, initially critical of Snow's theory and the pump handle removal, later changed his mind. His inquiries at 40 Broad Street, together with parish investigations of defective drainage beside the well, helped explain how the water became contaminated. His later writings fully supported Snow's theory.",
           chronologyNote,
         ];
       }
 
       return [
-        "Alternate course — a fictional teaching outcome: your argument persuades the Board to leave the pump open despite Snow’s continuing objection. Historically, the handle was removed on September 8, when the outbreak was already declining.",
-        "Whitehead later changed his mind. His inquiries at 40 Broad Street and the parish investigation of drainage beside the well strengthened the water explanation.",
+        "Your argument persuades the Board to leave the pump open despite Snow’s continuing objection. A few days later, deaths from Cholera begin rising again. A second wave devastates the neighborhood.",
+        "While fictional, this hypothetical account is plausible based on the latest information about the outbreak. Replay the inquiry to learn what actually happened.",
         chronologyNote,
       ];
     }
