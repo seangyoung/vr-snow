@@ -1,5 +1,5 @@
 import { streetPlacement, streetExtras } from './streetPopulation';
-import { surveyRoutes, observation, pumpJourneys, routePoint, nearestRouteFraction, walkingTime, type SurveyProgress, type GuidedSurveyView, type RouteId, type FieldworkView } from "./fieldwork";
+import { surveyRoutes, observation, pumpJourneys, routePoint, nearestRouteFraction, walkingTime, walkingDistance, type SurveyProgress, type GuidedSurveyView, type RouteId, type FieldworkView } from "./fieldwork";
 import { days, dayDefinition, locationDay, chronologyNote, type InquiryDay, type ObjectiveId } from "./campaign";
 import { waterSamples, sampleConversation } from './waterSamples';
 import { conversations } from "./conversations";
@@ -91,10 +91,10 @@ export class GameState {
       text:`I measured to all the nearby public pumps. For this example, start at Broad Street and follow the streets to ${alternative}.`,
       actions:[{id:'trace',label:'Trace the street route'}]};
     base.mapPolyline=journey.polyline;
-    base.results=[{label:'Back to Broad Street',time:`${Math.round(journey.metres*fraction)} m · ${walkingTime(Math.round(journey.seconds*fraction))}`},
-      {label:`On to ${alternative}`,time:`${Math.round(journey.metres*(1-fraction))} m · ${walkingTime(Math.round(journey.seconds*(1-fraction)))}`}];
+    base.results=[{label:'Back to Broad Street',time:`${walkingDistance(journey.metres*fraction)} · ${walkingTime(Math.round(journey.seconds*fraction))}`},
+      {label:`On to ${alternative}`,time:`${walkingDistance(journey.metres*(1-fraction))} · ${walkingTime(Math.round(journey.seconds*(1-fraction)))}`}];
     if(progress.phase==='compare')return {...base,markerFraction:fraction,
-      text:`The whole journey is ${journey.metres} metres (${walkingTime(journey.seconds)}). Grab the red marker and slide it along the route until the two walks balance.`,
+      text:`The whole journey is about ${walkingDistance(journey.metres)} (${walkingTime(journey.seconds)}). Grab the red marker and slide it along the route until the two walks balance.`,
       actions:progress.marker===2?[{id:'mark',label:'Mark this equal-distance point'}]:[]};
     return {...base,text:'Here the distance is equal in either direction along this route. To draw a boundary, I must also check the nearest streets and the other pumps—not merely join two marks.',
       actions:[{id:route.pair==='marlborough'?'next':'finish',label:route.pair==='marlborough'?'Explore the Bridle Lane journey':'Show Snow’s full pump service area'}]};

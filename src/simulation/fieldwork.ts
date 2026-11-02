@@ -62,3 +62,10 @@ export interface GuidedSurveyView {
 }
 export const pumpName = (route: typeof surveyRoutes[number]): string => `${route.pumpLabel} pump`;
 export const walkingTime = (seconds:number):string => `${Math.floor(seconds/60)}m ${String(seconds%60).padStart(2,'0')}s`;
+/** Period-facing distance; retain metric route geometry and saves internally.
+ * Snow's 1855 Broad Street account uses yards. Round only the displayed value.
+ */
+export function walkingDistance(metres:number):string {
+ const yards=Math.round(metres/.9144);
+ return `${yards} ${yards===1?'yard':'yards'}`;
+}

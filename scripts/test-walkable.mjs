@@ -23,7 +23,7 @@ const { teleportViewer, turnViewer, standardTurnAxis, StickTeleport, hasTeleport
 const { DesktopMovement } = await load("walkable/DesktopMovement");
 const { PumpCourtyard, isValidDestination, canWalkBetween, pumpPosition, streetSpawn } = await load("walkable/PumpCourtyard");
 const { GameState } = await load("simulation/gameState");
-const {surveyRoutes,pumpJourneys,routePoint,nearestRouteFraction}=await load("simulation/fieldwork");
+const {surveyRoutes,pumpJourneys,routePoint,nearestRouteFraction,walkingDistance}=await load("simulation/fieldwork");
 const { BroadStreetScene } = await load("render/BroadStreetScene");
 
 test("VR street entry supports pump selection, squeeze panel access, and teleport", () => {
@@ -3795,5 +3795,28 @@ test('refined cabinet instruments export as complete, reachable pickups with vis
   assert.equal(propFor(hit?.object)?.name,name,`${name}: pickup from a standing position in front of the cabinet`);
   if(name==='Sick syphon')assert.ok(box.getSize(new THREE.Vector3()).x>.14,'enlarged S-shaped pipe');
   if(name==='Lancet case')assert.ok(box.getSize(new THREE.Vector3()).y>.06,'hinged lid remains attached to the complete case');
+ }
+});
+
+test('map-table distances use rounded yards on both journeys while metric saves and timing stay unchanged',()=>{
+ assert.equal(walkingDistance(0),'0 yards');assert.equal(walkingDistance(.9144),'1 yard');
+ assert.equal(walkingDistance(91.44),'100 yards');assert.equal(walkingDistance(100),'109 yards');
+ const game=gameAtDay(3,true);game.resumePumpComparison();
+ for(const journey of pumpJourneys) {
+  assert.ok(game.advancePumpComparison('trace'));
+  for(const fraction of [0,.25,.34,.5,.75,1]) {
+   game.movePumpMarker(fraction);const view=game.getFieldworkView().guided;
+   assert.match(view.text,new RegExp(`about ${Math.round(journey.metres/.9144)} yards`));
+   for(const [i,part] of [fraction,1-fraction].entries()) {
+    const seconds=Math.round(journey.seconds*part);
+    assert.equal(view.results[i].time,`${Math.round(journey.metres*part/.9144)} yards · ${Math.floor(seconds/60)}m ${String(seconds%60).padStart(2,'0')}s`);
+   }
+   assert.doesNotMatch(view.text+view.results.map(r=>r.time).join(' '),/metres|meters|\d m ·/);
+  }
+  game.movePumpMarker(.5);assert.ok(game.advancePumpComparison('mark'));
+  const leg=game.getRouteObservations().find(r=>r.routeId===`${journey.id}-broad`);
+  assert.equal(leg.metres,journey.metres/2);
+  assert.ok(game.getFieldworkView().guided.results.every(r=>r.time.includes('yards')));
+  assert.ok(game.advancePumpComparison(journey.id==='marlborough'?'next':'finish'));
  }
 });

@@ -106,6 +106,13 @@ That supports the exploratory idea, not a claim that he constructed the whole
 boundary simply by connecting pump-to-pump midpoints. The established compressed
 chronology includes this later cartographic work.
 
+Player-facing map-table distances use whole yards, including the full journey
+and both live marker readouts on desktop and in VR. Snow's 1855
+[Broad Street account](https://www.academia.dk/MedHist/Biblioteket/Print/snow_1855.html)
+describes the outbreak's extent in yards. The display converts using 0.9144 m per
+yard and rounds only at presentation; route geometry, saved observations,
+midpoint placement and walking times retain their existing metric calculations.
+
 Run `python3 scripts/calibrate-inquiry-routes.py` to reproduce the coefficients and
 timings without a download. Input coordinates and source URLs remain in the data.
 
